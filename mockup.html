@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decision Dashboard — Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;1,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-0:#0a0a0c; --bg-1:#111114; --bg-2:#17171b; --bg-3:#1f1f24;
+  --ink-0:#f5f1eb; --ink-1:#c9c5bf; --ink-2:#8f8c87; --ink-3:#5c5a56;
+  --bull:#23d18b; --bear:#f25f5c; --amber:#f4b740; --cyan:#5ec5ea; --violet:#b48ead;
+  --serif:'Fraunces',Georgia,serif; --sans:'Geist','Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  --line:#26262c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg-0);color:var(--ink-0);font-family:var(--sans);font-size:14px;line-height:1.45;
+  background-image:radial-gradient(1200px 500px at 70% -10%, rgba(94,197,234,.045), transparent),
+                   radial-gradient(900px 400px at 10% 110%, rgba(244,183,64,.03), transparent);}
+.mono{font-family:var(--mono)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px 60px}
+header{display:flex;align-items:center;gap:26px;padding:14px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(10,10,12,.92);backdrop-filter:blur(6px);z-index:20}
+.logo{font-family:var(--serif);font-size:19px}.logo em{color:var(--amber);font-style:italic}
+nav{display:flex;gap:4px}
+nav button{background:none;border:0;color:var(--ink-2);font-family:var(--sans);font-size:13.5px;padding:7px 13px;border-radius:7px;cursor:pointer}
+nav button.on{background:var(--bg-3);color:var(--ink-0)}
+nav button:hover{color:var(--ink-0)}
+.hdr-note{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.mocktag{font-family:var(--mono);font-size:10px;color:var(--violet);border:1px solid rgba(180,142,173,.4);border-radius:4px;padding:2px 6px}
+
+/* regime line */
+.regime{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--ink-1)}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:5px;padding:3px 9px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+.chip.mixed{background:rgba(244,183,64,.13);color:var(--amber);border:1px solid rgba(244,183,64,.35)}
+.chip.up{color:var(--bull)} .chip.dn{color:var(--bear)}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.regime .sep{color:var(--ink-3)}
+.asof{font-size:10px;color:var(--ink-3);margin-left:auto}
+
+/* phase toggle */
+.phase{display:flex;gap:4px;background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:3px}
+.phase button{background:none;border:0;color:var(--ink-2);font-family:var(--mono);font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer}
+.phase button.on{background:var(--bg-3);color:var(--ink-0)}
+
+h2.sec{font-family:var(--mono);font-size:11px;font-weight:400;color:var(--ink-2);letter-spacing:.14em;text-transform:uppercase;margin:26px 0 10px;display:flex;align-items:center;gap:10px}
+h2.sec .n{color:var(--ink-3)}
+
+/* action queue */
+.queue{display:flex;flex-direction:column;gap:8px}
+.qcard{background:var(--bg-1);border:1px solid var(--line);border-left:3px solid var(--ink-3);border-radius:10px;padding:11px 14px;cursor:pointer}
+.qcard.buy{border-left-color:var(--bull)} .qcard.avoid{border-left-color:var(--bear)} .qcard.watch{border-left-color:var(--amber)}
+.qtop{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.qtick{font-family:var(--mono);font-weight:600;font-size:15px;color:var(--cyan);cursor:pointer;text-decoration:underline dotted}
+.qact{font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:2px 7px;border-radius:4px}
+.qact.b{background:rgba(35,209,139,.14);color:var(--bull)} .qact.s{background:rgba(242,95,92,.14);color:var(--bear)} .qact.w{background:rgba(244,183,64,.14);color:var(--amber)}
+.qcall{font-size:13.5px;color:var(--ink-0)}
+.qstate{margin-left:auto;font-family:var(--mono);font-size:10.5px;padding:2px 8px;border-radius:4px}
+.qstate.trig{background:rgba(35,209,139,.16);color:var(--bull);border:1px solid rgba(35,209,139,.4)}
+.qstate.near{background:rgba(244,183,64,.12);color:var(--amber)}
+.qstate.inval{background:rgba(242,95,92,.12);color:var(--bear)}
+.qstate.plan{color:var(--ink-3);border:1px solid var(--line)}
+.qsub{margin-top:5px;font-family:var(--mono);font-size:11px;color:var(--ink-2);display:flex;gap:14px;flex-wrap:wrap}
+.qsub b{color:var(--ink-1);font-weight:400}
+.qsrc{margin-top:5px;font-family:var(--mono);font-size:10px;color:var(--ink-3);display:none}
+.qcard.open .qsrc{display:block}
+
+/* strips */
+.strip{display:flex;gap:8px;flex-wrap:wrap}
+.lv{background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-family:var(--mono);font-size:11.5px;color:var(--ink-1)}
+.lv b{color:var(--ink-0);font-weight:600}
+.lv .sup{color:var(--bull)} .lv .res{color:var(--amber)}
+.cal .lv{border-left:2px solid var(--violet)}
+.cal .lv.hot{border-left-color:var(--bear)}
+.heat{display:flex;gap:6px;flex-wrap:wrap}
+.heat .h{font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:5px;background:var(--bg-1);border:1px solid var(--line);cursor:pointer}
+.heat .h span{color:var(--ink-2);margin-right:5px}
+
+/* two-col */
+.cols{display:grid;grid-template-columns:1.6fr 1fr;gap:22px}
+@media(max-width:900px){.cols{grid-template-columns:1fr}}
+
+/* brief */
+.brief{background:var(--bg-1);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.brief .head{font-family:var(--serif);font-style:italic;font-size:17px;line-height:1.4;margin-bottom:8px}
+.tl{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.tl .t{display:flex;gap:10px;font-size:12.5px;color:var(--ink-2)}
+.tl .t .tm{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);min-width:56px;padding-top:2px}
+.tl .t.live{color:var(--ink-1)} .tl .t.live .tm{color:var(--cyan)}
+.tl .t.pend{opacity:.45}
+.more{font-family:var(--mono);font-size:10.5px;color:var(--cyan);cursor:pointer;margin-top:8px;display:inline-block}
+
+/* tables */
+table{width:100%;border-collapse:collapse}
+th{font-family:var(--mono);font-size:10px;font-weight:400;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid #1b1b20;vertical-align:middle}
+tr.row{cursor:pointer} tr.row:hover td{background:rgba(255,255,255,.015)}
+.tick{font-family:var(--mono);font-weight:600;color:var(--cyan)}
+.px{font-family:var(--mono);font-size:12.5px}
+.px small{display:block;font-size:11px}
+.up{color:var(--bull)} .dn{color:var(--bear)} .amb{color:var(--amber)}
+.badge{font-family:var(--mono);font-size:10px;letter-spacing:.06em;padding:2px 6px;border-radius:4px;margin-right:7px}
+.badge.buy{background:rgba(35,209,139,.15);color:var(--bull)}
+.badge.hold{background:rgba(244,183,64,.12);color:var(--amber)}
+.badge.sell{background:rgba(242,95,92,.15);color:var(--bear)}
+.call{font-size:13px;color:var(--ink-0)}
+.m11{font-family:var(--mono);font-size:11.5px;color:var(--ink-1)}
+.m10{font-family:var(--mono);font-size:10.5px;color:var(--ink-2)}
+.grp td{background:var(--bg-1);font-family:var(--mono);font-size:10px;color:var(--ink-2);letter-spacing:.12em;text-transform:uppercase;padding:6px 10px}
+.xrow td{background:var(--bg-1);padding:12px 14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips .c{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);background:var(--bg-2);border:1px solid var(--line);border-radius:4px;padding:3px 7px}
+.hide{display:none}
+
+/* options */
+.optrow .best{font-size:13px}
+.volc{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px}
+.volc.cheap{background:rgba(35,209,139,.13);color:var(--bull)}
+.volc.rich{background:rgba(242,95,92,.13);color:var(--bear)}
+.volc.mid{background:var(--bg-2);color:var(--ink-2);border:1px solid var(--line)}
+.lane{border:1px solid var(--line);border-radius:8px;margin:8px 0;background:var(--bg-2)}
+.lane .lh{display:flex;gap:12px;align-items:center;padding:8px 12px;cursor:pointer;font-size:12.5px}
+.lane .ln{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);min-width:54px}
+.lane .lv2{color:var(--ink-1)}
+.lane .lstate{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+.lane .lstate.ok{color:var(--bull)} .lane .lstate.gated{color:var(--amber)} .lane .lstate.ref{color:var(--ink-3)}
+.lane .body{display:none;padding:0 12px 12px}
+.lane.open .body{display:block}
+.hdot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.hdot.g{background:var(--bull)} .hdot.a{background:var(--amber)} .hdot.r{background:var(--bear)}
+.deep{display:none}
+tr.deep td{background:var(--bg-1);font-family:var(--mono);font-size:11px;color:var(--ink-2);padding:8px 12px}
+tr.deep.show{display:table-row}
+
+/* ticker hero */
+.hero{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:18px;background:var(--bg-1);border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:18px}
+@media(max-width:900px){.hero{grid-template-columns:1fr}}
+.verdict{font-family:var(--serif);font-style:italic;font-size:44px;color:var(--bull);line-height:1}
+.h3{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}
+.ladder{font-family:var(--mono);font-size:12px;display:flex;flex-direction:column;gap:6px}
+.ladder .l{display:flex;gap:10px;align-items:center}
+.ladder .lbl{min-width:56px;color:var(--ink-3);font-size:10px;letter-spacing:.08em}
+.ladder .val{color:var(--ink-0)}
+.ladder .now .val{color:var(--cyan);font-weight:600}
+.ladder .bar{flex:1;height:2px;background:var(--bg-3);position:relative;border-radius:1px}
+.ladder .bar i{position:absolute;top:-2px;width:6px;height:6px;border-radius:50%}
+.acc{border:1px solid var(--line);border-radius:10px;margin-top:10px;background:var(--bg-1)}
+.acc .ah{display:flex;gap:12px;align-items:center;padding:11px 14px;cursor:pointer}
+.acc .ah .t{font-family:var(--serif);font-size:15px}
+.acc .ah .sum{color:var(--ink-2);font-size:12px}
+.acc .ah .car{margin-left:auto;color:var(--ink-3);font-family:var(--mono)}
+.acc .ab{display:none;padding:0 14px 14px;color:var(--ink-1);font-size:12.5px}
+.acc.open .ab{display:block}
+.vline{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px dashed #1e1e23}
+.vline:last-child{border:0}
+.vline .k{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);min-width:110px;letter-spacing:.06em}
+.note{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:8px}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:50}
+.modal-bg.show{display:flex;align-items:center;justify-content:center}
+.modal{background:var(--bg-1);border:1px solid var(--line);border-radius:12px;max-width:640px;width:92%;max-height:80vh;overflow:auto;padding:20px 22px}
+.modal h3{font-family:var(--serif);margin-bottom:10px}
+.modal p{color:var(--ink-1);font-size:13px;margin-bottom:10px}
+.qm{font-family:var(--mono);font-size:11px;color:var(--cyan);border:1px solid rgba(94,197,234,.4);border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.view{display:none}.view.on{display:block}
+.src-dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);display:inline-block;cursor:help}
+.src-dot.stale{background:var(--amber)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Trading <em>Dashboard</em></div>
+  <nav>
+    <button class="on" data-v="today">Today</button>
+    <button data-v="names">Names</button>
+    <button data-v="options">Options</button>
+    <button data-v="income">Income</button>
+    <button data-v="ticker">NVDA <span style="color:var(--ink-3);font-size:11px">· ticker page</span></button>
+  </nav>
+  <div class="hdr-note">ET 11:16 · PT 08:16</div>
+  <span class="mocktag">MOCKUP · dummy data</span>
+</header>
+
+<div class="wrap">
+
+<!-- ============ TODAY ============ -->
+<section class="view on" id="v-today">
+  <div class="regime">
+    <span class="chip mixed">MIXED</span>
+    <span>VIX <b class="mono" style="color:var(--ink-0)">15.85</b> <span class="dn">+4.3%</span> · contango</span><span class="sep">·</span>
+    <span>10Y <b style="color:var(--ink-0)">4.72</b></span><span class="sep">·</span>
+    <span>SPY &gt; 200D <span class="up">✓</span></span><span class="sep">·</span>
+    <span>ES <span class="dn">−0.58%</span> · NQ <span class="dn">−1.76%</span> · WTI <span class="up">+0.8%</span> · GLD <span class="dn">−1.0%</span></span><span class="sep">·</span>
+    <span style="color:var(--amber)">FOMC minutes tomorrow 11:00 PT</span>
+    <span class="asof"><span class="src-dot" title="Yahoo + FRED · 15-min delayed · as of 08:16"></span> as of 08:16</span>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:14px;margin-top:18px">
+    <h2 class="sec" style="margin:0">Action queue <span class="n" id="qn">· 6</span></h2>
+    <div class="phase" id="phase">
+      <button class="on" data-p="am">Morning</button>
+      <button data-p="mid">Intraday</button>
+      <button data-p="pm">Post-close</button>
+    </div>
+    <span class="m10" id="phase-note">the plan — ranked by conviction × proximity</span>
+  </div>
+
+  <div class="queue" id="queue"></div>
+
+  <div class="cols">
+    <div>
+      <h2 class="sec">Levels watch <span class="n">· within 3% of key level</span></h2>
+      <div class="strip">
+        <div class="lv"><b>AVGO</b> 2.3% above <span class="sup">369 sup</span></div>
+        <div class="lv"><b>APP</b> 2.4% above <span class="sup">303 sup</span></div>
+        <div class="lv"><b>HOOD</b> 2.3% from <span class="sup">83.7 sup</span> · golden</div>
+        <div class="lv"><b>HD</b> 4.7% below <span class="res">358 res</span> · earnings today</div>
+        <div class="lv"><b>CAVA</b> 2.4% from golden flip</div>
+      </div>
+
+      <h2 class="sec">Radar <span class="n">· off-watchlist discovery · quality-gated · max 5/day</span></h2>
+      <div class="strip" style="flex-direction:column">
+        <div class="lv" style="font-family:var(--sans);font-size:12.5px;display:flex;gap:10px;align-items:center">
+          <b class="tick" style="font-size:13px">CAT</b><span>Sector leader +2.9% on data-center capex — golden cross forming, $50B+ cap</span>
+          <span class="m10" style="margin-left:auto">sector pick</span><span class="qm" style="width:auto;border-radius:5px;padding:0 8px;height:22px">+ watch</span>
+        </div>
+        <div class="lv" style="font-family:var(--sans);font-size:12.5px;display:flex;gap:10px;align-items:center">
+          <b class="tick" style="font-size:13px">LLY</b><span>Held green on a red tape — GLP-1 volume, insulated from reimbursement pressure</span>
+          <span class="m10" style="margin-left:auto">rel. strength</span><span class="qm" style="width:auto;border-radius:5px;padding:0 8px;height:22px">+ watch</span>
+        </div>
+        <div class="lv" style="font-family:var(--sans);font-size:12.5px;display:flex;gap:10px;align-items:center">
+          <b class="tick" style="font-size:13px">COST</b><span>Fresh golden cross in S&amp;P 500 sweep — staples name outperforming its sector</span>
+          <span class="m10" style="margin-left:auto">golden sweep</span><span class="qm" style="width:auto;border-radius:5px;padding:0 8px;height:22px">+ watch</span>
+        </div>
+        <div class="note">universe: S&amp;P 500 + Nasdaq 100 · gates: cap &gt; $10B, price &gt; $20, listed options with OI, avg $vol floor — the scanner engine, pointed at names you'd actually trade</div>
+      </div>
+
+      <h2 class="sec">Your movers <span class="n">· watchlist ±3%</span></h2>
+      <div class="strip">
+        <div class="lv"><b>MRVL</b> <span class="dn">−9.0%</span></div>
+        <div class="lv"><b>CRWV</b> <span class="dn">−8.9%</span></div>
+        <div class="lv"><b>ARM</b> <span class="dn">−8.2%</span></div>
+        <div class="lv"><b>INTC</b> <span class="dn">−7.7%</span></div>
+        <div class="lv"><b>APLD</b> <span class="dn">−7.6%</span></div>
+        <div class="lv"><b>AMD</b> <span class="dn">−5.7%</span></div>
+        <div class="lv"><b>HD</b> <span class="up">+1.4%</span></div>
+      </div>
+
+      <h2 class="sec">Sector heat <span class="n">· click a chip for detail</span></h2>
+      <div class="heat">
+        <div class="h"><span>XLE</span><b class="up">+1.1</b></div>
+        <div class="h"><span>XLK</span><b class="up">+0.2</b></div>
+        <div class="h"><span>XLI</span><b class="dn">−0.1</b></div>
+        <div class="h"><span>XLV</span><b class="dn">−0.2</b></div>
+        <div class="h"><span>XLB</span><b class="dn">−0.6</b></div>
+        <div class="h"><span>XLF</span><b class="dn">−1.0</b></div>
+        <div class="h"><span>XLY</span><b class="dn">−1.2</b></div>
+        <div class="h"><span>XLU</span><b class="dn">−0.4</b></div>
+        <div class="h"><span>XLP</span><b class="dn">−1.6</b></div>
+        <div class="h"><span>XLRE</span><b class="dn">−0.9</b></div>
+        <div class="h"><span>XLC</span><b class="dn">−0.7</b></div>
+      </div>
+    </div>
+
+    <div>
+      <h2 class="sec">Session brief</h2>
+      <div class="brief">
+        <div class="head">Stocks slip broadly as yields firm above 4.7% and VIX pops; NQ lags ahead of FOMC minutes.</div>
+        <div style="font-size:12.5px;color:var(--ink-1)">Hold the SPX 7,700 zone or 7,650 opens. Energy outperforms on WTI ~84; rate-sensitives lag. Tone cautious-to-risk-off into tomorrow's minutes.</div>
+        <div class="tl">
+          <div class="t live"><span class="tm">06:00</span><span>Morning brief — above ✓</span></div>
+          <div class="t pend"><span class="tm">11:30</span><span>Midday pulse — updates here</span></div>
+          <div class="t pend"><span class="tm">13:15</span><span>Close recap — updates here</span></div>
+        </div>
+        <span class="more">full brief ▸</span>
+      </div>
+
+      <h2 class="sec">Calendar <span class="n">· next 5 that touch your names</span></h2>
+      <div class="strip cal" style="flex-direction:column">
+        <div class="lv hot"><b>Today</b> · HD reported <b>BMO</b> (held) · reaction day</div>
+        <div class="lv"><b>Aug 19</b> · FOMC minutes 11:00 PT</div>
+        <div class="lv hot"><b>Aug 26</b> · NVDA earnings <b>AMC</b> (E-8d) · deadline = that close · + PCE 05:30 PT</div>
+        <div class="lv"><b>Aug 27</b> · MRVL earnings <b>AMC</b></div>
+        <div class="lv"><b>Sep 4</b> · Jobs report · <span style="color:var(--ink-3)">CAVA Nov 10 <i>est.</i> — unconfirmed dates render as estimates</span></div>
+      </div>
+
+      <h2 class="sec">Headlines <span class="n">· 3 of 8</span></h2>
+      <div class="strip" style="flex-direction:column">
+        <div class="lv" style="font-family:var(--sans);font-size:12.5px"><b>FOMC minutes Wednesday</b> — hawkish read extends the 10Y back-up → pressure on your high-multiple tech.</div>
+        <div class="lv" style="font-family:var(--sans);font-size:12.5px"><b>Yields grind higher into data week</b> — 4.74% is the headwind for APP, QUBT, CRWV.</div>
+        <div class="lv" style="font-family:var(--sans);font-size:12.5px"><b>NQ underperforms SPX</b> — concentrated unwind in semis; watch NVDA/AMD relative strength.</div>
+        <span class="more">5 more ▸</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ NAMES ============ -->
+<section class="view" id="v-names">
+  <h2 class="sec" style="margin-top:20px">Names <span class="n">· 33 · sorted by attention · row expands · ticker → ticker page · option rec → Options</span>
+    <span class="m10" style="margin-left:auto"><span class="src-dot" title="one verdict store: this table and the ticker page read the SAME analysis record — they cannot disagree"></span> verdicts as of 08:17 · revalidated on tab focus</span></h2>
+  <table>
+    <thead><tr>
+      <th style="width:120px">Ticker</th><th style="width:250px">Verdict · the call</th><th>Key level</th><th>Trend</th><th>Earnings</th><th>Options</th>
+    </tr></thead>
+    <tbody>
+      <tr class="grp"><td colspan="6">At level / triggered · 3</td></tr>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">AMD</span><div class="px">477.07 <small class="dn">−5.7%</small></div></td>
+        <td><span class="badge buy">BUY</span><span class="call">Dips toward 460–480 · add &gt; 561 · stop 424</span></td>
+        <td class="m11"><span class="amb">▼ in the buy zone now</span></td>
+        <td class="m11"><span class="up">● Golden 56.6%</span></td>
+        <td class="m11">Nov 3 <span class="m10">AMC</span></td>
+        <td><span class="volc mid">vol mid</span> <span class="m10">Nov 480/540 vert · E[R] 61%</span></td>
+      </tr>
+      <tr class="xrow hide"><td colspan="6">
+        <div class="chips">
+          <span class="c">RSI 46.7</span><span class="c">swing +0.3σ</span><span class="c">fwd P/E 30.9</span><span class="c">short 2.3%</span><span class="c">analyst +28.5%</span><span class="c">52w 149–585</span><span class="c">Technology</span>
+          <span class="c">drivers: 50% rev growth · PEG 1.1 · $613 target · yields 4.74% pressure</span>
+        </div>
+        <div class="note"><span class="src-dot" title="Yahoo + Claude · as of 08:17"></span> full rationale, fundamentals, history → expands here (unchanged data, demoted from the row)</div>
+      </td></tr>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">AVGO</span><div class="px">378.20 <small class="dn">−3.6%</small></div></td>
+        <td><span class="badge buy">BUY</span><span class="call">Accumulate 369–380 · add on close &gt; 400</span></td>
+        <td class="m11"><span class="up">▲ 2.3%</span> <span class="m10">sup 369</span></td>
+        <td class="m11"><span class="up">● Golden 5.5%</span></td>
+        <td class="m11">Sep 2</td>
+        <td><span class="volc cheap">vol cheap</span> <span class="m10">Sep 390C · E[R] 54%</span></td>
+      </tr>
+      <tr class="xrow hide"><td colspan="6"><div class="chips"><span class="c">RSI 40.9</span><span class="c">Buy −2.7σ</span><span class="c">fwd P/E 19.4</span><span class="c">short 1.3%</span><span class="c">52w 262–495</span></div></td></tr>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">APP</span><div class="px">310.52 <small class="dn">−0.5%</small></div></td>
+        <td><span class="badge hold">HOLD</span><span class="call">Add on reclaim of 360 · stop &lt; 303</span></td>
+        <td class="m11"><span class="up">▲ 2.4%</span> <span class="m10">sup 303</span></td>
+        <td class="m11"><span class="dn">● Death 12.1%</span></td>
+        <td class="m11">Nov 4</td>
+        <td><span class="volc rich">vol rich</span> <span class="m10">no long structure</span></td>
+      </tr>
+      <tr class="xrow hide"><td colspan="6"><div class="chips"><span class="c">RSI 29.9 oversold</span><span class="c">momentum 1M −35.7%</span><span class="c">52.8% growth · 14.9× fwd</span></div></td></tr>
+
+      <tr class="grp"><td colspan="6">Earnings ≤ 7d · 2</td></tr>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">HD</span><div class="px">342.43 <small class="up">+1.4%</small></div></td>
+        <td><span class="badge hold">HOLD</span><span class="call">Reported BMO — reaction day · add &gt; 323 hold · trim &lt; 337 fail</span></td>
+        <td class="m11"><span class="amb">▼ 4.7%</span> <span class="m10">res 358</span></td>
+        <td class="m11"><span class="amb">◆ Death 2.5% ▲</span></td>
+        <td class="m11 amb">today <b>BMO ✓</b></td>
+        <td><span class="volc mid">vol mid</span> <span class="m10">—</span></td>
+      </tr>
+      <tr class="xrow hide"><td colspan="6"><div class="chips"><span class="c">RSI 50.8</span><span class="c">earnings −4.3% · 21× fwd</span><span class="c">housing pressure</span></div></td></tr>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">NVDA</span><div class="px">219.54 <small class="dn">−2.4%</small></div></td>
+        <td><span class="badge buy">BUY</span><span class="call">Dips 210–215 · add &gt; 224.76 · stop 208</span></td>
+        <td class="m11"><span class="up">▲ 1.5%</span> <span class="m10">sup 216</span></td>
+        <td class="m11"><span class="up">● Golden 18%</span></td>
+        <td class="m11 amb">⚠ Aug 26 <b>AMC</b> · E-8d</td>
+        <td><span class="volc mid">IV/HV 1.17×</span> <span class="m10">Sep 230C · E[R] 79%</span></td>
+      </tr>
+      <tr class="xrow hide"><td colspan="6"><div class="chips"><span class="c">RSI 56.8</span><span class="c">MACD bullish cross</span><span class="c">P/E 33.6</span><span class="c">short falling 6 settlements</span></div></td></tr>
+
+      <tr class="grp"><td colspan="6">Rest · 28 — sorted by conviction <span style="text-transform:none;letter-spacing:0">(3 shown in mockup)</span></td></tr>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">AAPL</span><div class="px">310.67 <small class="up">+1.7%</small></div></td>
+        <td><span class="badge hold">HOLD</span><span class="call">Add only on 300 support hold post-PCE</span></td>
+        <td class="m11"><span class="up">▲ 3.4%</span> <span class="m10">sup 300</span></td>
+        <td class="m11"><span class="up">● Golden 10.2%</span></td>
+        <td class="m11">Oct 29</td>
+        <td><span class="volc mid">vol mid</span> <span class="m10">—</span></td>
+      </tr>
+      <tr class="xrow hide"><td colspan="6"><div class="chips"><span class="c">RSI 43.7</span><span class="c">16% rev growth · 27.6% margin</span></div></td></tr>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">GOOGL</span><div class="px">343.34 <small class="dn">−0.2%</small></div></td>
+        <td><span class="badge buy">BUY</span><span class="call">Accumulate 315–345 pullback · aggressive on 200D hold</span></td>
+        <td class="m11"><span class="up">▲ 8.3%</span> <span class="m10">sup</span></td>
+        <td class="m11"><span class="up">● Golden 6.5%</span></td>
+        <td class="m11">Oct 28 <span class="m10">AMC <i>est.</i></span></td>
+        <td><span class="volc cheap">vol cheap</span> <span class="m10">Oct 350C · E[R] 48%</span></td>
+      </tr>
+      <tr class="xrow hide"><td colspan="6"><div class="chips"><span class="c">24% growth · 55% margin</span><span class="c">17× trailing · PEG 0.94</span></div></td></tr>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">QUBT</span><div class="px">14.02 <small class="dn">−4.1%</small></div></td>
+        <td><span class="badge sell">TRIM</span><span class="call">Most exposed to rising 10Y · no earnings support</span></td>
+        <td class="m11"><span class="dn">▼ below sup</span></td>
+        <td class="m11"><span class="dn">● Death 21%</span></td>
+        <td class="m11">—</td>
+        <td><span class="volc rich">vol rich</span> <span class="m10">—</span></td>
+      </tr>
+      <tr class="xrow hide"><td colspan="6"><div class="chips"><span class="c">σ 62% — wild</span><span class="c">speculative quantum</span></div></td></tr>
+    </tbody>
+  </table>
+  <div class="note" style="margin-top:10px">Golden-cross setups (ex-scanner) fold in here as the ◆ setup glyph + a filter — the momentum/gapper presets are cut.</div>
+</section>
+
+<!-- ============ OPTIONS ============ -->
+<section class="view" id="v-options">
+  <h2 class="sec" style="margin-top:20px">Options — long premium screen
+    <span class="qm" onclick="document.getElementById('mbg').classList.add('show')">?</span>
+    <span class="m10" style="margin-left:auto">legend → this modal · collapsed row = best structure across all 6 lanes</span>
+  </h2>
+  <table>
+    <thead><tr>
+      <th style="width:110px">Ticker</th><th>Vol state</th><th>Best structure</th><th>E[R]</th><th>BE/EM</th><th>cov | p(be)</th><th>Catalyst</th><th></th>
+    </tr></thead>
+    <tbody>
+      <tr class="row optrow" onclick="tgl(this)">
+        <td><span class="tick">NVDA</span><div class="px">218.88</div></td>
+        <td><span class="volc mid">IV/HV 1.17× · rank collecting</span></td>
+        <td class="best m11">Sep 18 <b class="up">230C</b> · $5.80 debit</td>
+        <td class="m11 up">79%</td>
+        <td class="m11">0.69×</td>
+        <td class="m11">20% <span class="m10">| 25%</span></td>
+        <td class="m11 amb">E-8d ⚠</td>
+        <td class="m10">▾ 6 lanes</td>
+      </tr>
+      <tr class="xrow hide"><td colspan="8">
+        <div class="lane">
+          <div class="lh" onclick="event.stopPropagation();this.parentNode.classList.toggle('open')">
+            <span class="ln">Lane B</span><span class="lv2">Directional swing — <b class="up">2 candidates worth a look</b>, calls favored (drift +12% 3y)</span>
+            <span class="lstate ok">ok</span>
+          </div>
+          <div class="body">
+            <table>
+              <thead><tr><th>Contract</th><th>Debit</th><th>BE (% move)</th><th>BE/EM</th><th>P(BE)</th><th>cov 1y/3y</th><th>E[R]</th><th>Liq</th><th>Read</th></tr></thead>
+              <tbody>
+                <tr class="row" onclick="event.stopPropagation();nxt(this)">
+                  <td class="m11 up">CALL 230 · Sep 18</td><td class="m11">$5.80</td><td class="m11">235.80 · 7.7%</td><td class="m11 up">0.69×</td><td class="m11">25%</td><td class="m11">20% / 35%</td><td class="m11 up">79%</td><td><span class="hdot g" title="spread 1.7% · OI 37K"></span></td><td class="m10 up">aligned</td>
+                </tr>
+                <tr class="deep"><td colspan="9">gap −5 1y / +10 3y · drift +1.9%/+4.9% · episodes-to-50%: 3 of 30 · Sharpe 0.26 · ¼-Kelly 2% · ↑ upside truncated · θ −16/day · vega 24/pt</td></tr>
+                <tr class="row" onclick="event.stopPropagation();nxt(this)">
+                  <td class="m11 up">CALL 240 · Nov 20</td><td class="m11">$10.35</td><td class="m11">250.35 · 14.4%</td><td class="m11">0.71×</td><td class="m11">24%</td><td class="m11">14% / 37%</td><td class="m11 up">94%</td><td><span class="hdot g" title="spread 1.5% · OI 13K"></span></td><td class="m10 up">aligned</td>
+                </tr>
+                <tr class="deep"><td colspan="9">gap −11 1y / +13 3y · drift +3.6%/+12.0% · episodes-to-50%: 2 of 14 · Sharpe 0.29 · ¼-Kelly 2% · ↑ upside truncated</td></tr>
+              </tbody>
+            </table>
+            <div class="note">37 junk-IV strikes excluded from selection (4× outlier guard) — nothing substituted.</div>
+          </div>
+        </div>
+        <div class="lane">
+          <div class="lh" onclick="event.stopPropagation();this.parentNode.classList.toggle('open')">
+            <span class="ln">Lane C</span><span class="lv2">Debit verticals — best 230/250 Sep · E[R] 44% · caps the debit</span><span class="lstate ok">ok</span>
+          </div>
+          <div class="body"><div class="note">same 8-column table on expand</div></div>
+        </div>
+        <div class="lane">
+          <div class="lh" onclick="event.stopPropagation();this.parentNode.classList.toggle('open')">
+            <span class="ln">Lane E</span><span class="lv2">Straddle/strangle — required 11.6% vs typical realized 7.4% → <b class="amb">move hasn't historically happened</b></span><span class="lstate gated">verdict: pass</span>
+          </div>
+          <div class="body"><div class="note">required / expected / typical-realized headline + gates, verdict aged not suppressed — unchanged, just collapsed</div></div>
+        </div>
+        <div class="lane">
+          <div class="lh"><span class="ln">Lane A</span><span class="lv2">LEAPS — refuses coverage at 365-session horizon (needs ~7.25y history)</span><span class="lstate ref">refusal · why ▸</span></div>
+        </div>
+        <div class="lane">
+          <div class="lh"><span class="ln">Lane D</span><span class="lv2">Calendars — thin by design (no term-structure model)</span><span class="lstate ref">info</span></div>
+        </div>
+        <div class="lane">
+          <div class="lh"><span class="ln">Lane F</span><span class="lv2">Credit spreads — bull put 200/195 Sep · credit $1.10 · max loss $390 · win 76%</span><span class="lstate ok">ok</span>
+        </div>
+        </div>
+      </td></tr>
+
+      <tr class="row optrow" onclick="tgl(this)">
+        <td><span class="tick">GOOGL</span><div class="px">343.34</div></td>
+        <td><span class="volc cheap">vol cheap · IV/HV 0.88×</span></td>
+        <td class="best m11">Oct 16 <b class="up">350C</b> · $12.40 debit</td>
+        <td class="m11 up">48%</td><td class="m11">0.81×</td><td class="m11">26% <span class="m10">| 31%</span></td><td class="m11">Oct 28</td><td class="m10">▾</td>
+      </tr>
+      <tr class="xrow hide"><td colspan="8"><div class="note">lanes expand as above</div></td></tr>
+      <tr class="row optrow" onclick="tgl(this)">
+        <td><span class="tick">AMD</span><div class="px">477.07</div></td>
+        <td><span class="volc mid">vol mid · IV/HV 1.05×</span></td>
+        <td class="best m11">Nov 20 <b class="up">480/540 vertical</b> · $18.20 debit</td>
+        <td class="m11 up">61%</td><td class="m11">0.74×</td><td class="m11">22% <span class="m10">| 28%</span></td><td class="m11 amb">Nov 3</td><td class="m10">▾</td>
+      </tr>
+      <tr class="xrow hide"><td colspan="8"><div class="note">lanes expand as above</div></td></tr>
+      <tr class="row optrow" onclick="tgl(this)">
+        <td><span class="tick">APP</span><div class="px">310.52</div></td>
+        <td><span class="volc rich">vol rich · IV/HV 1.31×</span></td>
+        <td class="best m11" style="color:var(--ink-2)">no long structure — vol not cheap &amp; no BE ≤ 1.0×</td>
+        <td class="m11" colspan="3" style="color:var(--ink-3)">Lane F only: bear call 340/350 · win 71%</td>
+        <td class="m11">Nov 4</td><td class="m10">▾</td>
+      </tr>
+      <tr class="xrow hide"><td colspan="8"><div class="note">a "no trade" verdict is a finding and renders as one — reasons on expand</div></td></tr>
+    </tbody>
+  </table>
+  <div class="note" style="margin-top:10px">Stale rows badge amber and refresh on expand, as now. "Load all" stays sequential; the batch KV read paints this verdict layer instantly.</div>
+</section>
+
+<!-- ============ INCOME ============ -->
+<section class="view" id="v-income">
+  <h2 class="sec" style="margin-top:20px">Income sleeve <span class="n">· dividends &amp; income ETFs · quarterly cadence — deliberately quiet</span>
+    <span class="m10" style="margin-left:auto">only ex-div dates, cuts, and add-zone entries surface in Today</span></h2>
+  <table>
+    <thead><tr>
+      <th style="width:110px">Ticker</th><th style="width:230px">Verdict · the call</th><th>Yield</th><th>5y div growth</th><th>Payout</th><th>Next ex-div</th><th>Trend</th>
+    </tr></thead>
+    <tbody>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">SCHD</span><div class="px">29.84 <small class="dn">−0.4%</small></div></td>
+        <td><span class="badge buy">ADD</span><span class="call">Core sleeve · DCA monthly · add extra &lt; 28.50</span></td>
+        <td class="m11 up">3.8%</td><td class="m11">+11.2%/y</td><td class="m11">—</td><td class="m11">Sep 24</td><td class="m11 up">● &gt; 200D</td>
+      </tr>
+      <tr class="xrow hide"><td colspan="7"><div class="chips"><span class="c">100 quality screens · expense 0.06%</span><span class="c">top: financials, staples, energy</span><span class="c">overlap with growth book: near zero — this is the diversifier</span></div></td></tr>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">JEPQ</span><div class="px">58.11 <small class="dn">−1.1%</small></div></td>
+        <td><span class="badge hold">HOLD</span><span class="call">Monthly income · the covered-call ETF does the premium selling for you</span></td>
+        <td class="m11 up">9.4%</td><td class="m11 amb">n/a — distribution varies</td><td class="m11">—</td><td class="m11">Sep 2 <span class="m10">monthly</span></td><td class="m11 up">● &gt; 200D</td>
+      </tr>
+      <tr class="xrow hide"><td colspan="7"><div class="chips"><span class="c">Nasdaq-100 + ELN call overwrite</span><span class="c">upside capped by design</span><span class="c">answers the "premium ROI doesn't justify my time" problem structurally</span></div></td></tr>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">VYM</span><div class="px">142.30 <small class="dn">−0.6%</small></div></td>
+        <td><span class="badge hold">HOLD</span><span class="call">Broad ballast · add on 5%+ tape pullbacks</span></td>
+        <td class="m11 up">2.8%</td><td class="m11">+6.1%/y</td><td class="m11">—</td><td class="m11">Sep 19</td><td class="m11 up">● &gt; 200D</td>
+      </tr>
+      <tr class="xrow hide"><td colspan="7"><div class="chips"><span class="c">~450 holdings · expense 0.06%</span></div></td></tr>
+      <tr class="row" onclick="tgl(this)">
+        <td><span class="tick">O</span><div class="px">61.75 <small class="up">+0.3%</small></div></td>
+        <td><span class="badge buy">ADD</span><span class="call">Monthly payer · rate-cut beneficiary · add &lt; 60</span></td>
+        <td class="m11 up">5.2%</td><td class="m11">+3.4%/y</td><td class="m11 amb">AFFO 75%</td><td class="m11">Sep 1 <span class="m10">monthly</span></td><td class="m11 amb">◆ at 200D</td>
+      </tr>
+      <tr class="xrow hide"><td colspan="7"><div class="chips"><span class="c">REIT — 10Y sensitivity is the risk, same axis your tech book is short</span></div></td></tr>
+    </tbody>
+  </table>
+  <div class="note" style="margin-top:10px">Same data stack (Yahoo dividendYield, exDividendDate, trailing distributions — all free), same verdict pipeline, different cadence. Payout &gt; 90% or a cut → the name goes amber and surfaces in Today. Tax note renders per account: qualified vs ordinary (JEPQ is mostly ordinary income — flagged, since tax minimization is a stated goal).</div>
+</section>
+
+<!-- ============ TICKER ============ -->
+<section class="view" id="v-ticker">
+  <div class="hero">
+    <div>
+      <div class="h3">Verdict · Claude synthesis · <span class="src-dot" title="as of 08:19 · cached 2h"></span> 08:19</div>
+      <div class="verdict">BUY</div>
+      <div style="margin-top:6px" class="m11">Moderate confidence</div>
+      <div style="margin-top:10px;font-size:13.5px">Buy dips toward 210–215; add above 224.76 resistance. Stop 208.</div>
+      <div class="note">NVDA · $219.54 · −2.4% · P/E 33.6 · $5.32T</div>
+    </div>
+    <div>
+      <div class="h3">The levels</div>
+      <div class="ladder">
+        <div class="l"><span class="lbl">TARGET</span><div class="bar"><i style="right:4%;background:var(--bull)"></i></div><span class="val up">236.19</span></div>
+        <div class="l"><span class="lbl">RES</span><div class="bar"><i style="right:22%;background:var(--amber)"></i></div><span class="val amb">224.76</span></div>
+        <div class="l now"><span class="lbl">NOW</span><div class="bar"><i style="right:34%;background:var(--cyan)"></i></div><span class="val">219.54</span></div>
+        <div class="l"><span class="lbl">SUP / ADD</span><div class="bar"><i style="right:48%;background:var(--bull)"></i></div><span class="val">216.20 · 210–215</span></div>
+        <div class="l"><span class="lbl">STOP</span><div class="bar"><i style="right:62%;background:var(--bear)"></i></div><span class="val dn">208.00</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="h3">Express it / what's next</div>
+      <div class="vline"><span class="k">BEST OPTION</span><span class="m11">Sep 18 230C · $5.80 · E[R] 79% · BE/EM 0.69×</span></div>
+      <div class="vline"><span class="k">VOL</span><span class="m11">IV 46.5% · HV30 39.8% · 1.17× · rank collecting (41/60d)</span></div>
+      <div class="vline"><span class="k">CATALYST</span><span class="m11 amb">Earnings Aug 26 · E-8d · EPS est $2.08</span></div>
+      <div class="vline"><span class="k">FLOW</span><span class="m11">P/C 0.91 · notable: 0d 220P 41K vol 5.5×</span></div>
+      <div class="note">Analyze-earnings stays button-triggered here</div>
+    </div>
+  </div>
+
+  <h2 class="sec">Evidence <span class="n">· 4 groups replace 14 cards — each leads with its verdict line</span></h2>
+
+  <div class="acc" onclick="this.classList.toggle('open')">
+    <div class="ah"><span class="t">Technicals</span><span class="sum">Constructive above 216 — RSI 56.8 · MACD bullish cross · golden 18% · HV30 39.6%</span><span class="car">▾</span></div>
+    <div class="ab">Chart, indicators, S/R, swing/EMA detail — current cards 01 · 07 · 11, unchanged content.</div>
+  </div>
+  <div class="acc open">
+    <div class="ah" onclick="this.parentNode.classList.toggle('open')"><span class="t">Positioning</span><span class="sum">Shorts falling · no insider selling · 19/20 managers held (as-of Jun 30)</span><span class="car">▾</span></div>
+    <div class="ab">
+      <div class="vline"><span class="k">SHORT INT</span><span>292.7M shares · <b class="up">−9.7% vs prior</b> · falling 6 settlements <span class="m10">(FINRA · settled 07-31 · 2-wk lag)</span></span></div>
+      <div class="vline"><span class="k">INSIDER</span><span>No Form 4 transactions in 90 days <span class="m10">(SEC EDGAR)</span></span></div>
+      <div class="vline"><span class="k">13F</span><span>19/20 tracked managers held · <span class="amb">as-of Jun 30 — 49d stale by construction</span> <span class="m10">(top: Tiger 11.2M · Two Sigma 11.2M)</span></span></div>
+    </div>
+  </div>
+  <div class="acc" onclick="this.classList.toggle('open')">
+    <div class="ah"><span class="t">Street &amp; story</span><span class="sum">38 buys · $257 median target (+17%) · sentiment constructive · 3 fresh headlines</span><span class="car">▾</span></div>
+    <div class="ab">Analyst actions + sentiment + news — current cards 09 · 12 · News, merged.</div>
+  </div>
+  <div class="acc" onclick="this.classList.toggle('open')">
+    <div class="ah"><span class="t">Record</span><span class="sum">This name: 9/19 sign-hits (47%) vs base 63% — <b class="dn">−16 pts</b> · every rate ships with its base rate</span><span class="car">▾</span></div>
+    <div class="ab">Recommendation history + calibration. The base-rate-beside-rate rule renders here (closes the outstanding index.html item). HOLD excluded, ordinal confidence, Brier stays numeric.</div>
+  </div>
+  <div class="note">Cut from this page: the patterns card (self-reported "confidence 87%" with no measured hit rate), the full V/OI table (→ FLOW line above, table on demand), card numbering. The 08 scar is honored by not existing at all.</div>
+</section>
+</div>
+
+<!-- modal -->
+<div class="modal-bg" id="mbg" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <h3>How this screen works</h3>
+    <p>Everything that was the on-screen legend lives here: lane definitions, E[R] assumptions (hold to expiry, relative ranking not a P&amp;L forecast), cov vs p(be) (measured frequency vs risk-neutral — the gap contains drift), episode concentration, dimming rules, refusal semantics, the junk-IV guard.</p>
+    <p>The data keeps every honesty behavior — this modal is where the prose moved, not where it died.</p>
+    <p class="m10" style="color:var(--ink-3)">esc / click outside to close</p>
+  </div>
+</div>
+
+<script>
+// tabs
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('v-'+b.dataset.v).classList.add('on');
+});
+// row expanders
+function tgl(tr){const x=tr.nextElementSibling;if(x&&x.classList.contains('xrow'))x.classList.toggle('hide');}
+function nxt(tr){const d=tr.nextElementSibling;if(d&&d.classList.contains('deep'))d.classList.toggle('show');}
+// action queue data per phase
+const Q={
+am:[
+ {t:'AMD',a:'BUY',c:'b',call:'Buy the dip — in the 460–480 zone now',sub:['structure: <b>Nov 480/540 debit vertical · E[R] 61%</b>','invalidate: <b>&lt; 424</b>','why: 50% rev growth · PEG 1.1 · golden +56.6%'],st:'plan',stt:'THE PLAN',cls:'buy',src:'source: watchlist rec + Long lane C · Yahoo+Claude · as of 08:16'},
+ {t:'NVDA',a:'BUY',c:'b',call:'Add dips 210–215 ahead of Aug 26 print',sub:['structure: <b>Sep 230C · $5.80 · E[R] 79% · BE/EM 0.69×</b>','invalidate: <b>&lt; 208</b>','vol not rich: IV/HV 1.17×'],st:'plan',stt:'THE PLAN',cls:'buy',src:'source: watchlist rec + Long lane B · as of 08:16'},
+ {t:'HD',a:'REACT',c:'w',call:'Reported BMO 06:00 ET — trade the reaction, not the anticipation',sub:['add on <b>&gt; 323 hold</b> · trim on <b>&lt; 337 fail</b>','hold/exit decision was <b>yesterday’s close</b> — BMO print means today is reaction only'],st:'near',stt:'BMO · REACTION',cls:'watch',src:'source: watchlist earnings flag · timing: Yahoo earningsTimestamp (BMO) · deadline = prior close for BMO, same-day close for AMC · as of 08:16'},
+ {t:'AVGO',a:'BUY',c:'b',call:'Accumulate 369–380 support · add on close &gt; 400',sub:['2.3% above support now','vol cheap → debit-friendly'],st:'near',stt:'APPROACHING',cls:'buy',src:'source: watchlist rec · as of 08:16'},
+ {t:'VST',a:'ADD',c:'b',call:'Sector pick — power/data-center demand, add into tape weakness',sub:['defensive cash flows vs high-multiple AI'],st:'plan',stt:'THE PLAN',cls:'buy',src:'source: sector opportunity (was Market-tab signal) · as of 08:16'},
+ {t:'QUBT',a:'TRIM',c:'s',call:'Most vulnerable to 10Y back-up — reduce before minutes',sub:['no earnings support · σ 62%'],st:'plan',stt:'THE PLAN',cls:'avoid',src:'source: watchlist avoid signal · as of 08:16'}
+],
+mid:[
+ {t:'AMD',a:'BUY',c:'b',call:'Triggered — tagged 478 · zone entry live',sub:['structure: <b>Nov 480/540 vertical</b>','stop unchanged <b>424</b>'],st:'trig',stt:'TRIGGERED 10:42',cls:'buy',src:'triggered vs the 08:16 plan'},
+ {t:'HD',a:'REACT',c:'w',call:'Post-BMO reaction holding +1.4% — above 323, add level live',sub:['reaction day range 337–346'],st:'near',stt:'BMO · REACTION LIVE',cls:'watch',src:''},
+ {t:'AVGO',a:'BUY',c:'b',call:'2.3% above the 369 buy zone — waiting',sub:[],st:'near',stt:'APPROACHING',cls:'buy',src:''},
+ {t:'NVDA',a:'BUY',c:'b',call:'Held 216 support — plan intact',sub:['Sep 230C now $6.10 (+5%)'],st:'plan',stt:'INTACT',cls:'buy',src:''},
+ {t:'QUBT',a:'TRIM',c:'s',call:'Not filled — reiterating before minutes',sub:[],st:'plan',stt:'OPEN',cls:'avoid',src:''}
+],
+pm:[
+ {t:'AMD',a:'FILLED',c:'b',call:'Entered 478 · vertical filled $18.20 — manage vs 424 stop',sub:['next review: Nov 3 earnings'],st:'trig',stt:'DONE TODAY',cls:'buy',src:''},
+ {t:'HD',a:'HELD',c:'w',call:'BMO reaction closed +1.4% above 323 — add executed per plan',sub:['next: NVDA Aug 26 AMC → that deadline is the 26th’s close'],st:'trig',stt:'RESOLVED',cls:'watch',src:''},
+ {t:'NVDA',a:'BUY',c:'b',call:'Tomorrow: same plan, E-7d — size before minutes react',sub:[],st:'plan',stt:'TOMORROW',cls:'buy',src:''},
+ {t:'AVGO',a:'BUY',c:'b',call:'Still 2% above zone — carry the order',sub:[],st:'plan',stt:'TOMORROW',cls:'buy',src:''},
+ {t:'QUBT',a:'TRIM',c:'s',call:'Unfilled — first job tomorrow if 10Y &gt; 4.75',sub:[],st:'inval',stt:'CARRIED OVER',cls:'avoid',src:''}
+]};
+const NOTE={am:'the plan — ranked by conviction × proximity',mid:'live — triggered first, then approaching',pm:'what resolved + tomorrow’s queue'};
+function renderQ(p){
+  const el=document.getElementById('queue');
+  el.innerHTML=Q[p].map(q=>`<div class="qcard ${q.cls}" onclick="this.classList.toggle('open')">
+    <div class="qtop"><span class="qtick">${q.t}</span><span class="qact ${q.c}">${q.a}</span>
+    <span class="qcall">${q.call}</span><span class="qstate ${q.st}">${q.stt}</span></div>
+    ${q.sub.length?`<div class="qsub">${q.sub.map(s=>`<span>${s}</span>`).join('')}</div>`:''}
+    ${q.src?`<div class="qsrc">${q.src} · click to collapse</div>`:''}</div>`).join('');
+  document.getElementById('qn').textContent='· '+Q[p].length;
+  document.getElementById('phase-note').textContent=NOTE[p];
+}
+document.querySelectorAll('#phase button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#phase button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');renderQ(b.dataset.p);
+});
+renderQ('am');
+// click-through: ticker -> ticker page, option rec cell -> Options tab deep-linked to that stock's row
+function go(v,t){
+  document.querySelector('nav button[data-v="'+v+'"]').click();
+  if(v==='options'&&t){
+    const r=[...document.querySelectorAll('#v-options tr.optrow')].find(x=>x.querySelector('.tick').textContent.trim()===t);
+    if(r){
+      const x=r.nextElementSibling; if(x&&x.classList.contains('xrow'))x.classList.remove('hide');
+      r.scrollIntoView({block:'center'});
+      r.querySelectorAll('td').forEach(td=>td.style.background='rgba(94,197,234,.06)');
+      setTimeout(()=>r.querySelectorAll('td').forEach(td=>td.style.background=''),1800);
+      return;
+    }
+  }
+  window.scrollTo(0,0);
+}
+function tickerize(el){el.style.cursor='pointer';el.style.textDecoration='underline dotted';el.title='→ ticker page (mockup shows NVDA)';el.onclick=e=>{e.stopPropagation();go('ticker');};}
+document.querySelectorAll('#v-names tr.row .tick').forEach(tickerize);
+document.querySelectorAll('#v-names tr.row td:last-child').forEach(td=>{
+  td.style.cursor='pointer'; td.title='→ Options page, this stock’s row expanded';
+  td.onclick=e=>{e.stopPropagation();go('options',td.closest('tr').querySelector('.tick').textContent.trim());};
+});
+// Today: every ticker links to the ticker page — queue (delegated, survives phase re-render), radar, levels, movers
+document.getElementById('queue').addEventListener('click',e=>{
+  if(e.target.classList.contains('qtick')){e.stopPropagation();go('ticker');}
+});
+document.querySelectorAll('#v-today .tick').forEach(tickerize);
+document.querySelectorAll('#v-today .lv > b').forEach(tickerize);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('mbg').classList.remove('show')});
+</script>
+</body>
+</html>
