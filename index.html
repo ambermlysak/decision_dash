@@ -406,6 +406,64 @@ tr.cdeep > td { background: var(--bg-1); font-size: 10.5px; color: var(--ink-2);
 .tk-links { margin-top: 14px; font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
 .tk-links a { color: var(--cyan); }
 
+/* ── diversify tab ── */
+.covstrip { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 4px 0 14px; }
+.covchip {
+  font-family: var(--mono); font-size: 11px; padding: 5px 10px; border-radius: 6px;
+  background: var(--bg-1); border: 1px solid var(--line); color: var(--ink-1);
+}
+.covchip b { color: var(--ink-0); }
+.covchip.income    { border-left: 2px solid var(--bull); }
+.covchip.defensive { border-left: 2px solid var(--cyan); }
+.covchip.value     { border-left: 2px solid var(--violet); }
+.covchip.cyclical  { border-left: 2px solid var(--amber); }
+.covnote { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+.catgrp {
+  font-family: var(--mono); font-size: 9.5px; color: var(--ink-2);
+  letter-spacing: 0.12em; text-transform: uppercase; margin: 16px 0 6px;
+}
+.catgrp .why { color: var(--ink-3); letter-spacing: 0.02em; text-transform: none; }
+.divrow { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 9px 12px; }
+.divrow .tk {
+  font-family: var(--mono); font-weight: 600; font-size: 12.5px; color: var(--cyan);
+  text-decoration: underline dotted; text-underline-offset: 3px; min-width: 52px;
+}
+.divrow .f { font-family: var(--mono); font-size: 11px; color: var(--ink-1); }
+.divrow .f .k { color: var(--ink-3); font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase; margin-right: 4px; }
+.divrow .grow { flex: 1; }
+.addzone { background: var(--bull-soft); border-color: rgba(35,209,139,0.4) !important; }
+.addzone .addb { color: var(--bull); font-weight: 600; }
+.divmanage {
+  background: var(--bg-1); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px 16px; margin-top: 18px;
+}
+.divmanage input, .divmanage select {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-0);
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 6px;
+  padding: 5px 8px; outline: none;
+}
+.divmanage input:focus, .divmanage select:focus { border-color: var(--cyan); }
+.divmanage .rowline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.suggest { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.suggest .s {
+  font-family: var(--mono); font-size: 10.5px; padding: 4px 9px; border-radius: 5px;
+  background: var(--bg-2); border: 1px dashed var(--line); color: var(--ink-1); cursor: pointer;
+}
+.suggest .s:hover { border-color: var(--cyan); border-style: solid; }
+.divevents {
+  background: var(--bg-1); border: 1px solid var(--line); border-left: 2px solid var(--violet);
+  border-radius: 8px; padding: 9px 12px; font-family: var(--mono); font-size: 11px;
+  color: var(--ink-1); margin-top: 10px; line-height: 1.7;
+}
+.evtag {
+  font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 5px;
+  border-radius: 3px; border: 1px solid var(--line); margin-right: 5px;
+}
+.evtag.cut        { color: var(--bear);  border-color: rgba(242,95,92,0.4); }
+.evtag.payoutHigh { color: var(--amber); border-color: rgba(244,183,64,0.4); }
+.evtag.inAddZone  { color: var(--bull);  border-color: rgba(35,209,139,0.4); }
+.evtag.exDivUpcoming { color: var(--violet); border-color: rgba(180,142,173,0.4); }
+
 /* ── provenance badges ── */
 .badges { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
 .badge {
@@ -536,7 +594,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
     <a href="#today"   data-v="today">Today</a>
     <a href="#names"   data-v="names">Names</a>
     <a href="#options" data-v="options">Options</a>
-    <a href="#income"  data-v="income">Income</a>
+    <a href="#income"  data-v="income">Diversify</a>
   </nav>
   <div class="hdr-right">
     <input id="tsearch" placeholder="ticker →" spellcheck="false"
@@ -544,7 +602,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
            onkeydown="if(event.key==='Enter'){const v=this.value.trim().toUpperCase(); if(/^[A-Z][A-Z.\-]{0,9}$/.test(v)){location.hash='#ticker/'+v; this.value='';}}" />
     <span id="clock"></span>
     <a href="./probe.html" title="the CORS canary — proves the Worker round-trip independently of this app">probe</a>
-    <span id="build-tag">radar-p6-1</span>
+    <span id="build-tag">div-p7-1</span>
   </div>
 </header>
 
@@ -596,6 +654,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
         <h2 class="sec">Calendar <span class="n">· next 5 that touch your names</span>
           <span class="right badges" id="cal-badges"></span></h2>
         <div id="calendar"><span class="loading">loading…</span></div>
+        <div id="div-events-today"></div>
       </div>
     </div>
   </section>
@@ -626,15 +685,14 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
     <div id="tk-body"><div class="statusbox"><div class="loading">loading…</div></div></div>
   </section>
 
-  <!-- ═══ INCOME ═══ -->
+  <!-- ═══ DIVERSIFY ═══ -->
   <section class="view" id="v-income">
-    <div class="placeholder">
-      <div class="t">Income</div>
-      <div class="d">
-        phase 7 — needs <code>/api/income/batch</code> built in trading_dash first<br />
-        deliberately quiet: quarterly cadence, surfaces in Today only on events
-      </div>
-    </div>
+    <h2 class="sec">Diversify <span class="n" id="div-count"></span>
+      <span class="right badges" id="div-badges"></span></h2>
+    <div id="div-coverage"></div>
+    <div id="div-body"><div class="statusbox"><div class="loading">loading the sleeve…</div></div></div>
+    <div id="div-manage"></div>
+    <div class="footnote" id="div-notes"></div>
   </section>
 
 </div>
@@ -1538,6 +1596,10 @@ function renderCalendar() {
     });
   }
 
+  /* Sleeve ex-div dates inside the event horizon join the calendar — the only
+   * way the Diversify tab reaches Today's dated list. */
+  for (const d of divCalendarItems()) items.push({ date: d.date, kind: 'exdiv', ticker: d.ticker });
+
   items.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.kind === 'macro' ? -1 : 1));
   const next5 = items.filter(i => !today || i.date >= today).slice(0, 5);
 
@@ -1554,6 +1616,11 @@ function renderCalendar() {
       return `<div class="lv evt${i.impact === 'HIGH' ? ' hot' : ''}" title="${esc(i.note || '')}">
         <b>${esc(when)}</b> · ${esc(i.title)}
         <span class="tag">${esc(i.type || 'event')}${i.impact ? ' · ' + esc(i.impact.toLowerCase()) : ''}</span></div>`;
+    }
+    if (i.kind === 'exdiv') {
+      return `<div class="lv evt" title="${esc('ex-dividend date from your Diversify sleeve — own the shares before this date to receive the payment')}">
+        <b>${esc(when)}</b> · <span class="tk" onclick="goTicker('${esc(i.ticker)}')">${esc(i.ticker)}</span> ex-dividend
+        <span class="tag">sleeve</span></div>`;
     }
     return `<div class="lv evt${days != null && days <= 7 ? ' hot' : ''}">
       <b>${esc(when)}</b> · <span class="tk" onclick="goTicker('${esc(i.ticker)}')">${esc(i.ticker)}</span> earnings
@@ -3425,6 +3492,428 @@ function drawTkChart() {
   tk.chartApi = c;
 }
 
+/* ═══ DIVERSIFY (phase 7) ═════════════════════════════════════════════════
+ *
+ * Categorized sleeves, not income-only. NO VERDICTS in v1: no AI touches this
+ * path, so nothing here renders a rating or a call — the mockup's ADD/HOLD
+ * badges are deliberately absent. Category is ASSIGNED by the user when adding
+ * and never inferred; the Worker passes it through verbatim.
+ *
+ * The tab is deliberately quiet: it surfaces on Today only on events
+ * (exDivUpcoming / cut / payoutHigh / inAddZone) and never feeds the queue.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+const DIV_CATEGORIES = ['income', 'cyclical', 'value', 'defensive'];
+const DIV_CAT_ORDER = ['income', 'defensive', 'value', 'cyclical'];   // income first
+const DIV_SUGGESTIONS = {
+  income:    ['SCHD', 'VYM', 'JEPQ', 'O'],
+  defensive: ['KO', 'JNJ', 'XLP'],
+  value:     ['BRK-B', 'XLF'],
+  cyclical:  ['CAT', 'XLI'],
+};
+const divUi = { busy: null, errors: {}, notes: {}, addSym: '', addCat: 'income', open: {} };
+
+const divRows = () => (state.income?.rows || []);
+const divRowFor = t => divRows().find(r => r.ticker === t) || null;
+
+/* Every event on every row, whatever the category — the events line on Today is
+ * built from this, and is ABSENT when it is empty. */
+function divEvents() {
+  const out = [];
+  for (const r of divRows()) for (const e of (r.events || [])) out.push({ ticker: r.ticker, event: e, row: r });
+  return out;
+}
+
+function fmtOr(v, digits, why, suffix) {
+  return isNum(v) ? fmt(v, digits) + (suffix || '') : `<span class="dim" title="${esc(why)}">n/a</span>`;
+}
+
+/* growth5y / cut / payout each carry their own reason when null. A variable
+ * distribution is NOT a cut and NOT a missing measurement — the fund passes
+ * through what it collects, and the Worker says so in growth5yReason. */
+function growthCell(r) {
+  if (isNum(r.growth5y)) {
+    const cls = r.growth5y > 0 ? 'up' : r.growth5y < 0 ? 'dn' : 'flat';
+    return `<span class="${cls}" title="${esc('5-year distribution growth, annualised')}">${r.growth5y > 0 ? '+' : ''}${r.growth5y.toFixed(2)}%/y</span>`;
+  }
+  return `<span class="dim" title="${esc(r.growth5yReason || 'growth5y not published and no reason given')}">n/a — ${esc(r.distributionKind === 'variable' ? 'variable payout' : r.paysDividend === false ? 'no dividend' : 'not computed')}</span>`;
+}
+
+function payoutCell(r) {
+  if (!isNum(r.payoutRatio)) {
+    return `<span class="dim" title="${esc(r.paysDividend === false ? (r.noDividendNote || 'no dividend')
+      : 'Yahoo publishes no payoutRatio for this security (funds carry none — a fund distributes what it collects rather than a share of earnings)')}">n/a</span>`;
+  }
+  const high = (state.income?.gates?.payoutHighPct ?? 90);
+  const isHigh = r.payoutRatio > high;
+  /* ALWAYS render the NUMBER beside the flag: a REIT pays out of FFO, so a
+   * GAAP-denominator 236% is a property of the denominator, not a distress
+   * signal, and the reader can only judge that if they see the figure. */
+  return `<span class="${isHigh ? 'amb' : ''}" title="${esc(isHigh
+    ? `above the ${high}% flag threshold. Yahoo's payout ratio uses a GAAP earnings denominator; REITs and similar pay out of FFO/AFFO, where a number above 100% is ordinary. Judge the number, not the flag.`
+    : 'payout ratio on Yahoo\'s earnings denominator')}">${r.payoutRatio.toFixed(1)}%${isHigh ? ' ⚑' : ''}</span>`;
+}
+
+/* exDivIsPast is load-bearing: a past date must NEVER render as upcoming. */
+function exDivCell(r) {
+  if (r.exDivDate && r.exDivIsPast === false) {
+    const soon = isNum(r.exDivDaysAway) && r.exDivDaysAway <= (state.income?.gates?.exDivUpcomingDays ?? 7);
+    return `<span class="${soon ? 'amb' : ''}" title="${esc('next ex-dividend date, from Yahoo')}">next ${esc(r.exDivDate)}${
+      isNum(r.exDivDaysAway) ? ` · ${r.exDivDaysAway}d` : ''}${soon ? ' ⚠' : ''}</span>`;
+  }
+  if (r.exDivDate && r.exDivIsPast === true) {
+    return `<span class="dim" title="${esc('Yahoo\'s exDividendDate is behind today — this is the LAST ex-div, not the next one. Rendering it as upcoming is the error this guard exists to prevent.')}">last ${esc(r.exDivDate)}${
+      isNum(r.exDivDaysAway) ? ` · ${Math.abs(r.exDivDaysAway)}d ago` : ''}</span>`;
+  }
+  /* Funds: Yahoo publishes none, and the next is deliberately NOT projected. */
+  return `<span class="dim" title="${esc(r.exDivReason || 'no ex-dividend date published')}">${
+    r.lastDivExDate ? `last ${esc(r.lastDivExDate)} · next not published` : 'n/a'}</span>`;
+}
+
+function trendCell(r) {
+  if (r.aboveSma200 === true) return `<span class="up" title="${esc(`price ${fmt(r.price)} above the 200D ${fmt(r.sma200)}`)}">● &gt; 200D</span>`;
+  if (r.aboveSma200 === false) return `<span class="dn" title="${esc(`price ${fmt(r.price)} below the 200D ${fmt(r.sma200)}`)}">● &lt; 200D</span>`;
+  return `<span class="dim" title="${esc(r.trendReason || 'no 200-day average available')}">trend n/a</span>`;
+}
+
+function addBelowCell(r) {
+  if (!isNum(r.addBelow)) {
+    return `<span class="dim" title="${esc('no add-below level set for this name — set one to have it flag when price enters the zone')}">no level</span>`;
+  }
+  const inZone = r.inAddZone === true;
+  return `<span class="addb ${inZone ? '' : 'dim'}" title="${esc(inZone
+    ? `price ${fmt(r.price)} is at or below the ${fmt(r.addBelow)} add level you set — this fires an event on Today`
+    : `price ${fmt(r.price)} is above your ${fmt(r.addBelow)} add level`)}">&lt; ${esc(fmt(r.addBelow))}${inZone ? ' ✓ in zone' : ''}</span>`;
+}
+
+function divRowHtml(r, cat) {
+  const inZone = r.inAddZone === true;
+  const chg = isNum(r.chgPct) ? r.chgPct : null;
+  const px = `<span class="f"><a class="tk" href="#ticker/${encodeURIComponent(r.ticker)}"
+      title="${esc(r.name || r.ticker)} → its ticker page">${esc(r.ticker)}</a></span>
+    <span class="f">${isNum(r.price) ? fmt(r.price) : absent(r.priceReason || 'price not published')}
+      ${chg == null ? '' : `<span class="${chg > 0 ? 'up' : chg < 0 ? 'dn' : 'flat'}">${chg > 0 ? '▲ +' : chg < 0 ? '▼ ' : '■ '}${chg.toFixed(2)}%</span>`}</span>`;
+
+  if (r.status && r.status !== 'ok') {
+    return `<div class="lv divrow">${px}<span class="f dim grow">row status <b>${esc(r.status)}</b>${r.reason ? ' — ' + esc(r.reason) : ''}</span></div>`;
+  }
+
+  const yieldCell = isNum(r.dividendYield)
+    ? `<span class="up" title="${esc('source: ' + (r.dividendYieldSource || 'n/p'))}">${r.dividendYield.toFixed(2)}%</span>`
+    : `<span class="dim" title="${esc(r.noDividendNote || 'no yield published')}">${r.paysDividend === false ? 'no dividend' : 'n/a'}</span>`;
+
+  const body = cat === 'income'
+    ? `<span class="f"><span class="k">yield</span>${yieldCell}</span>
+       <span class="f"><span class="k">5y growth</span>${growthCell(r)}</span>
+       <span class="f"><span class="k">payout</span>${payoutCell(r)}</span>
+       <span class="f"><span class="k">ex-div</span>${exDivCell(r)}</span>
+       <span class="f grow"><span class="k">trend</span>${trendCell(r)}</span>`
+    /* Compact for the non-income sleeves: the detail lives on the ticker page
+     * and is not rebuilt here. */
+    : `<span class="f"><span class="k">trend</span>${trendCell(r)}</span>
+       ${r.paysDividend !== false ? `<span class="f"><span class="k">yield</span>${yieldCell}</span>` : ''}
+       <span class="f grow"></span>`;
+
+  const evs = (r.events || []).map(e => `<span class="evtag ${esc(e)}">${esc(e)}</span>`).join('');
+  const stale = r.stale === true
+    ? `<span class="badge stale" title="${esc(`dividend data ${ageString(r.divAgeMs)} old against the Worker's ${Math.round((r.freshMs || 0) / 3600000)}h freshness`)}">stale</span>` : '';
+
+  return `<div class="lv divrow ${inZone ? 'addzone' : ''}" onclick="divUi.open['${esc(r.ticker)}']=!divUi.open['${esc(r.ticker)}'];renderDiversify()">
+      ${px}${body}
+      <span class="f">${addBelowCell(r)}</span>
+      <span class="f">${evs}${stale}</span>
+      <span class="f m10">${divUi.open[r.ticker] ? '▴' : '▾'}</span>
+    </div>
+    ${divUi.open[r.ticker] ? divExpander(r) : ''}`;
+}
+
+function divExpander(r) {
+  const bits = [];
+  bits.push(r.lastDivAmount != null
+    ? `last payment <b>$${fmt(r.lastDivAmount)}</b>${r.lastDivExDate ? ` ex-${esc(r.lastDivExDate)}` : ''}${
+        isNum(r.priorDivAmount) ? ` · prior $${fmt(r.priorDivAmount)}` : ''}${
+        isNum(r.lastVsPriorPct) ? ` (<span class="${r.lastVsPriorPct < 0 ? 'dn' : 'up'}">${r.lastVsPriorPct > 0 ? '+' : ''}${r.lastVsPriorPct}%</span>)` : ''}`
+    : `<span class="dim">${esc(r.noDividendNote || 'no payment history')}</span>`);
+  if (r.cadence) bits.push(`cadence <b>${esc(r.cadence)}</b>${isNum(r.paymentsPerYear) ? ` · ${r.paymentsPerYear}/yr` : ''}`);
+  if (r.distributionKind) bits.push(`kind <b>${esc(r.distributionKind)}</b>${r.distributionKindBasis
+    ? ` <span title="${esc(`${(r.distributionKindBasis.zeroFrac * 100).toFixed(1)}% of consecutive payments repeat, against the ${(r.distributionKindBasis.threshold * 100).toFixed(0)}% a declared fixed rate clears, over ${r.distributionKindBasis.changes} changes`)}">(${(r.distributionKindBasis.zeroFrac * 100).toFixed(0)}% repeat)</span>` : ''}`);
+  if (isNum(r.ttmRate)) bits.push(`TTM rate <b>$${fmt(r.ttmRate)}</b>${isNum(r.ttmSum5yAgo) ? ` · 5y ago $${fmt(r.ttmSum5yAgo)}` : ''}`);
+  if (r.cut === true) bits.push(`<span class="dn">CUT${isNum(r.cutPct) ? ` ${r.cutPct}%` : ''}</span>`);
+  else if (r.cut === false) bits.push(`no cut detected`);
+  else bits.push(`<span class="dim" title="${esc(r.cutReason || 'cut not assessed')}">cut n/a</span>`);
+  if (isNum(r.divHistoryCount)) bits.push(`${r.divHistoryCount} payments over ${r.divHistorySpanYears}y`);
+  if (r.trailingRateNote) bits.push(`<br /><span class="m10">${esc(r.trailingRateNote)}</span>`);
+  if (r.partial === true && r.partialReason) bits.push(`<br /><span class="amb m10">partial: ${esc(r.partialReason)}</span>`);
+
+  const prov = [
+    `price ${r.priceAsOf ? 'as of ' + esc(r.priceAsOf) : 'as-of n/p'}`,
+    `dividend data ${isNum(r.divAgeMs) ? ageString(r.divAgeMs) + ' old' : 'age n/p'}`,
+    `category from <code>${esc(r.categorySource || 'n/p')}</code>`,
+    isNum(r.addBelow) ? `add level from <code>${esc(r.addBelowSource || 'n/p')}</code>` : null,
+    `banked ${isNum(r.ts) ? esc(fmtClock(r.ts)) : 'n/p'}`,
+  ].filter(Boolean).join(' · ');
+
+  return `<div class="lv" style="margin-top:-4px;background:var(--bg-2);font-family:var(--sans);font-size:12px;line-height:1.7">
+    ${bits.join(' · ')}
+    <div class="m10" style="margin-top:7px">${prov}</div>
+  </div>`;
+}
+
+function renderDiversify() {
+  const body = document.getElementById('div-body');
+  if (!body) return;
+  const badges = document.getElementById('div-badges');
+  if (badges) badges.innerHTML = state.income?._meta ? renderBadges(state.income._meta, state.incomeFetchedAt, 'income') : '';
+
+  if (state.errors.income) {
+    body.innerHTML = state.errors.income.kind === 'http' && state.errors.income.status === 404
+      ? `<div class="empty-state">This Worker does not publish the income endpoints yet (404) — a missing
+         endpoint, not an empty sleeve.</div>`
+      : moduleFail(state.errors.income, 'Diversify');
+    return;
+  }
+  const p = state.income;
+  if (!p) return;
+
+  /* The Worker reports on the saved list separately from the rows it could
+   * price. An absent list is its own state, with the payload's own reason. */
+  const sleeve = p.sleeve || {};
+  const rows = divRows();
+  if (sleeve.ok === false || (!rows.length && sleeve.count === 0)) {
+    body.innerHTML = `<div class="empty-state">${esc(sleeve.reason || 'No sleeve saved yet.')}
+      <br />Nothing is assumed for you — a sleeve is a set of positions only you can name.
+      Suggested starters are below; each is a one-click add you take, and nothing writes on its own.</div>`;
+    renderDivCoverage(); renderDivManage(); renderDivNotes();
+    return;
+  }
+
+  const byCat = {};
+  for (const r of rows) {
+    const c = DIV_CATEGORIES.includes(r.category) ? r.category : 'uncategorized';
+    (byCat[c] = byCat[c] || []).push(r);
+  }
+  const order = [...DIV_CAT_ORDER.filter(c => byCat[c]), ...Object.keys(byCat).filter(c => !DIV_CAT_ORDER.includes(c))];
+
+  body.innerHTML = order.map(cat => `
+    <div class="catgrp">${esc(cat)} · ${byCat[cat].length}
+      ${cat === 'income' ? '<span class="why">— full detail</span>' : cat === 'uncategorized'
+        ? '<span class="why">— no category on the saved entry; category is assigned when you add, never inferred</span>'
+        : '<span class="why">— compact; detail lives on the ticker page</span>'}</div>
+    <div class="strip col">${byCat[cat].map(r => divRowHtml(r, cat)).join('')}</div>`).join('');
+
+  const dropped = isNum(p.dropped) && p.dropped > 0
+    ? `<div class="empty-state" style="margin-top:8px">${p.dropped} saved name${p.dropped === 1 ? '' : 's'} could not be priced and ${p.dropped === 1 ? 'is' : 'are'} not shown.</div>` : '';
+  body.insertAdjacentHTML('beforeend', dropped);
+
+  renderDivCoverage(); renderDivManage(); renderDivNotes();
+  const count = document.getElementById('div-count');
+  if (count) count.textContent = `· ${rows.length} name${rows.length === 1 ? '' : 's'}`
+    + (isNum(p.loaded) && isNum(p.count) ? ` · ${p.loaded}/${p.count} priced` : '');
+}
+
+/* Counts, never percentages: position sizes are unknown to this app, so any
+ * share-of-portfolio reading would be fabricated. */
+function renderDivCoverage() {
+  const el = document.getElementById('div-coverage');
+  if (!el) return;
+  const rows = divRows();
+  const counts = {};
+  for (const r of rows) counts[DIV_CATEGORIES.includes(r.category) ? r.category : 'uncategorized'] = (counts[DIV_CATEGORIES.includes(r.category) ? r.category : 'uncategorized'] || 0) + 1;
+  el.innerHTML = `<div class="covstrip">
+    ${DIV_CATEGORIES.map(c => `<span class="covchip ${c}">${esc(c)} <b>${counts[c] || 0}</b></span>`).join('')}
+    ${counts.uncategorized ? `<span class="covchip">uncategorized <b>${counts.uncategorized}</b></span>` : ''}
+    <span class="covnote" title="${esc('This app has no position sizes — it knows which names are on the list, not how much of each you hold. A percentage here would be a number measuring nothing.')}">list coverage, not portfolio weights — position sizes unknown</span>
+  </div>`;
+}
+
+function renderDivNotes() {
+  const el = document.getElementById('div-notes');
+  if (!el) return;
+  const p = state.income;
+  el.innerHTML = `v1 ships <b>without verdicts</b> — no AI touches this path, so no rating or call renders here.
+    Category is assigned by you when adding and never inferred.
+    ${p?.gates ? `Events fire at: ex-div ≤ ${p.gates.exDivUpcomingDays}d · payout &gt; ${p.gates.payoutHighPct}% · a detected cut · price at your add level.` : ''}
+    ${p?.taxCharacterNote ? `<br /><span title="${esc(p.taxCharacterNote)}">Tax character (qualified vs ordinary) is <b>not shipped</b> — hover for why it is omitted rather than estimated.</span>` : ''}`;
+}
+
+function renderDivManage() {
+  const el = document.getElementById('div-manage');
+  if (!el) return;
+  const rows = divRows();
+  const entries = state.incomeList || [];
+  const busy = divUi.busy;
+
+  const suggestions = DIV_CAT_ORDER.map(cat => {
+    const have = new Set(entries.map(e => e.ticker));
+    const missing = (DIV_SUGGESTIONS[cat] || []).filter(t => !have.has(t));
+    if (!missing.length) return '';
+    return `<div style="margin-top:7px"><span class="m10">${esc(cat)}</span>
+      <div class="suggest">${missing.map(t => `<span class="s" onclick="divAdd('${esc(t)}','${esc(cat)}')">+ ${esc(t)}</span>`).join('')}</div></div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="divmanage">
+    <div class="h3">Manage the sleeve</div>
+    <div class="rowline">
+      <input id="div-add-sym" placeholder="ticker" spellcheck="false" style="width:92px"
+             onchange="divUi.addSym=this.value" oninput="divUi.addSym=this.value" value="${esc(divUi.addSym)}" />
+      <select id="div-add-cat" onchange="divUi.addCat=this.value">
+        ${DIV_CATEGORIES.map(c => `<option value="${c}"${divUi.addCat === c ? ' selected' : ''}>${c}</option>`).join('')}
+      </select>
+      <button class="btn" ${busy ? 'disabled' : ''} onclick="divAdd(document.getElementById('div-add-sym').value, document.getElementById('div-add-cat').value)">${busy === 'add' ? 'adding…' : '+ add'}</button>
+      <span class="m10">category is yours to assign — nothing infers it</span>
+    </div>
+    ${divUi.errors.__add ? `<div class="m10 dn" style="margin-top:6px">${esc(divUi.errors.__add)}</div>` : ''}
+    ${divUi.notes.__add ? `<div class="m10 up" style="margin-top:6px">${esc(divUi.notes.__add)}</div>` : ''}
+
+    ${entries.length ? `<div style="margin-top:14px"><div class="h3">Saved entries</div>
+      ${entries.map(e => `<div class="rowline">
+        <span class="f" style="font-family:var(--mono);font-size:11.5px;color:var(--cyan);min-width:56px">${esc(e.ticker)}</span>
+        <select onchange="divSetCategory('${esc(e.ticker)}',this.value)" ${busy ? 'disabled' : ''}>
+          ${DIV_CATEGORIES.map(c => `<option value="${c}"${e.category === c ? ' selected' : ''}>${c}</option>`).join('')}
+        </select>
+        <input placeholder="add below" style="width:88px" value="${e.addBelow ?? ''}"
+               onchange="divSetAddBelow('${esc(e.ticker)}',this.value)" ${busy ? 'disabled' : ''} />
+        <button class="btn" onclick="divRemove('${esc(e.ticker)}')" ${busy ? 'disabled' : ''}>${busy === 'rm:' + e.ticker ? 'removing…' : 'remove'}</button>
+        ${divUi.errors[e.ticker] ? `<span class="m10 dn">${esc(divUi.errors[e.ticker])}</span>` : ''}
+        ${divUi.notes[e.ticker] ? `<span class="m10 up">${esc(divUi.notes[e.ticker])}</span>` : ''}
+      </div>`).join('')}</div>` : ''}
+
+    ${suggestions ? `<div style="margin-top:14px"><div class="h3">Suggested starters</div>
+      <div class="m10">Labelled suggestions — each is a one-click add you take. Nothing writes on its own.</div>
+      ${suggestions}</div>` : ''}
+  </div>`;
+}
+
+/* ── list writes: READ-THEN-APPEND, always ────────────────────────────────── */
+
+/* /api/income/save REPLACES the whole list, so every mutation re-reads the
+ * server copy first and edits that — never a locally-held snapshot, which
+ * would silently drop anything changed elsewhere since our fetch. */
+async function divMutate(key, mutator) {
+  if (divUi.busy) return;
+  divUi.busy = key;
+  delete divUi.errors[key === 'add' ? '__add' : key.replace(/^rm:|^cat:|^lvl:/, '')];
+  renderDiversify();
+  try {
+    const cur = await apiFetch('/income/list');
+    const list = Array.isArray(cur.entries) ? cur.entries.map(e => ({ ...e })) : null;
+    if (!list) throw new Error(cur.reason || 'the current sleeve could not be read — not saving a list we did not read');
+    const next = mutator(list);
+    if (next === null) return;   // mutator declined, with its own message set
+    const r = await fetch(API_BASE + '/income/save', {
+      method: 'POST',
+      headers: { 'x-dash-key': DASH_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tickers: next }),
+    });
+    if (!r.ok) {
+      let detail = '';
+      try { detail = (await r.json()).error || ''; } catch {}
+      throw Object.assign(new Error(`HTTP ${r.status}${detail ? ' — ' + detail : ''}`), { kind: 'http', status: r.status });
+    }
+    const res = await r.json();
+    divUi.lastSave = res;
+    await loadIncome('after-save');
+  } catch (e) {
+    const slot = key === 'add' ? '__add' : key.replace(/^rm:|^cat:|^lvl:/, '');
+    divUi.errors[slot] = e.message + (e.status === 401 ? ' (DASH_KEY rejected)' : '');
+    console.warn('[diversify] %s failed · %s', key, e.message);
+  } finally {
+    divUi.busy = null;
+    renderDiversify();
+  }
+}
+
+function divAdd(sym, cat) {
+  const t = String(sym || '').trim().toUpperCase();
+  if (!/^[A-Z][A-Z.\-]{0,9}$/.test(t)) { divUi.errors.__add = `"${sym}" is not a valid ticker shape`; renderDiversify(); return; }
+  if (!DIV_CATEGORIES.includes(cat)) { divUi.errors.__add = `pick a category (${DIV_CATEGORIES.join(', ')})`; renderDiversify(); return; }
+  divMutate('add', list => {
+    if (list.some(e => e.ticker === t)) { divUi.notes.__add = `${t} is already on the sleeve`; return null; }
+    divUi.notes.__add = `${t} added as ${cat}`;
+    divUi.addSym = '';
+    return [...list, { ticker: t, category: cat, addBelow: null }];
+  });
+}
+function divRemove(t) {
+  divMutate('rm:' + t, list => {
+    const next = list.filter(e => e.ticker !== t);
+    if (next.length === list.length) { divUi.errors[t] = `${t} was not on the server copy`; return null; }
+    divUi.notes[t] = `${t} removed`;
+    return next;
+  });
+}
+function divSetCategory(t, cat) {
+  if (!DIV_CATEGORIES.includes(cat)) return;
+  divMutate('cat:' + t, list => {
+    const e = list.find(x => x.ticker === t);
+    if (!e) { divUi.errors[t] = `${t} was not on the server copy`; return null; }
+    e.category = cat;
+    divUi.notes[t] = `category → ${cat}`;
+    return list;
+  });
+}
+function divSetAddBelow(t, raw) {
+  const s = String(raw ?? '').trim();
+  const v = s === '' ? null : Number(s);
+  if (s !== '' && !Number.isFinite(v)) { divUi.errors[t] = `"${raw}" is not a number`; renderDiversify(); return; }
+  divMutate('lvl:' + t, list => {
+    const e = list.find(x => x.ticker === t);
+    if (!e) { divUi.errors[t] = `${t} was not on the server copy`; return null; }
+    e.addBelow = v;
+    divUi.notes[t] = v == null ? 'add level cleared' : `add level → ${v}`;
+    return list;
+  });
+}
+
+/* ── Today integration: quiet, and ABSENT when there is nothing ───────────── */
+
+function renderDivEventsOnToday() {
+  const host = document.getElementById('div-events-today');
+  if (!host) return;
+  const evs = divEvents();
+  if (!evs.length) { host.innerHTML = ''; return; }   // absence is the quiet state
+  const label = { cut: 'cut', payoutHigh: 'payout', inAddZone: 'add zone', exDivUpcoming: 'ex-div' };
+  host.innerHTML = `<div class="divevents"><span class="m10">from your sleeve — this tab is otherwise quiet</span><br />
+    ${evs.map(({ ticker, event, row }) => {
+      const detail = event === 'payoutHigh' ? (isNum(row.payoutRatio) ? `${row.payoutRatio.toFixed(1)}% payout` : 'payout high')
+        : event === 'inAddZone' ? `${fmt(row.price)} at or below your ${fmt(row.addBelow)}`
+        : event === 'exDivUpcoming' ? `ex-div ${esc(row.exDivDate)}${isNum(row.exDivDaysAway) ? ` in ${row.exDivDaysAway}d` : ''}`
+        : event === 'cut' ? `distribution cut${isNum(row.cutPct) ? ` ${row.cutPct}%` : ''}` : event;
+      return `<span class="evtag ${esc(event)}">${esc(label[event] || event)}</span><a class="tk" style="color:var(--cyan)" href="#ticker/${encodeURIComponent(ticker)}">${esc(ticker)}</a> ${detail}`;
+    }).join('<br />')}</div>`;
+}
+
+/* exDivUpcoming names join Today's calendar as dated events. */
+function divCalendarItems() {
+  return divRows()
+    .filter(r => (r.events || []).includes('exDivUpcoming') && r.exDivDate && r.exDivIsPast === false)
+    .map(r => ({ date: r.exDivDate, kind: 'exdiv', ticker: r.ticker, days: r.exDivDaysAway }));
+}
+
+async function loadIncome(reason) {
+  try {
+    const listResp = await apiFetch('/income/list');
+    state.incomeList = Array.isArray(listResp.entries) ? listResp.entries : [];
+    const syms = state.incomeList.map(e => e.ticker);
+    if (syms.length) {
+      const d = await apiFetch('/income/batch?symbols=' + syms.join(','));
+      state.income = d;
+    } else {
+      state.income = { rows: [], sleeve: { ok: true, count: 0, reason: listResp.reason }, _meta: listResp._meta };
+    }
+    state.incomeFetchedAt = Date.now();
+    delete state.errors.income;
+    console.log('[diversify] (%s) %d entries · %d rows · events %s', reason,
+      state.incomeList.length, divRows().length, JSON.stringify(divEvents().map(e => e.ticker + ':' + e.event)));
+  } catch (e) {
+    console.warn('[diversify] failed · %s · %s', e.kind, e.message);
+    state.errors.income = e;
+  }
+  renderDiversify();
+  renderDivEventsOnToday();
+  renderCalendar();
+}
+
 /* ═══ STATE + RENDER ═══════════════════════════════════════════════════════ */
 
 /* ONE STORE, SHARED BY EVERY TAB.
@@ -3579,6 +4068,7 @@ function renderFailure(err, where) {
 
 /* ── load ────────────────────────────────────────────────────────────────── */
 
+let incomeInflight = false;
 let sharedInflight = null;   // the one watchlist sweep, shared by every tab
 let sharedDone = false;
 let todayInflight = null;
@@ -3743,6 +4233,12 @@ function route() {
    * page silently degrades to off-watchlist rendering for a name that is on it. */
   if ((v === 'today' || v === 'names' || v === 'options' || v === 'ticker') && !sharedInflight && !sharedDone) loadShared('route');
   if (v === 'today' && !todayInflight && !todayDone) loadToday('route');
+  /* The sleeve is fetched for BOTH tabs: Today needs it for the events line and
+   * the calendar's ex-div entries, which is the whole of its quiet presence. */
+  if ((v === 'today' || v === 'income') && !state.income && !state.errors.income && !incomeInflight) {
+    incomeInflight = true;
+    loadIncome('route').finally(() => { incomeInflight = false; });
+  }
 
   /* #ticker/TICKER. Its endpoints are fetched on open, once per ticker per
    * session — and none of them spends. */
