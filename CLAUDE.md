@@ -130,6 +130,27 @@ least once:
   curl bypasses the browser cache).
 - Batch endpoints (`/api/watchlist/batch`, `/api/long/batch`) are KV reads — one
   per symbol. Cheap, not free; don't add polling loops.
+- **`/api/watchlist/batch` SILENTLY TRUNCATES at 30 symbols** (`.slice(0, 30)` in
+  `handleWatchlistBatch`) and **requires `?symbols=`** — it does not read the
+  saved list. A 39-name watchlist requested in one call returns 30 names, no
+  error, no flag: a quietly short table that looks complete. **Chunk at 15**
+  (what trading_dash does) **and assert the returned union against what you
+  asked for**, rendering the difference as a named state. Found in phase 1;
+  `/api/long/batch` caps at 60 (`LONG_MAX_SYMBOLS`) and needs no chunking today.
+- `/api/long/batch` is a **cache read, not a computation**: uncached tickers come
+  back in a top-level `missing[]` array with a per-symbol `not-loaded` reason,
+  not in `rows`. In practice almost every row is not-loaded until someone expands
+  it. "Not loaded" is a load state and must not render like "no trade here".
+- The watchlist batch carries **no `earningsTimestamp`** — only a preformatted
+  `earningsDate` string and an integer `daysToEarnings`. BMO/AMC therefore cannot
+  be derived on this surface; render no timing tag rather than inferring one.
+  Adding the timestamp is a trading_dash task.
+- **`daysToEarnings` goes negative** when the stored date is behind the report
+  (seen at −13). Any "earnings within N days" filter needs a lower bound of 0 or
+  it pulls stale past-dated rows into the urgent group.
+- **`recRank` is `+confidence` for BUY, `0` for HOLD, `−confidence` for SELL.**
+  `0` is a real rank and `null` is the absence of a record; sorting them together
+  buries a no-record row among the HOLDs.
 - Button-triggered AI endpoints (earnings analysis) are **never** wired to page
   load — they spend Claude calls against the daily ceiling.
 - A single negative probe right after a Worker deploy is UNCONFIRMED — stale

@@ -4,6 +4,12 @@ Decision-first trading dashboard — the ground-up rebuild of
 [trading_dash](https://github.com/ambermlysak/trading_dash)'s presentation layer.
 Verdict first, with the trigger and invalidation levels; evidence on demand.
 
+- `index.html` — the app: header + four hash-routed tabs (`#today`, `#names`,
+  `#options`, `#income`). Names is built; the rest are placeholders naming their
+  phase.
+- `probe.html` — the CORS canary. One live `/market/snapshot` round-trip with its
+  provenance. When the app goes dark, this separates "the Worker or CORS broke"
+  from "our rendering broke" in a single page load. Keep it working.
 - `DESIGN.md` — the full design rationale, cut list, and round-2 decisions
 - `mockup.html` — the interactive design reference (dummy data; open in a browser)
 - `CLAUDE.md` — working rules; read its design contract before building
