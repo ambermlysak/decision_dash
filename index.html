@@ -249,6 +249,74 @@ h2.sec .right { margin-left: auto; text-transform: none; letter-spacing: 0.03em;
 .sector-pop .pick .k.opp { color: var(--bull); }
 .sector-pop .pick .k.avd { color: var(--bear); }
 
+/* ── options tab ── */
+.qm {
+  font-family: var(--mono); font-size: 11px; color: var(--cyan);
+  border: 1px solid rgba(94,197,234,0.4); border-radius: 50%;
+  width: 20px; height: 20px; display: inline-flex; align-items: center;
+  justify-content: center; cursor: pointer;
+}
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: none; z-index: 50; }
+.modal-bg.show { display: flex; align-items: center; justify-content: center; }
+.modal {
+  background: var(--bg-1); border: 1px solid var(--line); border-radius: 12px;
+  max-width: 680px; width: 92%; max-height: 82vh; overflow: auto; padding: 20px 22px;
+}
+.modal h3 { font-family: var(--serif); font-style: italic; margin-bottom: 10px; }
+.modal p { color: var(--ink-1); font-size: 12.5px; margin-bottom: 10px; line-height: 1.6; }
+.modal code { font-family: var(--mono); font-size: 11px; background: var(--bg-3); padding: 1px 4px; border-radius: 3px; }
+.opt-macro-line {
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  font-size: 12px; color: var(--ink-2); margin-bottom: 12px;
+}
+.opt-toolbar { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-bottom: 10px; }
+.opt-toolbar button {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-1);
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 6px;
+  padding: 5px 11px; cursor: pointer;
+}
+.opt-toolbar button:hover { border-color: var(--cyan); }
+.opt-toolbar button:disabled { opacity: 0.5; cursor: default; }
+.opt-progress { font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); }
+.volc.mid { background: var(--bg-2); color: var(--ink-1); border: 1px solid var(--line); } /* tri-state null: NEUTRAL, not dim */
+.optrow td { vertical-align: middle; }
+.optrow.dimrow > td { opacity: 0.72; }
+.optrow.stalebg > td:first-child { border-left: 2px solid var(--amber); }
+.lane { border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; background: var(--bg-2); }
+.lane .lh { display: flex; gap: 12px; align-items: baseline; padding: 8px 12px; cursor: pointer; font-size: 12.5px; flex-wrap: wrap; }
+.lane .ln { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); min-width: 52px; }
+.lane .lv2 { color: var(--ink-1); }
+.lane .lstate { margin-left: auto; font-family: var(--mono); font-size: 10px; white-space: nowrap; }
+.lane .lstate.ok { color: var(--bull); }
+.lane .lstate.gated { color: var(--amber); }
+.lane .lstate.ref { color: var(--ink-3); font-style: italic; }   /* refusal: dim, neutral */
+.lane .lstate.info { color: var(--cyan); }
+.lane .lbody { display: none; padding: 0 12px 10px; }
+.lane.open .lbody { display: block; }
+.lane .lnote { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 6px; line-height: 1.7; }
+.lane .caveat { font-size: 11.5px; color: var(--amber); margin-top: 6px; line-height: 1.55; }
+table.cands { width: 100%; border-collapse: collapse; margin-top: 4px; }
+table.cands th {
+  font-family: var(--mono); font-size: 9px; color: var(--ink-3); font-weight: 400;
+  letter-spacing: 0.08em; text-transform: uppercase; text-align: left;
+  padding: 5px 8px; border-bottom: 1px solid var(--line);
+}
+table.cands td { padding: 6px 8px; border-bottom: 1px solid var(--line-soft); font-family: var(--mono); font-size: 11px; color: var(--ink-1); }
+tr.cand { cursor: pointer; }
+tr.cand:hover > td { background: rgba(255,255,255,0.02); }
+tr.cand.illiq > td { opacity: 0.55; }   /* liquidity breach: dimmed, never dropped */
+tr.cdeep { display: none; }
+tr.cdeep.show { display: table-row; }
+tr.cdeep > td { background: var(--bg-1); font-size: 10.5px; color: var(--ink-2); line-height: 1.8; padding: 8px 12px; }
+.hdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.hdot.g { background: var(--bull); }
+.hdot.r { background: var(--bear); }
+.readtag { font-size: 9.5px; padding: 1px 5px; border-radius: 3px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.readtag.aligned { color: var(--bull); border-color: rgba(35,209,139,0.35); }
+.readtag.counter { color: var(--amber); border-color: rgba(244,183,64,0.35); }
+.readtag.dim { color: var(--ink-3); border-style: dashed; font-style: italic; }
+.conc-label { font-family: var(--mono); font-size: 9.5px; color: var(--amber); }
+
 /* ── provenance badges ── */
 .badges { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
 .badge {
@@ -324,7 +392,8 @@ tr.grp .why { color: var(--ink-3); letter-spacing: 0.03em; text-transform: none;
 .volc.cheap { background: var(--bull-soft); color: var(--bull); }
 .volc.rich  { background: var(--amber-soft); color: var(--amber); }
 .volc.na    { background: var(--bg-2); color: var(--ink-3); border: 1px dashed var(--line); font-style: italic; }
-.optcell { cursor: not-allowed; }
+.optcell { cursor: pointer; }
+.optcell:hover { background: rgba(94,197,234,0.04); }
 .optcell.faded { opacity: 0.72; }
 
 /* expander */
@@ -383,7 +452,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
   <div class="hdr-right">
     <span id="clock"></span>
     <a href="./probe.html" title="the CORS canary — proves the Worker round-trip independently of this app">probe</a>
-    <span id="build-tag">queue-p3-1</span>
+    <span id="build-tag">opt-p4-1</span>
   </div>
 </header>
 
@@ -451,13 +520,13 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
 
   <!-- ═══ OPTIONS ═══ -->
   <section class="view" id="v-options">
-    <div class="placeholder">
-      <div class="t">Options</div>
-      <div class="d">
-        phase 4 — the verdict layer over <code>/api/long/batch</code> + <code>/api/long/:ticker</code><br />
-        lane verdicts · legend in a ? modal · deep links from the Names options chip
-      </div>
-    </div>
+    <h2 class="sec">Options — long premium <span class="n" id="opt-count"></span>
+      <span class="qm" onclick="document.getElementById('opt-modal').classList.add('show')" title="methodology — every word of legend lives here, none above the data">?</span>
+      <span class="right badges" id="opt-badges"></span></h2>
+    <div id="opt-macro"></div>
+    <div id="opt-toolbar"></div>
+    <div id="opt-body"><div class="statusbox"><div class="loading">waiting for the shared long batch…</div></div></div>
+    <div class="footnote" id="opt-notes"></div>
   </section>
 
   <!-- ═══ INCOME ═══ -->
@@ -471,6 +540,53 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
     </div>
   </section>
 
+</div>
+
+<!-- Options legend modal — ALL methodology prose lives here (design contract #8) -->
+<div class="modal-bg" id="opt-modal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <h3>How this screen works</h3>
+    <p><b>Lanes.</b> A — stock replacement: deep-ITM calls on the two nearest Januaries ≥365 DTE
+      (0.85/0.70Δ). B — directional swing: first monthlies ≥30/≥60 DTE, 0.55/0.40Δ. C — debit
+      verticals on B's chains, ~0.55Δ long / ~0.25Δ short (actual leg deltas reported, not the
+      targets). D — calendars/diagonals, deliberately thin: no breakeven, BE/EM, P(BE) or carry,
+      because a calendar's P/L at the front expiry depends on the back month's IV at that future
+      date, a model this stack does not have. E — straddle + strangle, four gates, refusing most
+      names is the lane working. F — defined-risk credit spreads.</p>
+    <p><b>E[R]</b> is <code>expectancyMean</code>: mean P/L across historical N-session windows ÷
+      capital risked, <b>held to expiry</b> — no early close, no IV path — so it understates any
+      structure that would realistically be closed early. A relative ranking, not a P&amp;L
+      forecast. ↑ marks unbounded upside scored only as far as the largest observed move.</p>
+    <p><b>cov vs P(BE).</b> P(BE) is risk-neutral, off the chain's own IV (N(d2), never 1−|Δ|).
+      Coverage is the measured frequency the stock actually moved past the breakeven, 1y and 3y
+      reported separately and never averaged — their disagreement is the regime warning.
+      <b>gap = cov − P(BE) is not a pure vol signal</b>: coverage contains drift and P(BE) is
+      driftless, so on a trending name the drift term dominates — which is why gap renders with
+      drift1y/3y directly beside it. A modest negative gap is <i>expected</i>: it is the variance
+      risk premium, not a defect.</p>
+    <p><b>Lane F inverts direction.</b> Its cov and P() are probabilities of the <b>WIN</b> — a
+      credit spread wins by the stock <i>not</i> reaching the breakeven — the opposite reading
+      from every long lane's "beyond breakeven". Same arithmetic, opposite meaning; the lane's
+      column copy says "win".</p>
+    <p><b>Term structure inverts too.</b> <code>front − back</code> positive is backwardation, and
+      here that is <b>hostile</b> — front-dated premium is exactly what a buyer pays. (A premium
+      <i>seller</i> reads the same sign as favourable.)</p>
+    <p><b>Vol state is tri-state.</b> Cheap (rank ≤ 40 or IV/HV ≤ 0.95×) · not cheap · <b>no basis
+      yet</b> — the third renders neutral, never dim: rank needs 60 days of collected IV samples
+      and its absence is not a failure.</p>
+    <p><b>Liquidity</b> floors: spread ≤ 15% of mid near-dated / 30% LEAPS, OI ≥ 10. A breach is
+      flagged and dimmed, never dropped — untradeable must look untradeable, not missing.</p>
+    <p><b>Refusals are findings.</b> A lane that declines to score names its own numbers (Lane A's
+      coverage refusal at 365-session horizons is structural — the 3y history supports ~1
+      independent window against a floor of 4). The concentration warning renders only as its full
+      label naming its window ("half the expected value from ONE 3y episode"), never a bare glyph,
+      and nothing dims or reorders on it. Junk-IV guard: strikes quoting IV 4× outside their own
+      expiry's ATM are excluded from selection and counted on the lane.</p>
+    <p><b>The directional tag</b> (aligned/counter/out-of-horizon) is informational only — the
+      rating measured a negative edge and reorders nothing here. "no tag" (lane doesn't take one)
+      and "no read" (the rating store held nothing) are different states.</p>
+    <p class="m10" style="color:var(--ink-3)">esc or click outside to close</p>
+  </div>
 </div>
 
 <script>
@@ -815,14 +931,15 @@ function earningsCell(s) {
  * each one in `missing[]` with its own reason. That is a load state, not an
  * absence of opportunity, and the two must not look the same. */
 function optionsCell(sym, longRow, missingReason) {
+  const go = `onclick="event.stopPropagation();location.hash='#options/${esc(sym)}'"`;
   if (!longRow) {
     const why = missingReason
       || 'no row returned for this ticker by /api/long/batch and it was not listed in missing[] either';
-    return `<td class="m11 optcell" title="${esc(why + ' — Options is phase 4')}">
+    return `<td class="m11 optcell" ${go} title="${esc(why + ' — click: open in Options (fetches the row)')}">
       <span class="dim">not loaded</span></td>`;
   }
   if (longRow.ok === false || longRow.status !== 'ok') {
-    return `<td class="m11 optcell" title="${esc(`long row status=${longRow.status} ok=${longRow.ok}${longRow.reason ? ' — ' + longRow.reason : ''}`)}">
+    return `<td class="m11 optcell" ${go} title="${esc(`long row status=${longRow.status} ok=${longRow.ok}${longRow.reason ? ' — ' + longRow.reason : ''} — click: open in Options`)}">
       <span class="dim">row ${esc(longRow.status || 'not ok')}</span></td>`;
   }
 
@@ -1781,10 +1898,13 @@ function queueCard(row, q) {
   } else {
     sub.push(`<span class="dim" title="levelPct / levelKind / levelPrice not all present in the payload">level not published</span>`);
   }
-  // structure: only when a long row exists — omitted, never fabricated
+  // structure: only when a long row exists — omitted, never fabricated.
+  // Links to the Options tab with this row expanded (design contract #7).
   if (row.best) {
     const er = (row.best.c.expectancyMean * 100).toFixed(0) + '%';
-    sub.push(`<span title="${esc('E[R] = expectancyMean: mean P/L across historical windows ÷ capital risked, HELD TO EXPIRY. A relative ranking, not a P&L forecast.')}">structure: <b>${esc(structureLabel(row.best))}</b> · E[R] <b class="${
+    sub.push(`<span style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px"
+      onclick="event.stopPropagation();location.hash='#options/${esc(row.sym)}'"
+      title="${esc('E[R] = expectancyMean: mean P/L across historical windows ÷ capital risked, HELD TO EXPIRY. A relative ranking, not a P&L forecast. Click: open in Options.')}">structure: <b>${esc(structureLabel(row.best))}</b> · E[R] <b class="${
       row.best.c.expectancyMean > 0 ? 'up' : 'dn'}">${er}</b>${row.best.c.upsideTruncated ? '<span class="amb">↑</span>' : ''}</span>`);
   }
   // deadline line on earnings cards, in PT
@@ -1868,6 +1988,510 @@ function renderToday() {
   renderLevels();
   renderMovers();
   renderSectors();
+}
+
+/* ═══ OPTIONS TAB (phase 4) ═══════════════════════════════════════════════
+ *
+ * The verdict layer over the long batch. Inherited machinery, each line traced
+ * to a shipped failure in trading_dash:
+ *   - gap renders WITH drift directly adjacent (gap conflates vol mispricing
+ *     with drift; on a trending name drift dominates)
+ *   - concentration renders only as its full label naming its window
+ *   - buyable is tri-state; null renders NEUTRAL, never dim
+ *   - Lane A's coverage refusal is stated once at lane level (structural)
+ *   - Lane F's cov/P() are WIN probabilities — inverted column copy
+ *   - the alignment tag informs and never reorders
+ *   - positive term structure is HOSTILE here (buyer pays the front)
+ *   - the macro chip is display-only and says so in visible text
+ *   - all legend prose lives in the ? modal
+ * /api/long/:ticker is the ONLY path that touches Yahoo: fetch on expand when
+ * missing or stale, never on page load; Load-all is strictly sequential. */
+
+const LONG_FRESH_MS_FALLBACK = 4 * 3600 * 1000;   // matches the Worker's LONG_FRESH_MS
+const optUi = { loading: {}, loadAll: null };
+
+const longRowFor = sym => (state.longRows || []).find(r => r.symbol === sym) || null;
+const longFreshMs = () => isNum(state.longFreshMs) ? state.longFreshMs : LONG_FRESH_MS_FALLBACK;
+const longRowStale = row => row && isNum(row.ts) && (Date.now() - row.ts) > longFreshMs();
+
+/* Replace-or-insert the row a /api/long/:ticker fetch returned. The response is
+ * { row, cached, stale, ageMs, macro, _instr, _meta } — the row is what we keep. */
+async function refreshLongRow(sym) {
+  optUi.loading[sym] = true;
+  renderOptions();
+  try {
+    const resp = await apiFetch('/long/' + encodeURIComponent(sym));
+    const row = resp.row;
+    if (row && row.symbol) {
+      state.longRows = (state.longRows || []).filter(r => r.symbol !== row.symbol).concat([row]);
+      state.longMissing = (state.longMissing || []).filter(m => m.symbol !== row.symbol);
+      if (resp.macro) state.macro = resp.macro;
+    }
+    delete state.errors['long:' + sym];
+    return row || null;
+  } catch (e) {
+    console.warn('[options] %s fetch failed · %s · %s', sym, e.kind, e.message);
+    state.errors['long:' + sym] = e;
+    return null;
+  } finally {
+    delete optUi.loading[sym];
+    renderOptions();
+  }
+}
+
+async function ensureLongRow(sym) {
+  const row = longRowFor(sym);
+  if (row && !longRowStale(row)) return row;
+  if (optUi.loading[sym]) return row;
+  return refreshLongRow(sym);   // missing, or aged past the 4h freshness → refresh
+}
+
+function toggleOption(sym) {
+  if (state.openOption === sym) { state.openOption = null; renderOptions(); return; }
+  state.openOption = sym;
+  renderOptions();
+  ensureLongRow(sym);
+}
+
+function openOptionTicker(sym) {
+  if (state.openOption !== sym) {
+    state.openOption = sym;
+    renderOptions();
+    ensureLongRow(sym);
+  }
+  const el = document.getElementById('optrow-' + sym);
+  if (el) el.scrollIntoView({ block: 'center' });
+}
+
+/* Strictly sequential — one awaited request at a time. Concurrency gets the
+ * Yahoo crumb rate-limited (trading_dash, measured); the cap is not the
+ * constraint, the crumb is. */
+async function loadAllLong() {
+  if (optUi.loadAll?.running) return;
+  const targets = state.asked.filter(sym => {
+    const row = longRowFor(sym);
+    return !row || longRowStale(row);
+  });
+  if (!targets.length) { optUi.loadAll = { running: false, note: 'nothing missing or stale' }; renderOptions(); return; }
+  optUi.loadAll = { running: true, done: 0, total: targets.length, current: null, failed: [] };
+  for (const sym of targets) {
+    optUi.loadAll.current = sym;
+    renderOptions();
+    const row = await refreshLongRow(sym);   // awaited — never concurrent
+    if (!row) optUi.loadAll.failed.push(sym);
+    optUi.loadAll.done++;
+  }
+  optUi.loadAll.running = false;
+  optUi.loadAll.current = null;
+  renderOptions();
+}
+
+/* ── cell helpers ─────────────────────────────────────────────────────────── */
+
+/* Tri-state vol chip. null is "no basis yet" and renders NEUTRAL — the
+ * null-as-fail reading greyed trading_dash's premium screen for three months. */
+function volChip(row) {
+  const ratio = isNum(row.ivHvRatio) ? row.ivHvRatio.toFixed(2) + '×' : null;
+  const rank = isNum(row.ivRank) ? 'IVR ' + row.ivRank : null;
+  const detail = rank || (ratio ? 'IV/HV ' + ratio : '');
+  if (row.buyable === true)
+    return `<span class="volc cheap" title="${esc(row.buyableReason || 'cheap enough to buy premium')}">vol cheap${detail ? ' · ' + detail : ''}</span>`;
+  if (row.buyable === false)
+    return `<span class="volc rich" title="${esc(row.buyableReason || 'not cheap enough to buy premium')}">vol not cheap${detail ? ' · ' + detail : ''}</span>`;
+  if (row.buyable === null || row.buyable === undefined)
+    return `<span class="volc mid" title="${esc((row.buyableReason || row.rankReason || 'no rank and no proxy — no basis to judge') + ' — a null vol basis is not a failure; it renders neutral, never dim.')}">no vol basis yet${detail ? ' · ' + detail : ''}</span>`;
+}
+
+/* Contract label per lane shape — every token from a payload field. */
+function contractLabel(L, c) {
+  const exp = L.expiry ? shortExpiry(L.expiry) : (c.frontExpiry ? shortExpiry(c.frontExpiry) : '');
+  if (c.lane === 'D' || (c.frontExpiry && c.backExpiry)) {
+    return `${c.diagonal ? 'diag' : 'cal'} ${c.strike ?? c.frontStrike} ${shortExpiry(c.frontExpiry)}→${shortExpiry(c.backExpiry)}`;
+  }
+  if (c.kind === 'straddle') return `straddle ${c.callStrike} · ${exp}`;
+  if (c.kind === 'strangle') return `strangle ${c.callStrike}C/${c.putStrike}P · ${exp}`;
+  if (c.structure) return `${c.structure} ${c.shortStrike}/${c.longStrike} · ${exp}`;   // lane F names itself
+  if (isNum(c.longStrike) && isNum(c.shortStrike)) return `${c.type} ${c.longStrike}/${c.shortStrike} vert · ${exp}`;
+  if (isNum(c.strike)) return `${c.type} ${c.strike} · ${exp}`;
+  return `${c.type || c.kind || 'candidate'} · ${exp}`;
+}
+
+/* Liquidity: floors are spread ≤ spreadMax of mid and OI ≥ minOi. A breach dims
+ * the candidate row and reddens the dot — never drops the row. */
+function liqOf(c) {
+  const minOi = state.longGates?.minOi ?? 10;
+  const spreadBad = isNum(c.spreadPct) && isNum(c.spreadMax) && c.spreadPct > c.spreadMax;
+  const oiBad = isNum(c.openInterest) && c.openInterest < minOi;
+  const known = isNum(c.spreadPct) || isNum(c.openInterest);
+  const flags = Array.isArray(c.flags) && c.flags.length ? ' · flags: ' + c.flags.join(', ') : '';
+  const tip = `spread ${isNum(c.spreadPct) ? (c.spreadPct * 100).toFixed(1) + '% of mid (max ' + (c.spreadMax * 100).toFixed(0) + '%)' : 'n/p'}`
+            + ` · OI ${isNum(c.openInterest) ? c.openInterest.toLocaleString() : 'n/p'} (floor ${minOi})${flags}`
+            + ((spreadBad || oiBad) ? ' — breach: dimmed, never dropped' : '');
+  return { bad: spreadBad || oiBad, known, tip };
+}
+
+function liqDot(c) {
+  const l = liqOf(c);
+  if (!l.known) return `<span class="dim" title="${esc('no spread or OI published for this candidate')}">—</span>`;
+  return `<span class="hdot ${l.bad ? 'r' : 'g'}" title="${esc(l.tip)}"></span>`;
+}
+
+/* The read tag: informational, never reordering. "no tag" (this lane takes no
+ * tag) and "no read" (the store held nothing) are distinct states. */
+function readTag(c) {
+  if (!c.align) return `<span class="readtag dim" title="this lane takes no directional tag">no tag</span>`;
+  const t = c.align.tag || 'no read';
+  const cls = t === 'aligned' ? 'aligned' : t === 'counter' ? 'counter' : 'dim';
+  return `<span class="readtag ${cls}" title="${esc((c.align.reason || '') + ' Informational only — the rating measured a negative edge and reorders nothing here.')}">${esc(t)}</span>`;
+}
+
+function erCell(c) {
+  if (!isNum(c.expectancyMean)) {
+    return `<span class="dim" title="${esc(c.expectancyReason || c.coverageReason || 'not scored')}">—</span>`;
+  }
+  const cls = c.expectancyMean > 0 ? 'up' : c.expectancyMean < 0 ? 'dn' : 'flat';
+  const trunc = c.upsideTruncated ? `<span class="amb" title="${esc(c.upsideTruncatedReason || 'upside truncated')}">↑</span>` : '';
+  return `<span class="${cls}">${(c.expectancyMean * 100).toFixed(0)}%</span>${trunc}`;
+}
+
+const pctOr = (v, why) => isNum(v) ? (v * 100).toFixed(0) + '%' : `<span class="dim" title="${esc(why)}">—</span>`;
+
+/* P() | cov, direction-aware: Lane F's numbers are WIN probabilities. */
+function pcovCell(c, laneLetter) {
+  const win = laneLetter === 'F';
+  const pLbl = win ? 'P(win)' : 'P(BE)';
+  const cLbl = win ? 'win' : 'cov';
+  const pTip = win
+    ? 'Risk-neutral probability the spread WINS (the stock does NOT reach the breakeven) — inverted vs the long lanes.'
+    : 'Risk-neutral probability of finishing beyond the breakeven, from the chain\'s own IV (N(d2)).';
+  const cTip = win
+    ? `Measured frequency of the WIN across historical windows — 1y / 3y, never averaged.`
+    : `Measured frequency the stock actually moved past this breakeven — 1y / 3y, never averaged; their disagreement is the regime warning.`;
+  const c1 = pctOr(c.coverage1y, c.coverageReason || 'coverage refused or not computed');
+  const c3 = pctOr(c.coverage3y, c.coverageReason || 'coverage refused or not computed');
+  const p = pctOr(c.pBe, c.pBeReason || 'not priced');
+  return `<span title="${esc(pTip)}">${pLbl} ${p}</span> <span class="m10" title="${esc(cTip)}">| ${cLbl} ${c1}/${c3}</span>`;
+}
+
+function beCell(c, L) {
+  if (c.suppressed && Array.isArray(c.suppressed.fields) && c.suppressed.fields.includes('breakeven')) {
+    return `<span class="dim" title="${esc(c.suppressed.reason || 'suppressed by the lane')}">suppressed</span>`;
+  }
+  if (c.kind === 'straddle' || c.kind === 'strangle') {
+    return isNum(c.beLower) && isNum(c.beUpper)
+      ? `<span title="${esc(`required ${c.requiredPct}% (${c.requiredSide} — the WIDER breakeven; the narrow side flatters the structure)`)}">${fmt(c.beLower)}–${fmt(c.beUpper)} · req ${isNum(c.requiredPct) ? c.requiredPct.toFixed(1) : '—'}%</span>`
+      : absent('breakevens not priced');
+  }
+  return isNum(c.breakeven)
+    ? `${fmt(c.breakeven)}${isNum(c.bePct) ? ` · ${c.bePct.toFixed(1)}%` : ''}`
+    : absent('breakeven not priced for this candidate');
+}
+
+function debitCell(c) {
+  if (isNum(c.creditPerShare)) return `<span title="credit received per share (short bid − wing ask)">cr ${fmt(c.creditPerShare)}</span>`;
+  if (isNum(c.debitPerShare)) return `$${fmt(c.debitPerShare)}`;
+  return absent('no debit or credit priced');
+}
+
+/* One candidate → the 8-column row + its hidden deep row. */
+function candRow8(L, c, idx) {
+  const l = liqOf(c);
+  const beemTd = (c.suppressed?.fields?.includes('beEm'))
+    ? `<span class="dim" title="${esc(c.suppressed.reason || '')}">suppr.</span>`
+    : isNum(c.beEm) ? c.beEm.toFixed(2) + '×' : absent('beEm not priced');
+  const pcov = (c.suppressed?.fields?.includes('pBe'))
+    ? `<span class="dim" title="${esc(c.suppressed.reason || '')}">suppressed</span>`
+    : pcovCell(c, L.lane);
+  return `<tr class="cand${l.bad ? ' illiq' : ''}" onclick="event.stopPropagation();this.nextElementSibling.classList.toggle('show')">
+    <td>${esc(contractLabel(L, c))}</td>
+    <td>${debitCell(c)}</td>
+    <td>${beCell(c, L)}</td>
+    <td>${beemTd}</td>
+    <td>${pcov}</td>
+    <td>${erCell(c)}</td>
+    <td>${liqDot(c)}</td>
+    <td>${readTag(c)}</td>
+  </tr>${candDeepRow(L, c)}`;
+}
+
+/* The deep row. GAP AND DRIFT ARE ADJACENT — the adjacency is the point: gap
+ * conflates how fat the tails were with which way the stock ran, and on a
+ * trending name the drift term dominates. Never separate them. */
+function candDeepRow(L, c) {
+  const p1 = v => isNum(v) ? (v > 0 ? '+' : '') + (v * 100).toFixed(1) + '%' : '—';
+  const bits = [];
+  const g = (gap, drift, w) => isNum(gap)
+    ? `gap${w} <b>${gap > 0 ? '+' : ''}${gap.toFixed(1)}</b> pts (drift${w} <b>${p1(drift)}</b>)`
+    : `gap${w} <span class="dim" title="${esc(c.coverageReason || 'coverage refused, so no gap')}">—</span>`;
+  bits.push(g(c.gap1y, c.drift1y, '1y'));
+  bits.push(g(c.gap3y, c.drift3y, '3y'));
+  if (isNum(c.expectancyEpisodesTo50)) bits.push(`episodes-to-50%: <b>${c.expectancyEpisodesTo50}</b> of ${c.expectancyEpisodes ?? '—'}`);
+  if (isNum(c.expectancySharpe)) bits.push(`Sharpe ${c.expectancySharpe.toFixed(2)}`);
+  if (isNum(c.kellyQuarter)) bits.push(`¼-Kelly ${(c.kellyQuarter * 100).toFixed(1)}%`);
+  if (isNum(c.expectancyWinRate)) bits.push(`win ${(c.expectancyWinRate * 100).toFixed(0)}%`);
+  if (isNum(c.expectedDollars)) bits.push(`E[$] ${c.expectedDollars.toFixed(0)}`);
+  if (isNum(c.extrinsicPct)) bits.push(`extr ${(c.extrinsicPct * 100).toFixed(0)}%`);
+  if (isNum(c.leverage)) bits.push(`lev ${c.leverage.toFixed(1)}×`);
+  if (isNum(c.carryAnnual)) bits.push(`carry ${(c.carryAnnual * 100).toFixed(1)}%/yr`);
+  if (isNum(c.thetaDay)) bits.push(`θ ${c.thetaDay.toFixed(1)}/day`);
+  if (isNum(c.vegaPerPoint)) bits.push(`vega ${c.vegaPerPoint.toFixed(1)}/pt`);
+  if (isNum(c.delta)) bits.push(`Δ ${c.delta.toFixed(2)}`);
+  if (isNum(c.pBe) && c.pBeIvStrike != null) bits.push(`P from ${c.pBeIvStrike} strike IV ${c.pBeIvUsed ?? '—'}`);
+  const tails = (isNum(c.coverageUpper1y) || isNum(c.coverageLower1y))
+    ? `<br />tails 1y: <b>${p1(c.coverageUpper1y)}↑ / ${p1(c.coverageLower1y)}↓</b> · 3y: <b>${p1(c.coverageUpper3y)}↑ / ${p1(c.coverageLower3y)}↓</b> — rendered apart, never summed (a straddle covering 22↑/2↓ is closer to a long call than a volatility trade)`
+    : '';
+  const conc = c.concentrationFlag && c.concentrationLabel
+    ? `<br /><span class="conc-label">⚑ ${esc(c.concentrationLabel)}${c.concentrationNote ? ' — ' + esc(c.concentrationNote) : ''}</span>` : '';
+  const trunc = c.upsideTruncated && c.upsideTruncatedReason ? `<br /><span class="m10">↑ ${esc(c.upsideTruncatedReason)}</span>` : '';
+  const supp = c.suppressed ? `<br /><span class="m10">${esc(c.suppressed.reason || '')}</span>` : '';
+  const pos = c.positionNote ? `<br /><span class="m10">${esc(c.positionNote)}</span>` : '';
+  const gapNote = c.gapBaselineReason ? `<br /><span class="m10" title="${esc(c.gapBaselineReason)}">gap is uncalibrated this release — hover for why; a modest negative gap is EXPECTED (variance risk premium)</span>` : '';
+  return `<tr class="cdeep"><td colspan="8">${bits.join(' · ')}${tails}${conc}${trunc}${supp}${pos}${gapNote}</td></tr>`;
+}
+
+/* ── lanes ────────────────────────────────────────────────────────────────── */
+
+const LANE_NAMES = {
+  A: 'LEAPS · stock replacement', B: 'Directional swing', C: 'Debit verticals',
+  D: 'Calendars', E: 'Straddle / strangle', F: 'Defined-risk credit spreads',
+};
+
+function laneGroupHtml(letter, entries) {
+  const cands = entries.flatMap(L => (L.candidates || []).map(c => ({ L, c })));
+  let stateCls = 'ok', stateTxt = 'ok', verdict = '', notes = [], caveats = [];
+
+  if (letter === 'A') {
+    /* The coverage refusal is STRUCTURAL — every Lane A candidate refuses at
+     * the current data range — so it is stated ONCE here. Per-candidate reasons
+     * stay on their own — cells beneath; repeated inline they would misread as
+     * "these names lack history". */
+    const reason = cands.map(({ c }) => c.coverageReason || c.expectancyReason).find(Boolean);
+    const allRefused = cands.length > 0 && cands.every(({ c }) => !isNum(c.expectancyMean));
+    if (allRefused && reason) {
+      stateCls = 'ref'; stateTxt = 'refuses coverage · why ▸';
+      verdict = `refuses coverage at this horizon — ${esc(reason)}`;
+    } else if (cands.length) {
+      verdict = `${cands.length} candidate${cands.length === 1 ? '' : 's'}`;
+    }
+    for (const L of entries) if (L.status === 'not-listed') notes.push(`second January: ${esc(L.reason || 'not listed')}`);
+  } else if (letter === 'E') {
+    const gated = entries.filter(L => L.status === 'gated');
+    if (gated.length === entries.length && entries.length) {
+      stateCls = 'gated';
+      const failed = [...new Set(gated.flatMap(L => L.gateFailed || []))];
+      stateTxt = 'gated';
+      const detail = gated[0].gateDetail ? Object.values(gated[0].gateDetail).join('\n\n') : '';
+      verdict = `<span title="${esc(detail)}">did not qualify — failed: <b>${failed.map(esc).join(', ')}</b> (hover for each gate's numbers)</span>`;
+    } else {
+      verdict = `${cands.length} candidates`;
+    }
+    for (const L of entries) {
+      if (L.headline && isNum(L.headline.requiredPct)) {
+        notes.push(`${esc(shortExpiry(L.expiry))}: required <b>${L.headline.requiredPct}%</b> / expected <b>${L.headline.expectedPct}%</b> / typical realized <b>${L.headline.typicalRealizedPct}%</b>${
+          L.headline.typicalRealizedPct < L.headline.requiredPct ? ' — the typical move has NOT covered it' : ''}`);
+      }
+      if (L.holdToExpiryCaveat) caveats.push(esc(L.holdToExpiryCaveat));
+    }
+  } else if (letter === 'D') {
+    stateCls = 'info'; stateTxt = 'info';
+    const supp = cands.map(({ c }) => c.suppressed?.reason).find(Boolean);
+    verdict = `deliberately thin — ${esc(supp || 'no term-structure model exists to price a calendar\'s P/L at the front expiry')}`;
+  } else {
+    const scored = cands.filter(({ c }) => isNum(c.expectancyMean));
+    const best = scored.reduce((m, x) => m == null || x.c.expectancyMean > m.c.expectancyMean ? x : m, null);
+    verdict = `${cands.length} candidate${cands.length === 1 ? '' : 's'}${best ? ` · best E[R] <b class="${best.c.expectancyMean > 0 ? 'up' : 'dn'}">${(best.c.expectancyMean * 100).toFixed(0)}%</b>` : ''}`;
+    if (letter === 'F') verdict += ` · <span class="m10">cov and P() in this lane are WIN probabilities — the spread wins by NOT reaching breakeven</span>`;
+  }
+  for (const L of entries) if (L.ivOutlierNote) notes.push(esc(L.ivOutlierNote));
+  const dedupCaveat = [...new Set(caveats)];
+
+  return `<div class="lane" ${cands.length ? `onclick="event.stopPropagation();this.classList.toggle('open')"` : ''}>
+    <div class="lh">
+      <span class="ln">Lane ${letter}</span>
+      <span class="lv2"><b>${LANE_NAMES[letter]}</b> — ${verdict || '<span class="dim">no entries</span>'}</span>
+      <span class="lstate ${stateCls}">${stateTxt}${cands.length ? ' · ' + cands.length + ' ▾' : ''}</span>
+    </div>
+    ${cands.length ? `<div class="lbody" onclick="event.stopPropagation()">
+      ${notes.length ? `<div class="lnote">${notes.join('<br />')}</div>` : ''}
+      <table class="cands"><thead><tr>
+        <th>contract</th><th>${letter === 'F' ? 'credit' : 'debit'}</th><th>breakeven (% move)</th><th>BE/EM</th>
+        <th>${letter === 'F' ? 'P(win) | win 1y/3y' : 'P(BE) | cov 1y/3y'}</th><th>E[R]</th><th>liq</th><th>read</th>
+      </tr></thead><tbody>${cands.map(({ L, c }, i) => candRow8(L, c, i)).join('')}</tbody></table>
+      ${dedupCaveat.length ? `<div class="caveat">${dedupCaveat.join('<br />')}</div>` : ''}
+    </div>` : (notes.length ? `<div class="lbody" style="display:block"><div class="lnote">${notes.join('<br />')}</div></div>` : '')}
+  </div>`;
+}
+
+/* ── rows ─────────────────────────────────────────────────────────────────── */
+
+function catalystCell(row) {
+  const e = row.earnings;
+  if (!e || !e.iso) return absent('no earnings date on the long row (earnings.iso absent)');
+  const wl = state.stocks?.[row.symbol];
+  const tag = (wl && wl.earningsTs && etDateOf(wl.earningsTs) === e.iso)
+    ? ' ' + sessionTag({ session: wl.earningsSession, ts: wl.earningsTs })
+    : ` <span class="tag unk" title="${esc('session timing not available for this date — the watchlist row carries none matching it')}">timing n/p</span>`;
+  const soon = isNum(e.daysAway) && e.daysAway >= 0 && e.daysAway <= 7;
+  return `<span class="${soon ? 'amb' : ''}" title="${esc('source: ' + (e.source || 'n/p'))}">${esc(shortExpiry(e.iso))}${isNum(e.daysAway) ? ` · E-${e.daysAway}d${soon ? ' ⚠' : ''}` : ''}</span>${tag}`;
+}
+
+function optCollapsedRow(row) {
+  const sym = row.symbol;
+  const open = state.openOption === sym;
+  const stale = longRowStale(row);
+  const best = row.status === 'ok' ? bestCandidate(row) : null;
+  const loadingNow = optUi.loading[sym];
+
+  let bestTd, erTd, beemTd, pcovTd;
+  if (row.status !== 'ok') {
+    bestTd = `<span class="dim" title="${esc('row status ' + row.status + (row.reason ? ' — ' + row.reason : ''))}">row: ${esc(row.status)}</span>`;
+    erTd = beemTd = pcovTd = '<span class="dim">—</span>';
+  } else if (!best) {
+    /* Loaded, ok, nothing scorable: a verdict with its reasons — a finding. */
+    bestTd = `<span class="dim" title="${esc((row.dimReason || row.buyableReason || 'no candidate carries a scored expectancy') + ' — a no-trade verdict is a finding, not a gap; the per-lane reasons are inside.')}">no qualifying structure — reasons inside</span>`;
+    erTd = beemTd = pcovTd = '<span class="dim">—</span>';
+  } else {
+    const c = best.c;
+    bestTd = `<b>${esc(structureLabel(best))}</b> <span class="m10">${isNum(c.debitPerShare) ? '$' + fmt(c.debitPerShare) : isNum(c.creditPerShare) ? 'cr ' + fmt(c.creditPerShare) : ''}</span>`;
+    erTd = erCell(c);
+    beemTd = isNum(c.beEm) ? c.beEm.toFixed(2) + '×' : absent('beEm not priced');
+    pcovTd = pcovCell(c, c.lane);
+  }
+
+  const staleBadge = stale
+    ? `<span class="badge stale" title="${esc(`row banked ${fmtClock(row.ts)} · ${ageString(Date.now() - row.ts)} old against the Worker's ${Math.round(longFreshMs() / 3600000)}h freshness — refreshes on expand`)}">stale · ${ageString(Date.now() - row.ts)}</span>`
+    : '';
+  const dimTip = row.dim && row.dimReason ? ` title="${esc('dimmed: ' + row.dimReason)}"` : '';
+
+  return `<tr class="row optrow${row.dim ? ' dimrow' : ''}${stale ? ' stalebg' : ''}" id="optrow-${esc(sym)}"
+      onclick="toggleOption('${esc(sym)}')"${dimTip}>
+    <td><span class="tick" style="text-decoration:none">${esc(sym)}</span>
+      <div class="px">${isNum(row.spot) ? fmt(row.spot) : absent('spot not on the row')}</div></td>
+    <td>${volChip(row)}</td>
+    <td class="m11" style="white-space:normal">${bestTd}</td>
+    <td class="m11">${erTd}</td>
+    <td class="m11">${beemTd}</td>
+    <td class="m11" style="white-space:nowrap">${pcovTd}</td>
+    <td class="m11">${catalystCell(row)}</td>
+    <td class="m10">${staleBadge}${loadingNow ? '<span class="loading">fetching…</span>' : (open ? '▴' : '▾')}</td>
+  </tr>
+  ${open ? optExpandedRow(row) : ''}`;
+}
+
+function optExpandedRow(row) {
+  if (row.status !== 'ok') {
+    return `<tr class="xrow"><td colspan="8"><div class="empty-state">status <b>${esc(row.status)}</b>${row.reason ? ' — ' + esc(row.reason) : ''}</div></td></tr>`;
+  }
+  const order = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const byLetter = {};
+  for (const L of (row.lanes || [])) (byLetter[L.lane] = byLetter[L.lane] || []).push(L);
+
+  const term = isNum(row.termStructure)
+    ? `<span class="${row.hostileTerm ? 'dn' : 'up'}" title="${esc(row.termReading || '')}">${row.hostileTerm ? '▰' : '▱'} term ${row.termStructure > 0 ? '+' : ''}${row.termStructure} ${row.hostileTerm ? '· hostile (buyer pays the front)' : ''}</span>`
+    : absent('termStructure not on the row');
+  const dir = row.directional
+    ? `<span class="m10" title="${esc('informational only — affectsSort: ' + row.directional.affectsSort)}">rating ${esc(row.directional.rating || 'n/p')} (${esc(fmtClock(row.directional.asOf) || 'as-of n/p')}) · does not sort</span>`
+    : `<span class="m10 dim">no directional read</span>`;
+  const div = row.dividend?.pays && row.dividend?.note
+    ? `<div class="lnote" style="margin:6px 0 0">${esc(row.dividend.note)}</div>` : '';
+
+  return `<tr class="xrow"><td colspan="8" onclick="event.stopPropagation()">
+    <div class="m10" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:4px">
+      ${term}
+      <span title="${esc(row.rankReason || '')}">${esc(row.rankReason || '')}</span>
+      ${dir}
+      <span class="m10">banked ${esc(fmtClock(row.ts))}</span>
+    </div>
+    ${div}
+    ${order.filter(l => byLetter[l]).map(l => laneGroupHtml(l, byLetter[l])).join('')}
+  </td></tr>`;
+}
+
+function renderOptions() {
+  const body = document.getElementById('opt-body');
+  if (!body) return;
+  const badges = document.getElementById('opt-badges');
+  if (badges) badges.innerHTML = state.longMeta ? renderBadges(state.longMeta, state.fetchedAt, 'long batch') : '';
+
+  /* Macro chip: DISPLAY ONLY, and the visible text says so — a coloured state
+   * chip above a ranked list reads as a ranking input unless it denies it. */
+  const macroEl = document.getElementById('opt-macro');
+  if (macroEl) {
+    const m = state.macro;
+    macroEl.innerHTML = m
+      ? `<div class="opt-macro-line">
+          <span class="stance ${['constructive','mixed','hostile'].includes(m.state) ? m.state : 'unavailable'}" title="${esc(m.label || '')}">${esc(String(m.state || 'unavailable').toUpperCase())}</span>
+          <span>${esc(m.notUsedNote || 'Shown for context. Macro state does not sort, gate or filter anything on this screen.')}</span>
+          <span class="m10">as of the ${esc(m.asOfClose || 'n/p')} close${m.stale ? ' · stale' : ''}</span>
+        </div>`
+      : `<div class="opt-macro-line"><span class="stance absent">macro not published</span>
+         <span class="m10">the long-batch envelope carried no macro object — an older Worker, not "macro unavailable"</span></div>`;
+  }
+
+  const toolbar = document.getElementById('opt-toolbar');
+  if (toolbar) {
+    const targets = state.asked.filter(sym => { const r = longRowFor(sym); return !r || longRowStale(r); });
+    const la = optUi.loadAll;
+    const prog = la
+      ? (la.running
+        ? `<span class="opt-progress">loading ${la.done + 1} of ${la.total} — <b>${esc(la.current || '')}</b>${la.failed.length ? ` · ${la.failed.length} failed` : ''}</span>`
+        : la.note ? `<span class="opt-progress">${esc(la.note)}</span>`
+        : `<span class="opt-progress">done: ${la.done} loaded${la.failed.length ? ` · failed: ${la.failed.map(esc).join(', ')}` : ''}</span>`)
+      : '';
+    toolbar.innerHTML = `<div class="opt-toolbar">
+      <button onclick="loadAllLong()" ${la?.running || !targets.length ? 'disabled' : ''}
+        title="${esc('strictly sequential, one awaited request at a time — concurrency trips Yahoo\'s crumb rate limit (the binding constraint, per trading_dash). Never runs on page load.')}">
+        Load all (${targets.length} missing/stale · ~${targets.length * 3}s, sequential)</button>
+      ${prog}</div>`;
+  }
+
+  if (!state.longRows && !state.longMissing) {
+    if (state.errors.shared) body.innerHTML = moduleFail(state.errors.shared, 'Options');
+    return;
+  }
+
+  /* Sort: loaded rows by best E[R] desc → loaded with no trade → not-loaded
+   * alphabetical. Not-loaded is a LOAD state with the Worker's own reason —
+   * never rendered like "no trade here". */
+  const loaded = (state.longRows || []).slice();
+  const withBest = [], noBest = [];
+  for (const r of loaded) {
+    const b = r.status === 'ok' ? bestCandidate(r) : null;
+    (b ? withBest : noBest).push({ r, er: b ? b.c.expectancyMean : null });
+  }
+  withBest.sort((a, b) => b.er - a.er);
+  noBest.sort((a, b) => a.r.symbol.localeCompare(b.r.symbol));
+  const missing = (state.longMissing || []).slice().sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+  let html = `<table><thead><tr>
+    <th style="width:92px">Ticker</th><th style="width:170px">Vol state</th><th>Best structure</th>
+    <th style="width:64px">E[R]</th><th style="width:64px">BE/EM</th><th style="width:190px">P() | cov</th>
+    <th style="width:150px">Catalyst</th><th style="width:90px"></th>
+  </tr></thead><tbody>`;
+  for (const { r } of withBest) html += optCollapsedRow(r);
+  for (const { r } of noBest) html += optCollapsedRow(r);
+  if (missing.length) {
+    html += `<tr class="grp"><td colspan="8">Not loaded · ${missing.length}
+      <span class="why">— a load state, not a verdict; expand to fetch (the only path that touches Yahoo)</span></td></tr>`;
+    for (const m of missing) {
+      const open = state.openOption === m.symbol;
+      html += `<tr class="row optrow" id="optrow-${esc(m.symbol)}" onclick="toggleOption('${esc(m.symbol)}')">
+        <td><span class="tick" style="text-decoration:none">${esc(m.symbol)}</span></td>
+        <td colspan="6"><span class="dim" title="${esc('the Worker\'s own reason, verbatim')}">${esc(m.reason || 'not loaded')}</span>
+          ${state.errors['long:' + m.symbol] ? `<span class="dn"> · last fetch failed: ${esc(state.errors['long:' + m.symbol].message)}</span>` : ''}</td>
+        <td class="m10">${optUi.loading[m.symbol] ? '<span class="loading">fetching…</span>' : (open ? '▴' : '▾')}</td>
+      </tr>`;
+      if (open && optUi.loading[m.symbol]) html += `<tr class="xrow"><td colspan="8"><div class="loading">fetching /api/long/${esc(m.symbol)} — the one path that touches Yahoo…</div></td></tr>`;
+    }
+  }
+  html += '</tbody></table>';
+  body.innerHTML = html;
+
+  const count = document.getElementById('opt-count');
+  if (count) count.textContent = `· ${withBest.length} priced · ${noBest.length} no-trade/other · ${missing.length} not loaded`;
+  const notes = document.getElementById('opt-notes');
+  if (notes) notes.innerHTML = 'rows are fresh 4h / retained 24h server-side — an aged row renders amber-stale and refreshes on expand'
+    + ' · collapsed rows sort by best E[R] (held-to-expiry, a relative ranking) · methodology lives in the ? modal';
 }
 
 /* ═══ STATE + RENDER ═══════════════════════════════════════════════════════ */
@@ -1968,8 +2592,9 @@ function renderNotes() {
     + 'session’s close; AMC means that day’s close. <code>unknown</code> is the Worker declining '
     + 'to classify — assume the earlier deadline. A row with no field at all came from an older Worker '
     + 'and says so instead.');
-  notes.push('The options chip is inert — Options is phase 4. The ticker link goes to the '
-    + 'trading_dash ticker page as an interim until phase 5 builds ours.');
+  notes.push('The options chip navigates to that name’s row on the Options tab (fetching it if '
+    + 'needed). The ticker link goes to the trading_dash ticker page as an interim until phase 5 '
+    + 'builds ours.');
   if (state.longMeta && state.longMeta.note)
     notes.push('long batch: ' + esc(state.longMeta.note));
   document.getElementById('names-notes').innerHTML = notes.map(n => '· ' + n).join('<br />');
@@ -2071,12 +2696,22 @@ function loadShared(reason) {
        * the regime line renders as its own named state rather than as
        * "macro unavailable" (a verdict the Worker itself can publish). */
       state.macro = lb.macro || null;
+      /* The Worker's own freshness horizon and gate constants — read from the
+       * payload so the stale badge and the liquidity floors cannot drift from
+       * the server's definitions. */
+      if (isNum(lb.freshMs)) state.longFreshMs = lb.freshMs;
+      if (lb.gates) state.longGates = lb.gates;
 
       console.log('[shared] (%s) asked %d · returned %d · notReturned %s · analysisLoading %s · long rows %d missing %d · macro %s',
         reason, tickers.length, Object.keys(stocks).length, JSON.stringify(state.notReturned),
         analysisLoading, state.longRows.length, state.longMissing.length,
         state.macro ? state.macro.state : 'ABSENT');
       sharedDone = true;
+      if (optUi.pendingDeepLink) {
+        const sub = optUi.pendingDeepLink;
+        optUi.pendingDeepLink = null;
+        if (currentView() === 'options') openOptionTicker(sub);
+      }
     } catch (e) {
       console.warn('[shared] failed ·', e.kind, '·', e.message);
       state.errors.shared = e;
@@ -2137,6 +2772,7 @@ function loadToday(reason) {
 function paintAll() {
   if (state.stocks) renderNames();
   renderToday();
+  renderOptions();
 }
 
 function loadAll(reason) {
@@ -2164,10 +2800,20 @@ function route() {
     const a = document.querySelector(`nav a[data-v="${x}"]`);
     if (a) a.classList.toggle('on', x === v);
   });
-  /* Switching tabs does not refetch — both read the store that is already
-   * loading or loaded. Only the first arrival on a data tab starts it. */
-  if ((v === 'today' || v === 'names') && !sharedInflight && !sharedDone) loadShared('route');
+  /* Switching tabs does not refetch — all data tabs read the store that is
+   * already loading or loaded. Only the first arrival starts it. */
+  if ((v === 'today' || v === 'names' || v === 'options') && !sharedInflight && !sharedDone) loadShared('route');
   if (v === 'today' && !todayInflight && !todayDone) loadToday('route');
+
+  /* #options/TICKER deep-links to the tab with that row expanded, fetching it
+   * if the store holds nothing fresh for it. */
+  if (v === 'options') {
+    const sub = ((location.hash || '').split('/')[1] || '').trim().toUpperCase();
+    if (sub && /^[A-Z][A-Z.\-]{0,9}$/.test(sub)) {
+      if (sharedDone) openOptionTicker(sub);
+      else optUi.pendingDeepLink = sub;   // consumed when the shared sweep lands
+    }
+  }
 }
 
 window.addEventListener('hashchange', route);
@@ -2180,9 +2826,13 @@ window.addEventListener('hashchange', route);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
   const v = currentView();
-  if (v !== 'today' && v !== 'names') return;
+  if (v !== 'today' && v !== 'names' && v !== 'options') return;
   sharedDone = false; todayDone = false;
   loadAll('visibilitychange');
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('opt-modal')?.classList.remove('show');
 });
 
 setInterval(() => {
