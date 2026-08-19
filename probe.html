@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>decision_dash — CORS probe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Geist:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg-0: #0a0a0c;
+  --bg-1: #0f0f14;
+  --bg-2: #14141d;
+  --bg-3: #1a1a25;
+  --line: #23232f;
+  --line-soft: #1c1c26;
+  --ink-0: #f5f1eb;
+  --ink-1: #c9c5be;
+  --ink-2: #888591;
+  --ink-3: #5a5862;
+  --bull: #23d18b;
+  --bull-soft: rgba(35,209,139,0.12);
+  --bear: #f25f5c;
+  --bear-soft: rgba(242,95,92,0.12);
+  --amber: #f4b740;
+  --amber-soft: rgba(244,183,64,0.10);
+  --cyan: #5ec5ea;
+  --cyan-soft: rgba(94,197,234,0.10);
+  --violet: #b48ead;
+  --serif: 'Fraunces', Georgia, serif;
+  --sans: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg-0); color: var(--ink-0);
+  font-family: var(--sans); font-weight: 400;
+  -webkit-font-smoothing: antialiased; line-height: 1.5; min-height: 100vh;
+}
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 40px 28px 64px; }
+
+.brand {
+  font-family: var(--serif); font-style: italic; font-weight: 300;
+  font-size: 24px; letter-spacing: -0.01em;
+}
+.brand span { color: var(--amber); }
+.subtitle {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.06em; margin-top: 6px;
+}
+
+.section-head {
+  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin: 32px 0 14px;
+}
+
+.card {
+  background: var(--bg-1); border: 1px solid var(--line);
+  border-radius: 10px; padding: 18px 20px;
+}
+
+/* ── index strip ── */
+.strip { display: flex; flex-wrap: wrap; gap: 26px; }
+.strip-item { min-width: 108px; }
+.strip-name {
+  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.strip-price { font-family: var(--mono); font-size: 15px; font-weight: 500; color: var(--ink-0); }
+.strip-chg { font-family: var(--mono); font-size: 12px; }
+/* Rule: status is never conveyed by colour alone — the ▲/▼/■ glyph carries it too. */
+.strip-chg.up   { color: var(--bull); }
+.strip-chg.dn   { color: var(--bear); }
+.strip-chg.flat { color: var(--ink-3); }
+.strip-chg.absent { color: var(--ink-3); font-style: italic; }
+
+/* ── provenance badges (rendered from _meta, never hand-written) ── */
+.badges { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+.badge {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em;
+  text-transform: uppercase; padding: 3px 8px; border-radius: 4px;
+  border: 1px solid var(--line); color: var(--ink-2); background: var(--bg-2);
+  cursor: default;
+}
+.badge.source  { color: var(--cyan);  border-color: rgba(94,197,234,0.35);  background: var(--cyan-soft); }
+.badge.delayed { color: var(--amber); border-color: rgba(244,183,64,0.35);  background: var(--amber-soft); }
+.badge.stale   { color: var(--amber); border-color: rgba(244,183,64,0.35);  background: var(--amber-soft); }
+.badge.fresh   { color: var(--bull);  border-color: rgba(35,209,139,0.35);  background: var(--bull-soft); }
+.badge.absent  { color: var(--ink-3); border-style: dashed; font-style: italic; }
+.badge.err     { color: var(--bear);  border-color: rgba(242,95,92,0.35);   background: var(--bear-soft); }
+
+.meta-line {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-2);
+  margin-top: 10px; line-height: 1.8;
+}
+.meta-line b { color: var(--ink-1); font-weight: 500; }
+.meta-absent { color: var(--ink-3); font-style: italic; }
+
+/* ── failure state ── */
+.fail { border-color: rgba(242,95,92,0.35); background: rgba(242,95,92,0.05); }
+.fail-title {
+  font-family: var(--mono); font-size: 12px; color: var(--bear);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;
+}
+.fail-body { font-size: 13px; color: var(--ink-1); }
+.fail-body code {
+  font-family: var(--mono); font-size: 12px; color: var(--ink-0);
+  background: var(--bg-3); padding: 1px 5px; border-radius: 3px;
+}
+.fail-hint { font-size: 12px; color: var(--ink-2); margin-top: 10px; }
+
+.loading { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+
+.footnote {
+  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+  margin-top: 28px; line-height: 1.9;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">decision<span>_</span>dash</div>
+  <div class="subtitle">CORS canary · live <span id="probe-path">/market/snapshot</span> round-trip · <a href="./" style="color:var(--cyan)">back to the app</a></div>
+
+  <div class="section-head">Index strip</div>
+  <div class="card" id="snapshot-card">
+    <div class="loading" id="snapshot-body">fetching…</div>
+  </div>
+
+  <div class="footnote">
+    build <span id="build-id">p0-probe-2</span> · this page proves CORS, the allowlisted origin,
+    and one live Worker read. It renders nothing it did not receive.<br />
+    Kept permanently as the canary: when the app goes dark, this page separates
+    "the Worker/CORS broke" from "our rendering broke" in one load.
+  </div>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   decision_dash — phase 0 probe
+
+   Proves a live browser round-trip to the shared stock-research-worker before
+   any real surface is built. Three states are rendered explicitly, per the
+   honesty rules in CLAUDE.md:
+
+     data        — values with their source and as-of
+     fetch-fail  — the error, distinguishing a CORS/network TypeError (no HTTP
+                   response ever reached us) from an HTTP status the Worker did
+                   return
+     field-absent — a field the deployed Worker does not send is its own named
+                   state, never a blank and never a fallback value
+
+   The Worker is edited and deployed from C:\dev\trading_dash. Nothing here
+   touches it.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const API_BASE = 'https://stock-research-worker.ambermlysak.workers.dev/api';
+
+/* DASH_KEY is the shared gate header (`x-dash-key`) the Worker requires on the
+ * endpoints that spend money. `/market/snapshot` does not need it — it is set
+ * here for the gated endpoints of later phases. It is not a secret in any
+ * meaningful sense: it ships inside a static page served from a public origin,
+ * exactly as it already does in trading_dash's dashboard.html. Its job is to
+ * stop drive-by spend, not to authenticate anyone.
+ *
+ * Any NEW custom request header is a two-repo change — it must be added to
+ * CORS_ALLOW_HEADERS in trading_dash's worker.js or the browser blocks the
+ * request at preflight and nothing reaches the Worker. */
+const DASH_KEY = 'd4ae600c39f544c886fdfb43bd1a06d332900650ac414b28885447f3cf56b5da';
+
+/* ── fetch ───────────────────────────────────────────────────────────────── */
+
+/* Distinguishes the two failure classes that look identical in a console:
+ *   - `network` — fetch() rejected. No HTTP response exists. This is what a
+ *     blocked CORS preflight looks like from JS: the browser refuses to hand
+ *     the response to the page, so we get a TypeError with no status. Nothing
+ *     appears in the Worker's logs either, because nothing arrived.
+ *   - `http`    — the Worker answered, with a status we did not want. */
+async function apiFetch(path) {
+  let r;
+  try {
+    r = await fetch(API_BASE + path, {
+      headers: { 'x-dash-key': DASH_KEY },
+    });
+  } catch (e) {
+    const err = new Error(e.message || String(e));
+    err.kind = 'network';
+    throw err;
+  }
+  if (!r.ok) {
+    const err = new Error(`HTTP ${r.status} ${r.statusText || ''}`.trim());
+    err.kind = 'http';
+    err.status = r.status;
+    try { err.body = (await r.text()).slice(0, 400); } catch { err.body = ''; }
+    throw err;
+  }
+  return r.json();
+}
+
+/* ── formatting ──────────────────────────────────────────────────────────── */
+
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* Honesty rule 6: `x == null` and `x === 0` must never render the same way.
+ * A missing price renders as an em dash with a reason; a price of exactly 0
+ * renders as 0.00. The null is guarded BEFORE any arithmetic — `(null).toFixed`
+ * would throw, but `(null * 100).toFixed(0)` would silently produce "0", a
+ * fabricated measurement. */
+function fmtPrice(v) {
+  if (v == null) return { text: '—', absent: true, why: 'price not present in the payload' };
+  if (typeof v !== 'number' || !Number.isFinite(v))
+    return { text: '—', absent: true, why: `price was ${JSON.stringify(v)}, not a finite number` };
+  return { text: v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), absent: false };
+}
+
+function fmtChangePct(v) {
+  if (v == null) return { text: '— no change published', cls: 'absent', why: 'changePct not present in the payload' };
+  if (typeof v !== 'number' || !Number.isFinite(v))
+    return { text: '— unusable', cls: 'absent', why: `changePct was ${JSON.stringify(v)}, not a finite number` };
+  /* Zero is a real measurement and gets its own glyph, not the absent one. */
+  const glyph = v > 0 ? '▲' : v < 0 ? '▼' : '■';
+  const cls   = v > 0 ? 'up' : v < 0 ? 'dn' : 'flat';
+  const sign  = v > 0 ? '+' : '';
+  return { text: `${glyph} ${sign}${v.toFixed(2)}%`, cls };
+}
+
+function fmtClock(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString('en-US', {
+    year: 'numeric', month: 'short', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
+}
+
+function ageString(ms) {
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
+
+/* ── provenance ──────────────────────────────────────────────────────────── */
+
+/* Badges are built from the `_meta` this fetch returned. Nothing here is
+ * hand-written in markup, and nothing is inferred when `_meta` is missing —
+ * a missing `_meta` is itself rendered as a named state.
+ *
+ * `delayed` and `stale` are different properties and both can be true at once:
+ *   delayed — a property of the SOURCE (Yahoo publishes on a 15-minute lag)
+ *   stale   — a property of OUR COPY (fetched longer ago than its ttlSeconds)
+ * Recomputed on a 30-second timer, so `stale` can appear without a refetch. */
+function renderBadges(meta, fetchedAtMs) {
+  if (!meta) {
+    return `<span class="badge absent" title="the response carried no _meta object; provenance cannot be asserted">no _meta — provenance unknown</span>`;
+  }
+  const out = [];
+
+  if (meta.source) out.push(`<span class="badge source" title="_meta.source">${esc(meta.source)}</span>`);
+  else out.push(`<span class="badge absent" title="_meta.source absent from the response">source not published</span>`);
+
+  if (meta.ok === false) out.push(`<span class="badge err" title="_meta.ok === false — the Worker flagged this payload as degraded">_meta.ok false</span>`);
+
+  if (meta.delayed === true) out.push(`<span class="badge delayed" title="property of the source: it publishes on a lag">delayed</span>`);
+  else if (meta.delayed == null) out.push(`<span class="badge absent" title="_meta.delayed absent — we cannot say whether the source is real-time">delay unknown</span>`);
+
+  /* Staleness is a property of our copy: age of this fetch against the TTL the
+   * Worker declared. With no ttlSeconds we say so rather than assume a number. */
+  const ttl = meta.ttlSeconds;
+  const ageMs = Date.now() - fetchedAtMs;
+  if (ttl == null) {
+    out.push(`<span class="badge absent" title="_meta.ttlSeconds absent — no declared TTL to age this copy against">TTL not declared · held ${ageString(ageMs)}</span>`);
+  } else if (ageMs > ttl * 1000) {
+    out.push(`<span class="badge stale" title="our copy is older than the Worker's declared TTL of ${ttl}s">stale · ${ageString(ageMs)} old (TTL ${ttl}s)</span>`);
+  } else {
+    out.push(`<span class="badge fresh" title="our copy is within the Worker's declared TTL of ${ttl}s">fresh · ${ageString(ageMs)} (TTL ${ttl}s)</span>`);
+  }
+
+  return out.join('');
+}
+
+/* The as-of line. `asOf` (when the SOURCE says its data is from) and `fetchedAt`
+ * (when WE pulled it) are not the same quantity and never share a label —
+ * honesty rule 1. The deployed Worker currently sends `asOf: null` on this
+ * endpoint, which is the field-absent state, not an empty string. */
+function renderMetaLines(meta, payloadTs) {
+  const rows = [];
+
+  const asOf = meta && meta.asOf != null ? fmtClock(meta.asOf) : null;
+  rows.push(asOf
+    ? `source as-of <b>${esc(asOf)}</b>`
+    : `source as-of <span class="meta-absent">not published by the source (_meta.asOf ${meta && 'asOf' in meta ? 'is null' : 'absent'}) — the fetched-at time below is ours, not the source's</span>`);
+
+  const fetched = meta && meta.fetchedAt != null ? fmtClock(meta.fetchedAt) : null;
+  rows.push(fetched
+    ? `fetched by the Worker at <b>${esc(fetched)}</b>`
+    : `fetched-at <span class="meta-absent">not published (_meta.fetchedAt absent)</span>`);
+
+  if (payloadTs != null) {
+    const ts = fmtClock(payloadTs);
+    if (ts) rows.push(`payload <span class="meta-absent">ts</span> <b>${esc(ts)}</b>`);
+  }
+
+  if (meta && meta.note) rows.push(`note <b>${esc(meta.note)}</b>`);
+
+  return rows.map(r => `<div>${r}</div>`).join('');
+}
+
+/* ── render ──────────────────────────────────────────────────────────────── */
+
+let lastPayload = null;   // kept so the 30s sweep can re-evaluate staleness
+let lastFetchedAtMs = null;
+
+function renderSnapshot(data, fetchedAtMs) {
+  const card = document.getElementById('snapshot-card');
+  const body = document.getElementById('snapshot-body');
+  card.classList.remove('fail');
+
+  const rows = data && Array.isArray(data.snapshot) ? data.snapshot : null;
+  if (!rows) {
+    body.innerHTML = `<div class="fail-title">field-absent</div>
+      <div class="fail-body">The Worker answered, but the response carried no <code>snapshot</code> array.
+      Keys present: <code>${esc(Object.keys(data || {}).join(', ') || '(none)')}</code>.
+      Nothing is rendered rather than a stand-in — a plausible stand-in is
+      indistinguishable from the real thing.</div>`;
+    card.classList.add('fail');
+    return;
+  }
+
+  const items = rows.map(s => {
+    const name = s.name || s.ticker || '(unnamed)';
+    const p = fmtPrice(s.price);
+    const c = fmtChangePct(s.changePct);
+    return `<div class="strip-item">
+      <div class="strip-name" title="${esc(s.ticker || '')}">${esc(name)}</div>
+      <div class="strip-price"${p.absent ? ` title="${esc(p.why)}"` : ''}>${esc(p.text)}</div>
+      <div class="strip-chg ${c.cls}"${c.why ? ` title="${esc(c.why)}"` : ''}>${esc(c.text)}</div>
+    </div>`;
+  }).join('');
+
+  const countLine = `<div class="meta-line"><b>${rows.length}</b> instrument${rows.length === 1 ? '' : 's'} returned</div>`;
+
+  body.outerHTML = `<div id="snapshot-body">
+    <div class="strip">${items}</div>
+    ${countLine}
+    <div class="meta-line">${renderMetaLines(data._meta, data.ts)}</div>
+    <div class="badges" id="snapshot-badges">${renderBadges(data._meta, fetchedAtMs)}</div>
+  </div>`;
+}
+
+function renderFailure(err) {
+  const card = document.getElementById('snapshot-card');
+  const body = document.getElementById('snapshot-body');
+  card.classList.add('fail');
+
+  let title, explain, hint;
+  if (err.kind === 'network') {
+    title = 'fetch failed — no HTTP response';
+    explain = `<code>${esc(err.message)}</code> — fetch() rejected before any status was
+      available. This is what a blocked CORS preflight looks like from JavaScript:
+      the browser refused to hand the response to the page, so there is no status
+      to report and nothing reached the Worker's logs either. A dropped network
+      or a DNS failure looks identical from here.`;
+    hint = `Check that this page's origin (<code>${esc(location.origin)}</code>) is in
+      <code>ALLOWED_ORIGINS</code> in trading_dash's <code>worker.js</code> and that the
+      Worker has been deployed since. <code>file://</code> sends
+      <code>Origin: null</code> and is rejected by design — serve over http.`;
+  } else if (err.kind === 'http') {
+    title = `worker answered ${esc(String(err.status))}`;
+    explain = `The request reached the Worker and it returned
+      <code>${esc(err.message)}</code>. This is not a CORS failure — a status
+      means the round-trip completed.${err.body ? ` Body: <code>${esc(err.body)}</code>` : ''}`;
+    hint = err.status === 401
+      ? `401 means <code>DASH_KEY</code> does not match the Worker's <code>AI_GATE_SECRET</code>.`
+      : `Check the Worker's logs — unlike a CORS block, this request is in them.`;
+  } else {
+    title = 'unexpected failure';
+    explain = `<code>${esc(err.message)}</code>`;
+    hint = '';
+  }
+
+  body.outerHTML = `<div id="snapshot-body">
+    <div class="fail-title">${title}</div>
+    <div class="fail-body">${explain}</div>
+    ${hint ? `<div class="fail-hint">${hint}</div>` : ''}
+    <div class="badges"><span class="badge err">no data — nothing rendered</span></div>
+  </div>`;
+}
+
+async function load() {
+  try {
+    const data = await apiFetch('/market/snapshot');
+    lastFetchedAtMs = Date.now();
+    lastPayload = data;
+    renderSnapshot(data, lastFetchedAtMs);
+    console.log('[probe] snapshot ok ·', (data.snapshot || []).length, 'instruments ·', data._meta);
+  } catch (e) {
+    lastPayload = null;
+    console.warn('[probe] snapshot failed ·', e.kind, '·', e.message);
+    renderFailure(e);
+  }
+}
+
+/* Staleness re-evaluates on a 30-second timer without refetching: the copy ages
+ * whether or not we ask again, and the badge must say so. */
+setInterval(() => {
+  if (!lastPayload) return;
+  const el = document.getElementById('snapshot-badges');
+  if (el) el.innerHTML = renderBadges(lastPayload._meta, lastFetchedAtMs);
+}, 30_000);
+
+load();
+</script>
+</body>
+</html>

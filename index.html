@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>decision_dash — phase 0 probe</title>
+<title>decision_dash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Geist:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -40,152 +40,297 @@ html, body {
   -webkit-font-smoothing: antialiased; line-height: 1.5; min-height: 100vh;
 }
 
-.wrap { max-width: 1120px; margin: 0 auto; padding: 40px 28px 64px; }
-
+/* ── header ── */
+header {
+  display: flex; align-items: center; gap: 24px;
+  padding: 13px 24px; border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(10,10,12,0.94); backdrop-filter: blur(6px);
+}
 .brand {
   font-family: var(--serif); font-style: italic; font-weight: 300;
-  font-size: 24px; letter-spacing: -0.01em;
+  font-size: 19px; letter-spacing: -0.01em; white-space: nowrap;
 }
-.brand span { color: var(--amber); }
-.subtitle {
+.brand span { color: var(--amber); font-style: normal; }
+nav { display: flex; gap: 3px; }
+nav a {
+  color: var(--ink-2); text-decoration: none;
+  font-size: 13.5px; padding: 6px 13px; border-radius: 7px;
+  border: 1px solid transparent;
+}
+nav a:hover { color: var(--ink-0); }
+nav a.on { background: var(--bg-3); color: var(--ink-0); border-color: var(--line); }
+.hdr-right {
+  margin-left: auto; font-family: var(--mono); font-size: 10.5px;
+  color: var(--ink-3); display: flex; align-items: center; gap: 12px;
+}
+.hdr-right a { color: var(--ink-3); }
+
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 24px 64px; }
+
+/* ── section heads ── */
+h2.sec {
+  font-family: var(--mono); font-size: 10px; font-weight: 400;
+  color: var(--ink-3); letter-spacing: 0.12em; text-transform: uppercase;
+  margin: 24px 0 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+h2.sec .n { color: var(--ink-3); }
+h2.sec .right { margin-left: auto; text-transform: none; letter-spacing: 0.03em; }
+
+/* ── placeholder views ── */
+.placeholder {
+  background: var(--bg-1); border: 1px dashed var(--line);
+  border-radius: 10px; padding: 32px; margin-top: 24px; text-align: center;
+}
+.placeholder .t { font-family: var(--serif); font-style: italic; font-size: 22px; color: var(--ink-1); }
+.placeholder .d {
   font-family: var(--mono); font-size: 11px; color: var(--ink-3);
-  text-transform: uppercase; letter-spacing: 0.06em; margin-top: 6px;
+  margin-top: 10px; line-height: 1.9;
 }
 
-.section-head {
-  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
-  text-transform: uppercase; letter-spacing: 0.06em;
-  margin: 32px 0 14px;
-}
-
-.card {
-  background: var(--bg-1); border: 1px solid var(--line);
-  border-radius: 10px; padding: 18px 20px;
-}
-
-/* ── index strip ── */
-.strip { display: flex; flex-wrap: wrap; gap: 26px; }
-.strip-item { min-width: 108px; }
-.strip-name {
-  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
-  text-transform: uppercase; letter-spacing: 0.04em;
-}
-.strip-price { font-family: var(--mono); font-size: 15px; font-weight: 500; color: var(--ink-0); }
-.strip-chg { font-family: var(--mono); font-size: 12px; }
-/* Rule: status is never conveyed by colour alone — the ▲/▼/■ glyph carries it too. */
-.strip-chg.up   { color: var(--bull); }
-.strip-chg.dn   { color: var(--bear); }
-.strip-chg.flat { color: var(--ink-3); }
-.strip-chg.absent { color: var(--ink-3); font-style: italic; }
-
-/* ── provenance badges (rendered from _meta, never hand-written) ── */
-.badges { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+/* ── provenance badges ── */
+.badges { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
 .badge {
-  font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em;
-  text-transform: uppercase; padding: 3px 8px; border-radius: 4px;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.04em;
+  text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
   border: 1px solid var(--line); color: var(--ink-2); background: var(--bg-2);
-  cursor: default;
+  cursor: default; white-space: nowrap;
 }
-.badge.source  { color: var(--cyan);  border-color: rgba(94,197,234,0.35);  background: var(--cyan-soft); }
-.badge.delayed { color: var(--amber); border-color: rgba(244,183,64,0.35);  background: var(--amber-soft); }
-.badge.stale   { color: var(--amber); border-color: rgba(244,183,64,0.35);  background: var(--amber-soft); }
-.badge.fresh   { color: var(--bull);  border-color: rgba(35,209,139,0.35);  background: var(--bull-soft); }
+.badge.source  { color: var(--cyan);  border-color: rgba(94,197,234,0.35); background: var(--cyan-soft); }
+.badge.delayed,
+.badge.stale   { color: var(--amber); border-color: rgba(244,183,64,0.35); background: var(--amber-soft); }
+.badge.fresh   { color: var(--bull);  border-color: rgba(35,209,139,0.35); background: var(--bull-soft); }
 .badge.absent  { color: var(--ink-3); border-style: dashed; font-style: italic; }
-.badge.err     { color: var(--bear);  border-color: rgba(242,95,92,0.35);   background: var(--bear-soft); }
+.badge.err     { color: var(--bear);  border-color: rgba(242,95,92,0.35);  background: var(--bear-soft); }
 
-.meta-line {
-  font-family: var(--mono); font-size: 11px; color: var(--ink-2);
-  margin-top: 10px; line-height: 1.8;
+/* ── table ── */
+table { width: 100%; border-collapse: collapse; }
+th {
+  font-family: var(--mono); font-size: 9.5px; font-weight: 400; color: var(--ink-3);
+  letter-spacing: 0.1em; text-transform: uppercase; text-align: left;
+  padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap;
 }
-.meta-line b { color: var(--ink-1); font-weight: 500; }
-.meta-absent { color: var(--ink-3); font-style: italic; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+tr.row { cursor: pointer; }
+tr.row:hover > td { background: rgba(255,255,255,0.015); }
+tr.grp > td {
+  background: var(--bg-1); font-family: var(--mono); font-size: 9.5px;
+  color: var(--ink-2); letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 6px 10px; border-bottom: 1px solid var(--line);
+}
+tr.grp .why { color: var(--ink-3); letter-spacing: 0.03em; text-transform: none; }
 
-/* ── failure state ── */
-.fail { border-color: rgba(242,95,92,0.35); background: rgba(242,95,92,0.05); }
+.tick {
+  font-family: var(--mono); font-weight: 600; font-size: 13px; color: var(--cyan);
+  text-decoration: underline dotted; text-underline-offset: 3px;
+}
+.px { font-family: var(--mono); font-size: 12px; color: var(--ink-1); margin-top: 2px; }
+.px small { font-size: 11px; }
+.up { color: var(--bull); } .dn { color: var(--bear); } .amb { color: var(--amber); }
+.flat { color: var(--ink-3); }
+.m11 { font-family: var(--mono); font-size: 11px; color: var(--ink-1); white-space: nowrap; }
+.m10 { font-family: var(--mono); font-size: 10px; color: var(--ink-2); }
+.dim { color: var(--ink-3); font-style: italic; }
+
+/* verdict */
+.rec-head { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.rtag {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.06em;
+  padding: 2px 6px; border-radius: 4px; flex: 0 0 auto;
+}
+.rtag.buy  { background: var(--bull-soft);  color: var(--bull); }
+.rtag.hold { background: var(--amber-soft); color: var(--amber); }
+.rtag.sell { background: var(--bear-soft);  color: var(--bear); }
+.rconf { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); }
+.rline { font-size: 12.5px; color: var(--ink-0); line-height: 1.45; }
+.rasof { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); margin-top: 3px; }
+.rasof.aged { color: var(--amber); }
+
+/* level + trend cells share the trading_dash colour convention */
+.lvl-hold     { color: var(--bull); }   /* holding above support */
+.lvl-break    { color: var(--bear); }   /* support broken */
+.lvl-break-up { color: var(--bull); }   /* broken out above resistance */
+.lvl-cap      { color: var(--amber); }  /* capped under resistance — not bearish */
+.lvl-tag { font-size: 9px; color: var(--ink-3); }
+.x-g { color: var(--bull); } .x-d { color: var(--bear); }
+.x-setup { color: var(--amber); font-weight: 500; }
+
+/* options chip */
+.volc {
+  font-family: var(--mono); font-size: 9.5px; padding: 2px 6px;
+  border-radius: 4px; white-space: nowrap;
+}
+.volc.cheap { background: var(--bull-soft); color: var(--bull); }
+.volc.rich  { background: var(--amber-soft); color: var(--amber); }
+.volc.na    { background: var(--bg-2); color: var(--ink-3); border: 1px dashed var(--line); font-style: italic; }
+.optcell { cursor: not-allowed; }
+.optcell.faded { opacity: 0.72; }
+
+/* expander */
+tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chips .c {
+  font-family: var(--mono); font-size: 10px; color: var(--ink-1);
+  background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 4px; padding: 3px 7px;
+}
+.chips .c.absent { color: var(--ink-3); border-style: dashed; font-style: italic; }
+.chips .c b { color: var(--ink-0); font-weight: 500; }
+.xsum { font-size: 12.5px; color: var(--ink-1); margin-top: 10px; max-width: 78ch; line-height: 1.6; }
+.xprov {
+  font-family: var(--mono); font-size: 9.5px; color: var(--ink-3);
+  margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line);
+  line-height: 1.8;
+}
+.hide { display: none; }
+
+/* status / failure */
+.statusbox {
+  background: var(--bg-1); border: 1px solid var(--line);
+  border-radius: 10px; padding: 18px 20px; margin-top: 20px;
+}
+.statusbox.fail { border-color: rgba(242,95,92,0.35); background: rgba(242,95,92,0.05); }
 .fail-title {
-  font-family: var(--mono); font-size: 12px; color: var(--bear);
-  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--bear);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;
 }
-.fail-body { font-size: 13px; color: var(--ink-1); }
+.fail-body { font-size: 13px; color: var(--ink-1); max-width: 80ch; }
 .fail-body code {
-  font-family: var(--mono); font-size: 12px; color: var(--ink-0);
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-0);
   background: var(--bg-3); padding: 1px 5px; border-radius: 3px;
 }
-.fail-hint { font-size: 12px; color: var(--ink-2); margin-top: 10px; }
-
 .loading { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
 
 .footnote {
   font-family: var(--mono); font-size: 10px; color: var(--ink-3);
-  margin-top: 28px; line-height: 1.9;
+  margin-top: 18px; line-height: 1.9; max-width: 100ch;
 }
+.view { display: none; }
+.view.on { display: block; }
 </style>
 </head>
 <body>
+
+<header>
+  <div class="brand">decision<span>_</span>dash</div>
+  <nav>
+    <a href="#today"   data-v="today">Today</a>
+    <a href="#names"   data-v="names">Names</a>
+    <a href="#options" data-v="options">Options</a>
+    <a href="#income"  data-v="income">Income</a>
+  </nav>
+  <div class="hdr-right">
+    <span id="clock"></span>
+    <a href="./probe.html" title="the CORS canary — proves the Worker round-trip independently of this app">probe</a>
+    <span id="build-tag">names-p1-2</span>
+  </div>
+</header>
+
 <div class="wrap">
 
-  <div class="brand">decision<span>_</span>dash</div>
-  <div class="subtitle">phase 0 probe · live <span id="probe-path">/market/snapshot</span> round-trip</div>
+  <!-- ═══ TODAY ═══ -->
+  <section class="view" id="v-today">
+    <div class="placeholder">
+      <div class="t">Today</div>
+      <div class="d">
+        phase 2 — regime line · session-brief timeline · calendar · levels watch · your movers · sector heat<br />
+        phase 3 — the action queue, assembled client-side from payloads these tabs already fetch
+      </div>
+    </div>
+  </section>
 
-  <div class="section-head">Index strip</div>
-  <div class="card" id="snapshot-card">
-    <div class="loading" id="snapshot-body">fetching…</div>
-  </div>
+  <!-- ═══ NAMES ═══ -->
+  <section class="view" id="v-names">
+    <h2 class="sec">
+      Names <span class="n" id="names-count">· loading</span>
+      <span class="right badges" id="names-badges"></span>
+    </h2>
+    <div id="names-body"><div class="statusbox"><div class="loading">loading the watchlist…</div></div></div>
+    <div class="footnote" id="names-notes"></div>
+  </section>
 
-  <div class="footnote">
-    build <span id="build-id">p0-probe-2</span> · this page proves CORS, the allowlisted origin,
-    and one live Worker read. It renders nothing it did not receive.
-  </div>
+  <!-- ═══ OPTIONS ═══ -->
+  <section class="view" id="v-options">
+    <div class="placeholder">
+      <div class="t">Options</div>
+      <div class="d">
+        phase 4 — the verdict layer over <code>/api/long/batch</code> + <code>/api/long/:ticker</code><br />
+        lane verdicts · legend in a ? modal · deep links from the Names options chip
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ INCOME ═══ -->
+  <section class="view" id="v-income">
+    <div class="placeholder">
+      <div class="t">Income</div>
+      <div class="d">
+        phase 7 — needs <code>/api/income/batch</code> built in trading_dash first<br />
+        deliberately quiet: quarterly cadence, surfaces in Today only on events
+      </div>
+    </div>
+  </section>
 
 </div>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
-   decision_dash — phase 0 probe
+   decision_dash — app shell + Names (phase 1)
 
-   Proves a live browser round-trip to the shared stock-research-worker before
-   any real surface is built. Three states are rendered explicitly, per the
-   honesty rules in CLAUDE.md:
+   Frontend-only. Consumes the deployed stock-research-worker, which lives in
+   C:\dev\trading_dash and is edited and deployed THERE. Nothing here touches it.
 
-     data        — values with their source and as-of
-     fetch-fail  — the error, distinguishing a CORS/network TypeError (no HTTP
-                   response ever reached us) from an HTTP status the Worker did
-                   return
-     field-absent — a field the deployed Worker does not send is its own named
-                   state, never a blank and never a fallback value
+   The honesty rules in CLAUDE.md are load-bearing in this file. The ones that
+   shaped specific code below, with the line of defence named:
 
-   The Worker is edited and deployed from C:\dev\trading_dash. Nothing here
-   touches it.
+     - every null is guarded BEFORE the arithmetic that would fabricate a
+       measurement out of it. `x == null` and `x === 0` never render the same
+       way — recRank 0 means HOLD, recRank null means there is no verdict record.
+     - a value the Worker declines to publish renders dim, with its own reason,
+       never blank and never a fallback.
+     - a field the deployed Worker does not send is its own named state. The
+       frontend is always newer than the Worker for a while.
+     - model confidence is ordinal. The payload carries a percentage; a
+       percentage is not what the model actually knows.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const API_BASE = 'https://stock-research-worker.ambermlysak.workers.dev/api';
 
-/* DASH_KEY is the shared gate header (`x-dash-key`) the Worker requires on the
- * endpoints that spend money. `/market/snapshot` does not need it — it is set
- * here for the gated endpoints of later phases. It is not a secret in any
- * meaningful sense: it ships inside a static page served from a public origin,
- * exactly as it already does in trading_dash's dashboard.html. Its job is to
- * stop drive-by spend, not to authenticate anyone.
+/* DASH_KEY is the shared gate header the Worker requires on the endpoints that
+ * spend money or write KV. It is NOT authentication: this file is public on
+ * GitHub Pages, so anyone who reads source has it. It stops opportunistic abuse
+ * of a URL found in a network trace, nothing more. Must match the Worker's
+ * AI_GATE_SECRET.
  *
  * Any NEW custom request header is a two-repo change — it must be added to
  * CORS_ALLOW_HEADERS in trading_dash's worker.js or the browser blocks the
- * request at preflight and nothing reaches the Worker. */
+ * request at preflight and nothing reaches the Worker. `x-dash-key` is already
+ * there; a second header would not be. */
 const DASH_KEY = 'd4ae600c39f544c886fdfb43bd1a06d332900650ac414b28885447f3cf56b5da';
+
+/* The Worker silently truncates /watchlist/batch at 30 symbols
+ * (`.slice(0, 30)` in handleWatchlistBatch) — a 39-name list comes back with 9
+ * names missing and NO error. trading_dash chunks at 15; we match it, and then
+ * assert the union covers everything we asked for, so a future cap change
+ * surfaces as a visible state instead of a quietly short table.
+ * /long/batch caps at 60 (LONG_MAX_SYMBOLS), so it needs no chunking today. */
+const WL_CHUNK = 15;
+
+/* The verdict record is rewritten by a daily Claude pass — `_meta.note` on the
+ * batch says "recommendation refreshed daily". That is the policy this ages the
+ * verdict against; it is not a measurement, so the tooltip states it as a
+ * policy. Price staleness is a different clock entirely (ttlSeconds, 60s) and
+ * gets its own badge. */
+const VERDICT_FRESH_MS = 24 * 3600 * 1000;
+const AT_LEVEL_PCT = 3;      // design contract: "within ~3% of the key level"
+const EARNINGS_SOON_DAYS = 7;
 
 /* ── fetch ───────────────────────────────────────────────────────────────── */
 
-/* Distinguishes the two failure classes that look identical in a console:
- *   - `network` — fetch() rejected. No HTTP response exists. This is what a
- *     blocked CORS preflight looks like from JS: the browser refuses to hand
- *     the response to the page, so we get a TypeError with no status. Nothing
- *     appears in the Worker's logs either, because nothing arrived.
- *   - `http`    — the Worker answered, with a status we did not want. */
 async function apiFetch(path) {
   let r;
   try {
-    r = await fetch(API_BASE + path, {
-      headers: { 'x-dash-key': DASH_KEY },
-    });
+    r = await fetch(API_BASE + path, { headers: { 'x-dash-key': DASH_KEY }, cache: 'no-store' });
   } catch (e) {
     const err = new Error(e.message || String(e));
     err.kind = 'network';
@@ -195,7 +340,7 @@ async function apiFetch(path) {
     const err = new Error(`HTTP ${r.status} ${r.statusText || ''}`.trim());
     err.kind = 'http';
     err.status = r.status;
-    try { err.body = (await r.text()).slice(0, 400); } catch { err.body = ''; }
+    try { err.body = (await r.text()).slice(0, 300); } catch { err.body = ''; }
     throw err;
   }
   return r.json();
@@ -203,220 +348,721 @@ async function apiFetch(path) {
 
 /* ── formatting ──────────────────────────────────────────────────────────── */
 
-const esc = s => String(s).replace(/[&<>"']/g, c =>
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-/* Honesty rule 6: `x == null` and `x === 0` must never render the same way.
- * A missing price renders as an em dash with a reason; a price of exactly 0
- * renders as 0.00. The null is guarded BEFORE any arithmetic — `(null).toFixed`
- * would throw, but `(null * 100).toFixed(0)` would silently produce "0", a
- * fabricated measurement. */
-function fmtPrice(v) {
-  if (v == null) return { text: '—', absent: true, why: 'price not present in the payload' };
-  if (typeof v !== 'number' || !Number.isFinite(v))
-    return { text: '—', absent: true, why: `price was ${JSON.stringify(v)}, not a finite number` };
-  return { text: v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), absent: false };
+const isNum = v => typeof v === 'number' && Number.isFinite(v);
+
+/* `—` with a reason on hover. The reason is the point: a blank cell and a
+ * refused measurement look identical without it. */
+const absent = (why, text) => `<span class="dim" title="${esc(why)}">${esc(text || '—')}</span>`;
+
+function fmt(v, d = 2) {
+  if (!isNum(v)) return null;
+  return v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function fmtPct(v, d = 1) {
+  if (!isNum(v)) return null;
+  return (v > 0 ? '+' : '') + v.toFixed(d) + '%';
 }
 
-function fmtChangePct(v) {
-  if (v == null) return { text: '— no change published', cls: 'absent', why: 'changePct not present in the payload' };
-  if (typeof v !== 'number' || !Number.isFinite(v))
-    return { text: '— unusable', cls: 'absent', why: `changePct was ${JSON.stringify(v)}, not a finite number` };
-  /* Zero is a real measurement and gets its own glyph, not the absent one. */
-  const glyph = v > 0 ? '▲' : v < 0 ? '▼' : '■';
-  const cls   = v > 0 ? 'up' : v < 0 ? 'dn' : 'flat';
-  const sign  = v > 0 ? '+' : '';
-  return { text: `${glyph} ${sign}${v.toFixed(2)}%`, cls };
-}
-
-function fmtClock(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleString('en-US', {
-    year: 'numeric', month: 'short', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+function fmtClock(ms) {
+  if (!isNum(ms)) return null;
+  const dt = new Date(ms);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt.toLocaleString('en-US', {
+    month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
   });
 }
-
 function ageString(ms) {
   const s = Math.round(ms / 1000);
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ${s % 60}s`;
+  if (m < 60) return `${m}m`;
   const h = Math.floor(m / 60);
-  return `${h}h ${m % 60}m`;
+  if (h < 48) return `${h}h ${m % 60}m`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
 }
 
-/* ── provenance ──────────────────────────────────────────────────────────── */
+/* Model confidence renders ordinal, never as the percentage the payload holds.
+ * Thresholds match trading_dash's confLevel() so the two dashboards cannot
+ * disagree about what "Moderate" means. */
+function confLabel(n) {
+  if (!isNum(n)) return null;
+  return n >= 75 ? 'High' : n >= 50 ? 'Moderate' : 'Low';
+}
 
-/* Badges are built from the `_meta` this fetch returned. Nothing here is
- * hand-written in markup, and nothing is inferred when `_meta` is missing —
- * a missing `_meta` is itself rendered as a named state.
- *
- * `delayed` and `stale` are different properties and both can be true at once:
- *   delayed — a property of the SOURCE (Yahoo publishes on a 15-minute lag)
- *   stale   — a property of OUR COPY (fetched longer ago than its ttlSeconds)
- * Recomputed on a 30-second timer, so `stale` can appear without a refetch. */
-function renderBadges(meta, fetchedAtMs) {
-  if (!meta) {
-    return `<span class="badge absent" title="the response carried no _meta object; provenance cannot be asserted">no _meta — provenance unknown</span>`;
-  }
+/* ── provenance badges (built from _meta, never hand-written) ────────────── */
+
+function renderBadges(meta, fetchedAtMs, label) {
   const out = [];
-
+  if (label) out.push(`<span class="badge">${esc(label)}</span>`);
+  if (!meta) {
+    out.push(`<span class="badge absent" title="the response carried no _meta object; provenance cannot be asserted">no _meta</span>`);
+    return out.join('');
+  }
   if (meta.source) out.push(`<span class="badge source" title="_meta.source">${esc(meta.source)}</span>`);
   else out.push(`<span class="badge absent" title="_meta.source absent from the response">source not published</span>`);
 
   if (meta.ok === false) out.push(`<span class="badge err" title="_meta.ok === false — the Worker flagged this payload as degraded">_meta.ok false</span>`);
 
-  if (meta.delayed === true) out.push(`<span class="badge delayed" title="property of the source: it publishes on a lag">delayed</span>`);
+  /* `delayed` is a property of the SOURCE; `stale` is a property of OUR COPY.
+   * Both can be true at once and they are not the same claim. */
+  if (meta.delayed === true) out.push(`<span class="badge delayed" title="property of the source: it publishes on a lag${meta.note ? ' — ' + meta.note : ''}">delayed</span>`);
   else if (meta.delayed == null) out.push(`<span class="badge absent" title="_meta.delayed absent — we cannot say whether the source is real-time">delay unknown</span>`);
 
-  /* Staleness is a property of our copy: age of this fetch against the TTL the
-   * Worker declared. With no ttlSeconds we say so rather than assume a number. */
   const ttl = meta.ttlSeconds;
   const ageMs = Date.now() - fetchedAtMs;
   if (ttl == null) {
     out.push(`<span class="badge absent" title="_meta.ttlSeconds absent — no declared TTL to age this copy against">TTL not declared · held ${ageString(ageMs)}</span>`);
   } else if (ageMs > ttl * 1000) {
-    out.push(`<span class="badge stale" title="our copy is older than the Worker's declared TTL of ${ttl}s">stale · ${ageString(ageMs)} old (TTL ${ttl}s)</span>`);
+    out.push(`<span class="badge stale" title="our copy is older than the Worker's declared TTL of ${ttl}s">stale · ${ageString(ageMs)} (TTL ${ttl}s)</span>`);
   } else {
     out.push(`<span class="badge fresh" title="our copy is within the Worker's declared TTL of ${ttl}s">fresh · ${ageString(ageMs)} (TTL ${ttl}s)</span>`);
   }
-
   return out.join('');
 }
 
-/* The as-of line. `asOf` (when the SOURCE says its data is from) and `fetchedAt`
- * (when WE pulled it) are not the same quantity and never share a label —
- * honesty rule 1. The deployed Worker currently sends `asOf: null` on this
- * endpoint, which is the field-absent state, not an empty string. */
-function renderMetaLines(meta, payloadTs) {
-  const rows = [];
+/* ═══ CELL RENDERERS ═══════════════════════════════════════════════════════ */
 
-  const asOf = meta && meta.asOf != null ? fmtClock(meta.asOf) : null;
-  rows.push(asOf
-    ? `source as-of <b>${esc(asOf)}</b>`
-    : `source as-of <span class="meta-absent">not published by the source (_meta.asOf ${meta && 'asOf' in meta ? 'is null' : 'absent'}) — the fetched-at time below is ours, not the source's</span>`);
+/* Ticker + price/Δ.
+ * TODO(phase 5): this links out to the trading_dash ticker page as an interim.
+ * When phase 5 builds our own ticker page it becomes `#ticker/${sym}` and this
+ * external hop goes away. Until then the link is honest about leaving. */
+function tickerCell(s) {
+  const sym = s.symbol;
+  const href = `https://ambermlysak.github.io/trading_dash/index.html?t=${encodeURIComponent(sym)}`;
+  const px = fmt(s.price);
+  const priceHtml = px == null
+    ? absent('price not present in the payload')
+    : `${px}`;
 
-  const fetched = meta && meta.fetchedAt != null ? fmtClock(meta.fetchedAt) : null;
-  rows.push(fetched
-    ? `fetched by the Worker at <b>${esc(fetched)}</b>`
-    : `fetched-at <span class="meta-absent">not published (_meta.fetchedAt absent)</span>`);
-
-  if (payloadTs != null) {
-    const ts = fmtClock(payloadTs);
-    if (ts) rows.push(`payload <span class="meta-absent">ts</span> <b>${esc(ts)}</b>`);
-  }
-
-  if (meta && meta.note) rows.push(`note <b>${esc(meta.note)}</b>`);
-
-  return rows.map(r => `<div>${r}</div>`).join('');
-}
-
-/* ── render ──────────────────────────────────────────────────────────────── */
-
-let lastPayload = null;   // kept so the 30s sweep can re-evaluate staleness
-let lastFetchedAtMs = null;
-
-function renderSnapshot(data, fetchedAtMs) {
-  const card = document.getElementById('snapshot-card');
-  const body = document.getElementById('snapshot-body');
-  card.classList.remove('fail');
-
-  const rows = data && Array.isArray(data.snapshot) ? data.snapshot : null;
-  if (!rows) {
-    body.innerHTML = `<div class="fail-title">field-absent</div>
-      <div class="fail-body">The Worker answered, but the response carried no <code>snapshot</code> array.
-      Keys present: <code>${esc(Object.keys(data || {}).join(', ') || '(none)')}</code>.
-      Nothing is rendered rather than a stand-in — a plausible stand-in is
-      indistinguishable from the real thing.</div>`;
-    card.classList.add('fail');
-    return;
-  }
-
-  const items = rows.map(s => {
-    const name = s.name || s.ticker || '(unnamed)';
-    const p = fmtPrice(s.price);
-    const c = fmtChangePct(s.changePct);
-    return `<div class="strip-item">
-      <div class="strip-name" title="${esc(s.ticker || '')}">${esc(name)}</div>
-      <div class="strip-price"${p.absent ? ` title="${esc(p.why)}"` : ''}>${esc(p.text)}</div>
-      <div class="strip-chg ${c.cls}"${c.why ? ` title="${esc(c.why)}"` : ''}>${esc(c.text)}</div>
-    </div>`;
-  }).join('');
-
-  const countLine = `<div class="meta-line"><b>${rows.length}</b> instrument${rows.length === 1 ? '' : 's'} returned</div>`;
-
-  body.outerHTML = `<div id="snapshot-body">
-    <div class="strip">${items}</div>
-    ${countLine}
-    <div class="meta-line">${renderMetaLines(data._meta, data.ts)}</div>
-    <div class="badges" id="snapshot-badges">${renderBadges(data._meta, fetchedAtMs)}</div>
-  </div>`;
-}
-
-function renderFailure(err) {
-  const card = document.getElementById('snapshot-card');
-  const body = document.getElementById('snapshot-body');
-  card.classList.add('fail');
-
-  let title, explain, hint;
-  if (err.kind === 'network') {
-    title = 'fetch failed — no HTTP response';
-    explain = `<code>${esc(err.message)}</code> — fetch() rejected before any status was
-      available. This is what a blocked CORS preflight looks like from JavaScript:
-      the browser refused to hand the response to the page, so there is no status
-      to report and nothing reached the Worker's logs either. A dropped network
-      or a DNS failure looks identical from here.`;
-    hint = `Check that this page's origin (<code>${esc(location.origin)}</code>) is in
-      <code>ALLOWED_ORIGINS</code> in trading_dash's <code>worker.js</code> and that the
-      Worker has been deployed since. <code>file://</code> sends
-      <code>Origin: null</code> and is rejected by design — serve over http.`;
-  } else if (err.kind === 'http') {
-    title = `worker answered ${esc(String(err.status))}`;
-    explain = `The request reached the Worker and it returned
-      <code>${esc(err.message)}</code>. This is not a CORS failure — a status
-      means the round-trip completed.${err.body ? ` Body: <code>${esc(err.body)}</code>` : ''}`;
-    hint = err.status === 401
-      ? `401 means <code>DASH_KEY</code> does not match the Worker's <code>AI_GATE_SECRET</code>.`
-      : `Check the Worker's logs — unlike a CORS block, this request is in them.`;
+  let chg;
+  if (!isNum(s.changePct)) {
+    chg = `<small class="dim" title="changePct not present in the payload">— no change published</small>`;
   } else {
-    title = 'unexpected failure';
-    explain = `<code>${esc(err.message)}</code>`;
-    hint = '';
+    /* Zero is a real measurement and gets its own glyph, not the absent one. */
+    const cls = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'dn' : 'flat';
+    const gly = s.changePct > 0 ? '▲' : s.changePct < 0 ? '▼' : '■';
+    chg = `<small class="${cls}">${gly} ${fmtPct(s.changePct, 2)}</small>`;
+  }
+  return `<td>
+    <a class="tick" href="${href}" target="_blank" rel="noopener"
+       title="${esc(sym)} → trading_dash ticker page (interim until phase 5 builds ours)"
+       onclick="event.stopPropagation()">${esc(sym)}</a>
+    <div class="px">${priceHtml} ${chg}</div>
+  </td>`;
+}
+
+/* The verdict as-of line, re-rendered by the 30-second sweep so its age and its
+ * amber state both stay true without refetching. Returns inner HTML only; the
+ * wrapper div and its data-ts stay put. */
+function verdictAsOfHtml(ts) {
+  const age = Date.now() - ts;
+  const aged = age > VERDICT_FRESH_MS;
+  const tip = `Verdict written ${fmtClock(ts)} · ${ageString(age)} ago. The batch _meta states the `
+            + `recommendation is refreshed daily, so anything past ${Math.round(VERDICT_FRESH_MS / 3600000)}h `
+            + `is flagged as aged. This is our copy's age against a stated policy, not a measurement of the model. `
+            + `Re-evaluated every 30s without refetching.`;
+  return `<span title="${esc(tip)}">${aged ? '⚠ ' : ''}verdict as of ${esc(fmtClock(ts))}`
+       + `${aged ? ` · ${ageString(age)} old` : ''}</span>`;
+}
+
+/* Verdict — the point of the row. Renders the analysis record with its as-of.
+ * One verdict store: this is the SAME `analysis:{TICKER}` record the ticker page
+ * reads, so the two cannot disagree by construction. */
+function verdictCell(s, analysisLoading) {
+  if (s.rating == null) {
+    /* Not a blank. A missing verdict is a finding, and which kind of missing it
+     * is matters: a refresh in flight is a different state from no record. */
+    const why = analysisLoading
+      ? 'no verdict record yet — the Worker reported analysisLoading, so a refresh is in flight for at least one name in this batch'
+      : 'no verdict record for this ticker, and the Worker did not report a refresh in flight';
+    const label = analysisLoading ? 'no verdict yet · analysis refreshing' : 'no verdict record';
+    return `<td><span class="dim" title="${esc(why)}">${esc(label)}</span></td>`;
   }
 
-  body.outerHTML = `<div id="snapshot-body">
+  const cls  = s.rating === 'BUY' ? 'buy' : s.rating === 'SELL' ? 'sell' : 'hold';
+  const conf = confLabel(s.confidence);
+  const confHtml = conf
+    ? `<span class="rconf" title="model confidence, ordinal — the payload carries a self-reported percentage (${s.confidence}) and a self-reported percentage has no calibration behind it">${conf}</span>`
+    : `<span class="rconf dim" title="confidence not present in the payload">confidence not published</span>`;
+
+  const rec = s.recommendation
+    ? esc(s.recommendation)
+    : absent('the record carries a rating but no one-line recommendation');
+
+  /* As-of of the VERDICT, which is a different clock from the price. Aged
+   * against the daily-refresh policy the batch _meta states. `data-ts` carries
+   * the raw timestamp so the 30-second sweep can re-age this line in place —
+   * without it the badge would freeze at whatever it said on first paint. */
+  const asof = !isNum(s.analysisTs)
+    ? `<div class="rasof dim" title="analysisTs absent — this record cannot be dated">as-of not published</div>`
+    : `<div class="rasof" data-ts="${s.analysisTs}">${verdictAsOfHtml(s.analysisTs)}</div>`;
+
+  return `<td>
+    <div class="rec-head"><span class="rtag ${cls}">${esc(s.rating)}</span>${confHtml}</div>
+    <div class="rline">${rec}</div>
+    ${asof}
+  </td>`;
+}
+
+/* Key level — the ARROW is literal position (price above/below the level);
+ * the COLOUR is what that position means, which is not the same thing. Under
+ * resistance is ordinary headroom, not bearish, so it reads amber, not red.
+ * Convention copied from trading_dash's levelCell() so the two agree. */
+function levelCell(s) {
+  if (!isNum(s.levelPct) || !s.levelKind) {
+    return `<td class="m11">${absent('levelPct or levelKind not present in the payload')}</td>`;
+  }
+  const isSup = s.levelKind === 'support';
+  const above = s.levelAbove === true;
+  const arrow = above ? '▲' : '▼';
+  const cls = isSup ? (above ? 'lvl-hold' : 'lvl-break')
+                    : (above ? 'lvl-break-up' : 'lvl-cap');
+  const meaning = isSup ? (above ? 'holding above support' : 'support broken')
+                        : (above ? 'broken out above resistance' : 'capped under resistance — headroom, not bearish');
+  const lp = fmt(s.levelPrice);
+  const other = isSup
+    ? (isNum(s.resist)  ? ` Resistance $${fmt(s.resist)}.`  : '')
+    : (isNum(s.support) ? ` Support $${fmt(s.support)}.` : '');
+  const tip = `Price $${fmt(s.price)} is ${s.levelPct.toFixed(1)}% ${above ? 'above' : 'below'} `
+            + `${s.levelKind} $${lp} — the nearer of the two levels. ${meaning}.${other}`;
+  return `<td class="m11 ${cls}" title="${esc(tip)}">${arrow} ${s.levelPct.toFixed(1)}% `
+       + `<span class="lvl-tag">${isSup ? 'Sup' : 'Res'} ${lp == null ? '' : esc(lp)}</span></td>`;
+}
+
+/* Trend — SMA cross in effect, same semantics as the old SMA X column.
+ * Glyph: ◆ setup (within 5% and trending into a flip) · ○ within 5% · ● formed.
+ * Arrow: which way the gap is moving over 5 sessions, so "Golden ▼" reads as a
+ * golden cross decaying. */
+function trendCell(s) {
+  if (!isNum(s.crossSpread) || !isNum(s.crossFast) || !isNum(s.crossSlow)) {
+    return `<td class="m11">${absent('crossSpread / crossFast / crossSlow not present in the payload')}</td>`;
+  }
+  const golden = s.crossSpread > 0;
+  const gap = s.crossGap;
+  const setup = golden ? s.deathSetup : s.goldenSetup;   // the PENDING flip
+  const chg = s.crossSpreadChg;
+
+  let mark, cls;
+  if (setup)                     { mark = '◆'; cls = 'x-setup'; }
+  else if (isNum(gap) && gap<=5) { mark = '○'; cls = golden ? 'x-g' : 'x-d'; }
+  else                           { mark = '●'; cls = golden ? 'x-g' : 'x-d'; }
+
+  const arrow = !isNum(chg) ? '' : chg > 0 ? ' <span class="up">▲</span>'
+              : chg < 0 ? ' <span class="dn">▼</span>' : ' <span class="flat">→</span>';
+
+  const gapChg = isNum(chg) ? chg * (golden ? 1 : -1) : null;
+  const drift = gapChg == null ? ''
+    : ` · gap ${gapChg > 0 ? 'widening' : gapChg < 0 ? 'narrowing' : 'flat'} (spread ${fmtPct(chg, 3)} over 5 sessions)`;
+  const eta = isNum(s.crossBarsToCross)
+    ? ` · est. ${s.crossBarsToCross} session${s.crossBarsToCross === 1 ? '' : 's'} to cross` : '';
+  const tip = `${golden ? 'Golden' : 'Death'} cross in effect — 50D SMA $${fmt(s.crossFast)} `
+            + `${golden ? 'above' : 'below'} 200D SMA $${fmt(s.crossSlow)} by ${fmt(gap)}%`
+            + `${drift}${eta}` + (setup ? ` · setup for a ${golden ? 'death' : 'golden'} cross` : '');
+
+  const gapTxt = isNum(gap) ? gap.toFixed(1) + '%'
+    : '<span class="dim" title="crossGap not present in the payload">gap n/p</span>';
+  return `<td class="m11 ${cls}" title="${esc(tip)}">${mark} ${golden ? 'Golden' : 'Death'} ${gapTxt}${arrow}</td>`;
+}
+
+/* Earnings — date + countdown, ⚠ inside 7 days.
+ *
+ * NO BMO/AMC TAG IS RENDERED. The deployed /api/watchlist/batch sends
+ * `earningsDate` as an already-formatted string and `daysToEarnings` as an
+ * integer; it does NOT send `earningsTimestamp`, so the session-timing input the
+ * design contract calls first-class cannot be derived here. Inferring it from a
+ * date alone would be inventing it. Adding earningsTimestamp to the batch is a
+ * trading_dash task; until then this column says the timing is not published
+ * rather than guessing BMO or AMC. */
+function earningsCell(s) {
+  const d = s.daysToEarnings;
+  const dateTxt = s.earningsDate ? esc(s.earningsDate) : null;
+  const timingNote = ' Session timing (BMO/AMC) is not published by this endpoint — '
+                   + 'the batch sends a formatted date only, so it is not shown rather than inferred.';
+
+  if (!isNum(d)) {
+    return `<td class="m11">${dateTxt
+      ? `${dateTxt} <span class="dim" title="daysToEarnings not present in the payload.${timingNote}">· countdown n/p</span>`
+      : absent('earningsDate and daysToEarnings both absent from the payload')}</td>`;
+  }
+  /* A negative countdown is a real state, not a small number: the stored date is
+   * behind the report. Saying "in −13 days" would be nonsense; saying nothing
+   * would hide that the field is stale. */
+  if (d < 0) {
+    return `<td class="m11"><span class="dim" title="${esc(
+      `daysToEarnings is ${d} — the stored earnings date is in the past and has not been rolled forward to the next report.${timingNote}`)}">${
+      dateTxt || 'date'} · passed ${Math.abs(d)}d ago</span></td>`;
+  }
+  const soon = d <= EARNINGS_SOON_DAYS;
+  /* d === 0 is "today" — a real measurement, distinct from a missing countdown. */
+  const label = d === 0 ? 'today' : `E-${d}d`;
+  const tip = (d === 0 ? 'Reports today.' : `${d} session-days away.`) + timingNote;
+  return `<td class="m11${soon ? ' amb' : ''}" title="${esc(tip)}">${
+    soon ? '⚠ ' : ''}${dateTxt || ''} <span class="m10">${label}</span></td>`;
+}
+
+/* Options chip — vol state + the best candidate across the lanes.
+ *
+ * E[R] is `expectancyMean`, the same field trading_dash's E[R] column renders:
+ * mean P/L across historical windows ÷ capital risked, HELD TO EXPIRY. It is a
+ * relative ranking, not a P&L forecast, and the tooltip says so.
+ *
+ * A ticker with no long row is "not loaded" — the /long/batch response names
+ * each one in `missing[]` with its own reason. That is a load state, not an
+ * absence of opportunity, and the two must not look the same. */
+function optionsCell(sym, longRow, missingReason) {
+  if (!longRow) {
+    const why = missingReason
+      || 'no row returned for this ticker by /api/long/batch and it was not listed in missing[] either';
+    return `<td class="m11 optcell" title="${esc(why + ' — Options is phase 4')}">
+      <span class="dim">not loaded</span></td>`;
+  }
+  if (longRow.ok === false || longRow.status !== 'ok') {
+    return `<td class="m11 optcell" title="${esc(`long row status=${longRow.status} ok=${longRow.ok}${longRow.reason ? ' — ' + longRow.reason : ''}`)}">
+      <span class="dim">row ${esc(longRow.status || 'not ok')}</span></td>`;
+  }
+
+  /* Vol state. `buyable` is the Worker's own boolean for "cheap enough to buy
+   * premium"; `buyableReason` carries the threshold it used. We render its
+   * verdict rather than inventing a cheap/mid/rich trichotomy the payload does
+   * not state. */
+  let chip;
+  const ratio = isNum(longRow.ivHvRatio) ? longRow.ivHvRatio.toFixed(2) + '×' : null;
+  if (longRow.buyable === true) {
+    chip = `<span class="volc cheap" title="${esc(longRow.buyableReason || 'buyable per the Worker')}">vol cheap${ratio ? ' · IV/HV ' + ratio : ''}</span>`;
+  } else if (longRow.buyable === false) {
+    chip = `<span class="volc rich" title="${esc(longRow.buyableReason || 'not buyable per the Worker')}">vol not cheap${ratio ? ' · IV/HV ' + ratio : ''}</span>`;
+  } else {
+    chip = `<span class="volc na" title="${esc('buyable not present in the long row — vol state cannot be stated' + (longRow.rankReason ? ' · ' + longRow.rankReason : ''))}">vol state n/p</span>`;
+  }
+
+  const best = bestCandidate(longRow);
+  let structure;
+  if (!best) {
+    structure = `<span class="dim" title="${esc(
+      'no candidate in any lane carries a scored expectancyMean — the lanes are present but nothing is scorable at these horizons. A refusal to score is a finding, not an absence; the reasons render per-lane in phase 4.')}">no scored candidate</span>`;
+  } else {
+    const er = (best.c.expectancyMean * 100).toFixed(0) + '%';
+    const erCls = best.c.expectancyMean > 0 ? 'up' : best.c.expectancyMean < 0 ? 'dn' : 'flat';
+    const trunc = best.c.upsideTruncated
+      ? `<span class="amb" title="${esc(best.c.upsideTruncatedReason || 'upside truncated')}">↑</span>` : '';
+    structure = `<span class="m10">${esc(structureLabel(best))}</span> `
+              + `<span class="${erCls}" title="${esc(
+                  'E[R] = expectancyMean: mean P/L across the historical windows ÷ capital risked. '
+                + 'HELD TO EXPIRY — no early close, no IV path. A relative ranking, not a P&L forecast. '
+                + `Best of ${best.scored} scored candidate(s) across ${best.lanesWithScores} lane slot(s).`)}">E[R] ${er}</span>${trunc}`;
+  }
+
+  const dimTip = longRow.dim && longRow.dimReason ? ' — ' + longRow.dimReason : '';
+  return `<td class="m11 optcell${longRow.dim ? ' faded' : ''}" title="${esc('Options — phase 4' + dimTip)}">
+    ${chip} ${structure}</td>`;
+}
+
+/* Highest expectancyMean across every candidate in every lane slot. Candidates
+ * without a scored expectancy are skipped rather than treated as zero — a
+ * missing score is not a score of nothing. */
+function bestCandidate(row) {
+  if (!Array.isArray(row.lanes)) return null;
+  let best = null, scored = 0, lanesWithScores = 0;
+  for (const L of row.lanes) {
+    let laneHas = false;
+    for (const c of (L.candidates || [])) {
+      if (!isNum(c.expectancyMean)) continue;
+      scored++; laneHas = true;
+      if (best == null || c.expectancyMean > best.c.expectancyMean) best = { L, c };
+    }
+    if (laneHas) lanesWithScores++;
+  }
+  if (!best) return null;
+  best.scored = scored;
+  best.lanesWithScores = lanesWithScores;
+  return best;
+}
+
+/* The contract, written the way it would be entered. Shapes differ by lane:
+ * single-leg carries `strike`, verticals carry long/short, lane F names its own
+ * structure, lane E is a straddle/strangle. */
+function structureLabel(best) {
+  const c = best.c, L = best.L;
+  const exp = L.expiry ? shortExpiry(L.expiry) : '';
+  if (isNum(c.longStrike) && isNum(c.shortStrike)) {
+    const kind = c.structure || (c.type === 'PUT' ? 'put spread' : 'vertical');
+    return `${exp} ${c.longStrike}/${c.shortStrike} ${kind}`.trim();
+  }
+  if (isNum(c.shortStrike) && c.structure) return `${exp} ${c.shortStrike} ${c.structure}`.trim();
+  if (isNum(c.callStrike) && isNum(c.putStrike)) {
+    return `${exp} ${c.callStrike}/${c.putStrike} ${c.kind || 'straddle'}`.trim();
+  }
+  if (isNum(c.strike)) return `${exp} ${c.strike}${c.type === 'CALL' ? 'C' : c.type === 'PUT' ? 'P' : ''}`.trim();
+  return `${exp} lane ${c.lane || L.lane}`.trim();
+}
+function shortExpiry(iso) {
+  const d = new Date(iso + 'T00:00:00Z');
+  if (Number.isNaN(d.getTime())) return esc(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+/* ── row expander ────────────────────────────────────────────────────────── */
+
+/* Everything demoted out of the old 14-column table, plus one provenance line.
+ * Nothing is deleted from the payload — it just stops costing a column. */
+function expanderRow(s, meta, fetchedAtMs) {
+  const chip = (label, value, why) => value == null
+    ? `<span class="c absent" title="${esc(why || label + ' not present in the payload')}">${esc(label)} n/p</span>`
+    : `<span class="c">${esc(label)} <b>${value}</b></span>`;
+
+  const chips = [];
+  chips.push(chip('RSI', isNum(s.rsi) ? s.rsi.toFixed(1) : null));
+
+  /* Swing: the σ reading and the signal are different facts. A null signal is a
+   * refusal to call it, not the absence of a reading. */
+  const swingVal = isNum(s.swingZ)
+    ? `${s.swingZ > 0 ? '+' : ''}${s.swingZ.toFixed(2)}σ${s.swingSignal ? ' · ' + esc(s.swingSignal) : ''}`
+    : null;
+  chips.push(chip('swing', swingVal,
+    'swingZ not present in the payload' ));
+  if (isNum(s.swingZ) && !s.swingSignal) {
+    chips.push(`<span class="c absent" title="${esc(
+      `swingZ is ${s.swingZ} but swingSignal is null — the gate (|z| ≥ threshold over ${s.swingBars ?? 'n/p'} bars) did not fire. A declined signal, not a missing reading.`)}">no swing signal</span>`);
+  }
+
+  chips.push(chip('fwd P/E', isNum(s.forwardPE) ? s.forwardPE.toFixed(1) : null));
+  chips.push(chip('short', isNum(s.shortPct) ? s.shortPct.toFixed(2) + '%' : null));
+
+  /* Analyst upside — the null is guarded BEFORE the division. */
+  let upside = null, upsideWhy = 'targetMean or price not present in the payload';
+  if (isNum(s.targetMean) && isNum(s.price) && s.price !== 0) {
+    const pct = (s.targetMean - s.price) / s.price * 100;
+    upside = `${pct > 0 ? '+' : ''}${pct.toFixed(1)}% <span class="m10">($${fmt(s.targetMean)})</span>`;
+  } else if (s.price === 0) {
+    upsideWhy = 'price is 0 — upside is undefined, not zero';
+  }
+  chips.push(chip('analyst', upside, upsideWhy));
+
+  const range = (isNum(s.w52Low) && isNum(s.w52High)) ? `${fmt(s.w52Low)}–${fmt(s.w52High)}` : null;
+  chips.push(chip('52w', range));
+  chips.push(chip('P/E', isNum(s.pe) ? s.pe.toFixed(1) : null,
+    'pe is null in the payload — typically a company with no positive trailing earnings, which is a fact about the company, not a gap in the feed'));
+  chips.push(chip('sector', s.sector ? esc(s.sector) : null));
+
+  const drivers = Array.isArray(s.drivers) && s.drivers.length
+    ? s.drivers.map(d => `<span class="c">${esc(d)}</span>`).join('')
+    : `<span class="c absent" title="${esc(s.rating == null
+        ? 'no analysis record for this ticker, so no drivers'
+        : 'the record carries a rating but no drivers array')}">drivers n/p</span>`;
+
+  const summary = s.summary
+    ? `<div class="xsum">${esc(s.summary)}</div>`
+    : `<div class="xsum dim" title="${esc(s.rating == null
+        ? 'no analysis record for this ticker, so no summary'
+        : 'the record carries a rating but no summary')}">${s.rating == null
+        ? 'No verdict record — nothing to summarise.' : 'Rating present, summary not published.'}</div>`;
+
+  /* Provenance: three clocks land in one row and the line has to say so. */
+  const prov = [
+    meta && meta.source ? `source <b>${esc(meta.source)}</b>` : 'source not published',
+    meta && meta.note ? esc(meta.note) : null,
+    `batch fetched ${esc(fmtClock(fetchedAtMs))}`,
+    isNum(s.analysisTs) ? `verdict written ${esc(fmtClock(s.analysisTs))}` : 'verdict as-of not published',
+    s.swingAsOf ? `swing as-of ${esc(s.swingAsOf)}` : null,
+  ].filter(Boolean).join(' · ');
+
+  return `<tr class="xrow hide"><td colspan="6">
+    <div class="chips">${chips.join('')}${drivers}</div>
+    ${summary}
+    <div class="xprov">${prov}</div>
+  </td></tr>`;
+}
+
+/* ═══ ATTENTION SORT ═══════════════════════════════════════════════════════ */
+
+/* Group 1 "At level / triggered": |levelPct| ≤ 3. levelPct is published as a
+ * magnitude, but Math.abs() is applied anyway so a future signed levelPct does
+ * not silently reclassify every row.
+ * Group 2 "Earnings ≤ 7d": 0 ≤ daysToEarnings ≤ 7. The lower bound matters —
+ * the field goes NEGATIVE when the stored date is behind the report, and
+ * `d <= 7` alone would pull those stale rows into the urgent group.
+ * A name qualifying for both appears once, in the higher group. */
+function groupOf(s) {
+  if (isNum(s.levelPct) && s.levelKind && Math.abs(s.levelPct) <= AT_LEVEL_PCT) return 0;
+  if (isNum(s.daysToEarnings) && s.daysToEarnings >= 0 && s.daysToEarnings <= EARNINGS_SOON_DAYS) return 1;
+  return 2;
+}
+
+function sortWithin(g, rows) {
+  if (g === 0) return rows.sort((a, b) => Math.abs(a.levelPct) - Math.abs(b.levelPct));
+  if (g === 1) return rows.sort((a, b) => a.daysToEarnings - b.daysToEarnings);
+  /* recRank is +confidence for BUY, 0 for HOLD, −confidence for SELL. 0 is a
+   * real rank (a HOLD); null is the absence of a record and sorts last, never
+   * mixed in with the HOLDs. */
+  return rows.sort((a, b) => {
+    const av = isNum(a.recRank), bv = isNum(b.recRank);
+    if (av && bv) return b.recRank - a.recRank;
+    if (av) return -1;
+    if (bv) return 1;
+    return String(a.symbol).localeCompare(String(b.symbol));
+  });
+}
+
+const GROUP_LABELS = [
+  ['At level / triggered', `within ${AT_LEVEL_PCT}% of the key level`],
+  ['Earnings ≤ 7d',        'upcoming only — a stale past-dated row stays out'],
+  ['Rest',                 'sorted by recRank: BUY conviction → HOLD → SELL, no record last'],
+];
+
+/* ═══ STATE + RENDER ═══════════════════════════════════════════════════════ */
+
+const state = {
+  stocks: null, meta: null, fetchedAt: null, analysisLoading: false,
+  longRows: null, longMissing: null, longMeta: null,
+  asked: [], notReturned: [],
+};
+
+function renderNames() {
+  const body = document.getElementById('names-body');
+  const s = state.stocks;
+  if (!s) return;
+
+  const syms = Object.keys(s);
+  const buckets = [[], [], []];
+  for (const t of syms) buckets[groupOf(s[t])].push(s[t]);
+  buckets.forEach((rows, g) => sortWithin(g, rows));
+
+  const longBySym = {};
+  for (const r of (state.longRows || [])) longBySym[r.symbol] = r;
+  const missBySym = {};
+  for (const m of (state.longMissing || [])) missBySym[m.symbol] = m.reason;
+
+  let html = `<table><thead><tr>
+    <th style="width:118px">Ticker</th>
+    <th style="width:290px">Verdict · the call</th>
+    <th style="width:132px">Key level</th>
+    <th style="width:150px">Trend</th>
+    <th style="width:138px">Earnings</th>
+    <th>Options</th>
+  </tr></thead><tbody>`;
+
+  buckets.forEach((rows, g) => {
+    if (!rows.length) return;
+    html += `<tr class="grp"><td colspan="6">${GROUP_LABELS[g][0]} · ${rows.length}
+      <span class="why">— ${GROUP_LABELS[g][1]}</span></td></tr>`;
+    for (const row of rows) {
+      html += `<tr class="row" onclick="toggleRow(this)">`
+            + tickerCell(row)
+            + verdictCell(row, state.analysisLoading)
+            + levelCell(row)
+            + trendCell(row)
+            + earningsCell(row)
+            + optionsCell(row.symbol, longBySym[row.symbol], missBySym[row.symbol])
+            + `</tr>`
+            + expanderRow(row, state.meta, state.fetchedAt);
+    }
+  });
+
+  /* Names we asked for that the batch never returned. Silently dropping them
+   * would make the table quietly incomplete — the exact failure the Worker's
+   * 30-symbol truncation causes. */
+  if (state.notReturned.length) {
+    html += `<tr class="grp"><td colspan="6">Requested but not returned · ${state.notReturned.length}
+      <span class="why">— asked for by symbol, absent from the batch response</span></td></tr>`;
+    for (const t of state.notReturned) {
+      html += `<tr><td><span class="tick" style="text-decoration:none">${esc(t)}</span></td>
+        <td colspan="5"><span class="dim" title="${esc(
+          'This ticker is on the watchlist and was included in the request, but the batch response contained no row for it. '
+        + 'Nothing is rendered for it rather than a placeholder — a plausible stand-in is indistinguishable from the real thing.'
+        )}">no row returned by /api/watchlist/batch for this symbol</span></td></tr>`;
+    }
+  }
+
+  html += `</tbody></table>`;
+  body.innerHTML = html;
+
+  const shown = syms.length + state.notReturned.length;
+  document.getElementById('names-count').textContent =
+    `· ${shown} of ${state.asked.length} requested · sorted by attention · row expands`;
+
+  renderNotes();
+  refreshBadges();
+}
+
+function renderNotes() {
+  const notes = [];
+  notes.push('Earnings session timing (BMO/AMC) is not rendered: <code>/api/watchlist/batch</code> '
+    + 'sends a formatted <code>earningsDate</code> string and <code>daysToEarnings</code>, but no '
+    + '<code>earningsTimestamp</code>. Adding it is a trading_dash task — until then the timing is '
+    + 'absent rather than inferred, and no BMO/AMC tag is shown.');
+  notes.push('The options chip is inert — Options is phase 4. The ticker link goes to the '
+    + 'trading_dash ticker page as an interim until phase 5 builds ours.');
+  if (state.longMeta && state.longMeta.note)
+    notes.push('long batch: ' + esc(state.longMeta.note));
+  document.getElementById('names-notes').innerHTML = notes.map(n => '· ' + n).join('<br />');
+}
+
+/* Staleness re-evaluates on a 30-second timer without refetching: our copy ages
+ * whether or not we ask again, and both the payload badge and every per-row
+ * verdict as-of have to say so. */
+function refreshBadges() {
+  const el = document.getElementById('names-badges');
+  if (!el) return;
+  const parts = [];
+  if (state.meta) parts.push(renderBadges(state.meta, state.fetchedAt, 'watchlist'));
+  if (state.longMeta) parts.push(renderBadges(state.longMeta, state.fetchedAt, 'long'));
+  el.innerHTML = parts.join(' ');
+}
+
+function toggleRow(tr) {
+  const x = tr.nextElementSibling;
+  if (x && x.classList.contains('xrow')) x.classList.toggle('hide');
+}
+
+function renderFailure(err, where) {
+  const body = document.getElementById('names-body');
+  let title, explain;
+  if (err.kind === 'network') {
+    title = `${where} — fetch failed, no HTTP response`;
+    explain = `<code>${esc(err.message)}</code> — fetch() rejected before any status existed.
+      This is what a blocked CORS preflight looks like from JavaScript: the browser refused to hand
+      the response to the page, so there is no status and nothing reached the Worker's logs either.
+      This page sends <code>x-dash-key</code>, which is a preflighted header — if it were missing from
+      <code>CORS_ALLOW_HEADERS</code> in trading_dash's worker.js, this is exactly what you would see.
+      Load <a href="./probe.html" style="color:var(--cyan)">the probe</a> to separate a Worker/CORS
+      failure from a failure in this page.`;
+  } else if (err.kind === 'http') {
+    title = `${where} — worker answered ${esc(String(err.status))}`;
+    explain = `The request reached the Worker and it returned <code>${esc(err.message)}</code>.
+      This is not a CORS failure — a status means the round-trip completed.
+      ${err.body ? `Body: <code>${esc(err.body)}</code>` : ''}
+      ${err.status === 401 ? ' 401 means DASH_KEY does not match the Worker\'s AI_GATE_SECRET.' : ''}`;
+  } else {
+    title = `${where} — unexpected failure`;
+    explain = `<code>${esc(err.message)}</code>`;
+  }
+  body.innerHTML = `<div class="statusbox fail">
     <div class="fail-title">${title}</div>
     <div class="fail-body">${explain}</div>
-    ${hint ? `<div class="fail-hint">${hint}</div>` : ''}
-    <div class="badges"><span class="badge err">no data — nothing rendered</span></div>
   </div>`;
+  document.getElementById('names-count').textContent = '· failed';
 }
 
-async function load() {
+/* ── load ────────────────────────────────────────────────────────────────── */
+
+let namesLoaded = false;
+let loading = false;
+
+async function loadNames(reason) {
+  if (loading) return;
+  loading = true;
   try {
-    const data = await apiFetch('/market/snapshot');
-    lastFetchedAtMs = Date.now();
-    lastPayload = data;
-    renderSnapshot(data, lastFetchedAtMs);
-    console.log('[probe] snapshot ok ·', (data.snapshot || []).length, 'instruments ·', data._meta);
+    const wl = await apiFetch('/watchlist');
+    const tickers = Array.isArray(wl.tickers) ? wl.tickers : [];
+    if (!tickers.length) {
+      document.getElementById('names-body').innerHTML =
+        `<div class="statusbox"><div class="fail-title">watchlist empty</div>
+         <div class="fail-body">The Worker returned a watchlist with no tickers.
+         Nothing is rendered rather than a default list — a stand-in list would be
+         indistinguishable from yours.</div></div>`;
+      return;
+    }
+    state.asked = tickers;
+
+    /* Chunked because the Worker truncates at 30 with no error. */
+    const stocks = {};
+    let meta = null, analysisLoading = false;
+    for (let i = 0; i < tickers.length; i += WL_CHUNK) {
+      const chunk = tickers.slice(i, i + WL_CHUNK);
+      const d = await apiFetch('/watchlist/batch?symbols=' + chunk.join(','));
+      Object.assign(stocks, d.stocks || {});
+      if (d.analysisLoading) analysisLoading = true;
+      meta = d._meta || meta;
+    }
+    state.stocks = stocks;
+    state.meta = meta;
+    state.analysisLoading = analysisLoading;
+    state.fetchedAt = Date.now();
+    state.notReturned = tickers.filter(t => !(t in stocks));
+
+    /* Paint the table before the options column resolves — the verdict is the
+     * point of the row and must not wait on a second endpoint. */
+    renderNames();
+
+    const lb = await apiFetch('/long/batch?symbols=' + tickers.join(','));
+    state.longRows = lb.rows || [];
+    state.longMissing = lb.missing || [];
+    state.longMeta = lb._meta || null;
+    renderNames();
+
+    console.log('[names] loaded (%s) · asked %d · returned %d · notReturned %s · analysisLoading %s · long rows %d, missing %d',
+      reason, tickers.length, Object.keys(stocks).length,
+      JSON.stringify(state.notReturned), analysisLoading,
+      state.longRows.length, state.longMissing.length);
+    namesLoaded = true;
   } catch (e) {
-    lastPayload = null;
-    console.warn('[probe] snapshot failed ·', e.kind, '·', e.message);
-    renderFailure(e);
+    console.warn('[names] failed ·', e.kind, '·', e.message);
+    renderFailure(e, 'Names');
+  } finally {
+    loading = false;
   }
 }
 
-/* Staleness re-evaluates on a 30-second timer without refetching: the copy ages
- * whether or not we ask again, and the badge must say so. */
+/* ── routing ─────────────────────────────────────────────────────────────── */
+
+const VIEWS = ['today', 'names', 'options', 'income'];
+
+/* The resolved view, which is NOT the same as the hash: the default route is
+ * Names on an empty or unrecognised hash. Anything that asks "are we on Names?"
+ * has to ask this, not `location.hash` — on a fresh load with no hash the hash
+ * is empty while the view is Names. */
+function currentView() {
+  const v = (location.hash || '').replace(/^#/, '').split('/')[0];
+  return VIEWS.includes(v) ? v : 'names';
+}
+
+function route() {
+  const v = currentView();
+  VIEWS.forEach(x => {
+    document.getElementById('v-' + x).classList.toggle('on', x === v);
+    const a = document.querySelector(`nav a[data-v="${x}"]`);
+    if (a) a.classList.toggle('on', x === v);
+  });
+  if (v === 'names' && !namesLoaded && !loading) loadNames('route');
+}
+
+window.addEventListener('hashchange', route);
+
+/* Re-read on tab focus, so a verdict refreshed anywhere propagates here. No
+ * polling loop: the batch endpoints are one KV read per symbol — cheap, not
+ * free. The 30-second timer below only re-evaluates staleness of what we
+ * already hold; it does not refetch. */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && currentView() === 'names') {
+    namesLoaded = false;
+    loadNames('visibilitychange');
+  }
+});
+
 setInterval(() => {
-  if (!lastPayload) return;
-  const el = document.getElementById('snapshot-badges');
-  if (el) el.innerHTML = renderBadges(lastPayload._meta, lastFetchedAtMs);
+  refreshBadges();
+  /* Re-render only the verdict as-of lines, which age in place. */
+  if (!state.stocks) return;
+  document.querySelectorAll('.rasof[data-ts]').forEach(el => {
+    const ts = Number(el.dataset.ts);
+    if (!Number.isFinite(ts)) return;
+    el.classList.toggle('aged', Date.now() - ts > VERDICT_FRESH_MS);
+    el.innerHTML = verdictAsOfHtml(ts);
+  });
 }, 30_000);
 
-load();
+function tick() {
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' local';
+}
+tick();
+setInterval(tick, 30_000);
+
+route();
 </script>
 </body>
 </html>
