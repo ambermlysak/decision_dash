@@ -205,6 +205,22 @@ h2.sec .right { margin-left: auto; text-transform: none; letter-spacing: 0.03em;
   color: var(--ink-3); font-style: italic; line-height: 1.7;
 }
 
+/* ── radar ── */
+.radar-row { padding: 9px 12px; }
+.rr-top { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.rr-top .tk {
+  font-family: var(--mono); font-weight: 600; font-size: 12.5px; color: var(--cyan);
+  text-decoration: underline dotted; text-underline-offset: 3px;
+}
+.rr-why { font-family: var(--sans); font-size: 12px; color: var(--ink-1); flex: 1; min-width: 220px; line-height: 1.45; }
+.rr-right { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; font-family: var(--mono); font-size: 11px; }
+.lanechip {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 3px; border: 1px solid var(--line);
+}
+.lanechip.mover  { color: var(--amber); border-color: rgba(244,183,64,0.35); background: var(--amber-soft); }
+.lanechip.sector { color: var(--violet); border-color: rgba(180,142,173,0.4); }
+
 /* ── 2. session brief ── */
 .brief { background: var(--bg-1); border: 1px solid var(--line); border-radius: 10px; padding: 15px 17px; }
 .brief .head {
@@ -528,7 +544,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
            onkeydown="if(event.key==='Enter'){const v=this.value.trim().toUpperCase(); if(/^[A-Z][A-Z.\-]{0,9}$/.test(v)){location.hash='#ticker/'+v; this.value='';}}" />
     <span id="clock"></span>
     <a href="./probe.html" title="the CORS canary — proves the Worker round-trip independently of this app">probe</a>
-    <span id="build-tag">tk-p5-3</span>
+    <span id="build-tag">radar-p6-1</span>
   </div>
 </header>
 
@@ -553,11 +569,11 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
           <span class="right badges" id="levels-badges"></span></h2>
         <div id="levels"><span class="loading">loading…</span></div>
 
-        <!-- Radar — phase 6 -->
-        <h2 class="sec">Radar <span class="n">· off-watchlist discovery</span></h2>
-        <div class="placeholder compact">
-          <div class="d">Phase 6 — needs <code>/api/radar</code> built in trading_dash first.</div>
-        </div>
+        <!-- Radar — off-watchlist discovery -->
+        <h2 class="sec">Radar <span class="n" id="radar-count">· off-watchlist discovery</span>
+          <span class="right badges" id="radar-badges"></span></h2>
+        <div id="radar"><span class="loading">loading…</span></div>
+        <div class="footnote" id="radar-note"></div>
 
         <!-- 5. your movers -->
         <h2 class="sec">Your movers <span class="n">· watchlist names ±3% or more</span>
@@ -1637,6 +1653,173 @@ function renderMovers() {
   if (b && state.meta) b.innerHTML = renderBadges(state.meta, state.fetchedAt, 'watchlist');
 }
 
+/* ── Radar: off-watchlist discovery ───────────────────────────────────────── */
+
+/* The Worker banks one radar per PT date (ttlSeconds ~36h) and the payload says
+ * so via `cached`/`ptDate`. This renders the BANKED time and never refetches on
+ * a tab switch — a discovery list that changed every time you looked at it
+ * would not be a list of the day's candidates. */
+function renderRadar() {
+  const el = document.getElementById('radar');
+  const count = document.getElementById('radar-count');
+  const note = document.getElementById('radar-note');
+  const badges = document.getElementById('radar-badges');
+  if (!el) return;
+  if (badges) badges.innerHTML = state.radar?._meta ? renderBadges(state.radar._meta, state.radarFetchedAt, 'radar') : '';
+
+  if (state.errors.radar) {
+    const e = state.errors.radar;
+    /* A 404 here means the deployed Worker predates /api/radar — field-absent,
+     * its own named state, not "no candidates". */
+    el.innerHTML = e.kind === 'http' && e.status === 404
+      ? `<div class="empty-state">This Worker does not publish <code>/api/radar</code> yet — the endpoint
+         returned 404. That is a missing endpoint, not an empty radar: nothing can be said about today's
+         candidates from here.</div>`
+      : moduleFail(e, 'Radar');
+    if (count) count.textContent = '· unavailable';
+    if (note) note.innerHTML = '';
+    return;
+  }
+  const r = state.radar;
+  if (!r) return;
+
+  /* The refusal shape: the Worker declined to produce a list and said why. */
+  if (r.refused === true || (r.candidates == null && r.reason)) {
+    el.innerHTML = `<div class="empty-state">Radar refused to publish today — <b>${esc(r.reason || 'no reason given')}</b>.
+      A refusal is a finding: it says the gates could not be applied, which is different from nothing clearing them.</div>`;
+    if (count) count.textContent = '· refused';
+    if (note) note.innerHTML = '';
+    return;
+  }
+  if (!Array.isArray(r.candidates)) {
+    el.innerHTML = `<div class="empty-state">The payload carries no <code>candidates</code> array
+      (keys: <code>${esc(Object.keys(r).join(', '))}</code>). Nothing is rendered rather than an
+      empty list — an absent field and an empty list are different claims.</div>`;
+    if (count) count.textContent = '· malformed';
+    return;
+  }
+
+  const cands = r.candidates;
+  const g = r.gates || {};
+
+  /* Sources that failed. `complete: false` means the list is real but partial,
+   * and the payload names which source is down — rendered WITH the candidates
+   * that did clear, never instead of them. */
+  const down = (r.sources || []).filter(s => s && s.ok === false);
+  const incomplete = r.complete === false;
+
+  const rows = cands.length ? cands.map(c => {
+    const chg = isNum(c.chgPct) ? c.chgPct : null;
+    const adopted = state.asked?.includes(c.ticker);
+    const busy = radarUi.adopting === c.ticker;
+    const err = radarUi.errors[c.ticker];
+    return `<div class="lv radar-row">
+      <div class="rr-top">
+        <a class="tk" href="#ticker/${encodeURIComponent(c.ticker)}"
+           title="${esc(c.ticker + (c.name ? ' — ' + c.name : ''))} → its ticker page">${esc(c.ticker)}</a>
+        <span class="rr-why">${esc(c.why || '')}</span>
+        <span class="rr-right">
+          <span class="lanechip ${c.lane === 'sector' ? 'sector' : 'mover'}"
+                title="${esc('source: ' + (c.source || 'not published') + (c.sector ? ' · ' + c.sector : '')
+                  + (g.moverSlots != null ? ` · slots: ${g.moverSlots} mover / ${g.sectorSlots} sector` : ''))}">${esc(c.lane || 'n/p')}</span>
+          <span class="m10">${isNum(c.price) ? fmt(c.price) : absent('price not published')}</span>
+          ${chg == null ? absent('chgPct not published')
+            : `<span class="${chg > 0 ? 'up' : chg < 0 ? 'dn' : 'flat'}">${chg > 0 ? '▲ +' : chg < 0 ? '▼ ' : '■ '}${chg.toFixed(2)}%</span>`}
+          ${adopted
+            ? `<span class="m10 up" title="${esc('already on the watchlist — it is in the shared sweep both dashboards read')}">✓ on watchlist</span>`
+            : `<button class="btn" onclick="adoptTicker('${esc(c.ticker)}')" ${busy ? 'disabled' : ''}
+                 title="${esc('reads the CURRENT server list, appends this name and saves it. Adoption grows the sweep universe BOTH dashboards share — this watchlist seeds the crons, the batch endpoints and the scan exclusions.')}">${busy ? 'adding…' : '+ watch'}</button>`}
+        </span>
+      </div>
+      ${err ? `<div class="m10 dn" style="margin-top:4px">add failed: ${esc(err)}</div>` : ''}
+      ${radarUi.adopted[c.ticker] ? `<div class="m10 up" style="margin-top:4px">${esc(radarUi.adopted[c.ticker])}</div>` : ''}
+    </div>`;
+  }).join('') : '';
+
+  el.innerHTML = (cands.length
+      ? `<div class="strip col">${rows}</div>`
+      : `<div class="empty-state">Nothing cleared the gates today${isNum(r.considered) ? ` — ${r.considered} names considered` : ''}.
+         That is a finding, not a gap: the gates are cap > $${((g.minMarketCap ?? 0) / 1e9).toFixed(0)}B,
+         price > $${g.minPrice ?? '—'}, avg $-volume > $${((g.minAvgDollarVolume ?? 0) / 1e6).toFixed(0)}M
+         and a listed chain with ≥ ${g.minChainOpenInterest ?? '—'} OI.</div>`)
+    + (incomplete
+      ? `<div class="empty-state" style="margin-top:8px;border-color:rgba(244,183,64,0.4);color:var(--amber)">
+         <b>Partial list</b> — the Worker reports <code>complete: false</code>.
+         ${down.length ? `Down: ${down.map(s => `<b>${esc(s.name)}</b>${s.reason ? ` (${esc(s.reason)})` : ''}`).join(', ')}.` : 'No source was named as failing.'}
+         The candidates above are the ones that did clear; names that a down source would have supplied are simply not here.</div>`
+      : '')
+    + (r.funnel ? `<div class="qcut" id="radar-funnel" style="margin-top:8px">
+        <span class="toggle" onclick="document.getElementById('radar-funnel').classList.toggle('open')">of ${
+          isNum(r.considered) ? r.considered : '—'} considered — show the funnel ▸</span>
+        <div class="list">${Object.entries(r.funnel).map(([k, v]) =>
+          `<span class="c" style="font-family:var(--mono);font-size:10px;background:var(--bg-2);border:1px solid var(--line);border-radius:4px;padding:3px 7px">${esc(k)} <b>${esc(String(v))}</b></span>`).join('')}
+          ${(r.sources || []).map(s => `<span class="c" style="font-family:var(--mono);font-size:10px;background:var(--bg-2);border:1px solid ${s.ok === false ? 'var(--bear)' : 'var(--line)'};border-radius:4px;padding:3px 7px">${esc(s.name)} ${s.ok === false ? '<b class="dn">down</b>' : `<b>${esc(String(s.rows ?? '—'))}</b> rows`}</span>`).join('')}
+        </div></div>` : '');
+
+  if (count) count.textContent = `· ${cands.length} candidate${cands.length === 1 ? '' : 's'} today`
+    + (isNum(r.considered) ? ` of ${r.considered} considered` : '')
+    + (isNum(r.excludedCount) ? ` · ${r.excludedCount} watchlist names excluded` : '');
+
+  if (note) note.innerHTML = `banked for PT <b>${esc(r.ptDate || 'date n/p')}</b>${
+    isNum(r.ts) ? ` at ${esc(fmtClock(r.ts))}` : ''}${r.cached ? ' · served from the day\'s banked copy' : ''}
+    — one radar per PT date, so this list does not change as you switch tabs.
+    ${g.max != null ? `Cap ${g.max}/day (${g.moverSlots} mover · ${g.sectorSlots} sector), ranked by ${esc(g.rankedBy || 'n/p')}.` : ''}
+    ${g.excludedFrom ? `Names already in <code>${esc(g.excludedFrom)}</code> are excluded by construction.` : ''}`;
+}
+
+const radarUi = { adopting: null, errors: {}, adopted: {} };
+
+/* READ-THEN-APPEND. The save endpoint REPLACES the whole list, so pushing a
+ * locally-held copy would silently drop anything added elsewhere since our
+ * fetch — the clobber the Worker's shrink guard and `watchlist:prev` snapshot
+ * exist to make recoverable. We re-read the server list at click time. */
+async function adoptTicker(sym) {
+  if (radarUi.adopting) return;
+  radarUi.adopting = sym;
+  delete radarUi.errors[sym];
+  renderRadar();
+  try {
+    const cur = await apiFetch('/watchlist');
+    const list = Array.isArray(cur.tickers) ? cur.tickers.slice() : null;
+    if (!list) throw new Error('the current watchlist could not be read — not saving a list we did not read');
+    if (list.includes(sym)) {
+      radarUi.adopted[sym] = 'already on the server list';
+    } else {
+      list.push(sym);
+      const r = await fetch(API_BASE + '/watchlist/save', {
+        method: 'POST',
+        headers: { 'x-dash-key': DASH_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tickers: list }),
+      });
+      if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { kind: 'http', status: r.status });
+      const res = await r.json();
+      radarUi.adopted[sym] = `added — server list ${res.previousCount} → ${res.count}. `
+        + 'This grows the sweep universe BOTH dashboards share: the crons, the batch endpoints and the radar\'s own exclusions all read it.';
+    }
+    /* Pull the new name into the shared store so Names and the queue see it
+     * this session rather than after a reload. */
+    state.asked = Array.isArray(state.asked) ? [...new Set([...state.asked, sym])] : [sym];
+    try {
+      const d = await apiFetch('/watchlist/batch?symbols=' + sym);
+      if (d.stocks && d.stocks[sym]) {
+        state.stocks = state.stocks || {};
+        state.stocks[sym] = d.stocks[sym];
+        state.notReturned = (state.notReturned || []).filter(t => t !== sym);
+      }
+    } catch (e) {
+      radarUi.errors[sym] = 'saved, but the batch fetch for it failed: ' + e.message;
+    }
+    paintAll();
+  } catch (e) {
+    /* Never retry silently — the error stands on the row. */
+    radarUi.errors[sym] = e.message + (e.status === 401 ? ' (DASH_KEY rejected)' : '');
+    console.warn('[radar] adopt %s failed · %s', sym, e.message);
+  } finally {
+    radarUi.adopting = null;
+    renderRadar();
+  }
+}
+
 /* ── 6. sector heat ───────────────────────────────────────────────────────── */
 
 /* Reads ONLY the cached snapshot. `?refresh=1` — and a cold `/market/sectors`
@@ -2063,6 +2246,7 @@ function renderToday() {
   renderBrief();
   renderCalendar();
   renderLevels();
+  renderRadar();
   renderMovers();
   renderSectors();
 }
@@ -3501,6 +3685,9 @@ function loadToday(reason) {
       one('sectors', '/market/sectors?cached=1', d => {
         state.sectors = d; state.sectorsMeta = d._meta || null; state.sectorsFetchedAt = Date.now();
       }),
+      /* One banked radar per PT date — fetched once with the rest of Today,
+       * never on a tab switch. */
+      one('radar', '/radar', d => { state.radar = d; state.radarFetchedAt = Date.now(); }),
     ]);
     console.log('[today] (%s) snapshot %s · econ %d events · daily %s · sectors %s',
       reason, state.snapshot ? state.snapshot.length + ' rows' : 'FAILED',
