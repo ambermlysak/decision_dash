@@ -155,6 +155,22 @@ least once:
   load — they spend Claude calls against the daily ceiling.
 - A single negative probe right after a Worker deploy is UNCONFIRMED — stale
   isolates serve pre-deploy code for ~a minute. Re-probe before concluding.
+- **`/api/short/:ticker` returns `periods` NEWEST-FIRST.** Reading it as
+  oldest-first inverted the direction word: the Positioning header rendered
+  "Shorts rising" beside a line reading "−9.7% vs prior", the label and the
+  number contradicting each other on one screen. **Sort on `settlementDate`;
+  never trust array order for a time series.** Found in phase 5.
+- `/api/analysis/:ticker` **404s for any ticker with no stored record** (every
+  off-watchlist name) and carries **no `_meta`** — just
+  `rating/confidence/recommendation/drivers/summary/ts`. A 404 here is the
+  normal off-watchlist state, not a failure, and must never trigger generation.
+- `/api/track/:ticker` can return `calibration.byRating: null` outright (seen on
+  SMR) — guard it before indexing, and render the payload's own resolution
+  reason instead of empty tiles.
+- **A hash route that reads the shared store must start the shared sweep.**
+  Deep-linking straight to `#ticker/NVDA` rendered a watchlist name as
+  off-watchlist, with its levels and session tag missing, because only
+  `#today`/`#names`/`#options` triggered `loadShared()`.
 
 ## Queue clock facts (phase 3)
 
@@ -206,6 +222,13 @@ dependency, not priority.
 | 5 | **Ticker page** — hero decision block + 4 evidence groups; base-rate-beside-rate on the Record group | 1, 4 |
 | 6 | **Radar** — needs `/api/radar` built in trading_dash first | Worker task |
 | 7 | **Income** — needs `/api/income/batch` built in trading_dash first | Worker task |
+
+**Phases 0–5 are shipped.** The frontend is feature-complete against the design
+contract; 6 and 7 are blocked on Worker endpoints that do not exist yet, and
+each is a trading_dash task before it is a task here. What remains open on the
+built surfaces: no NYSE holiday calendar client-side (phase 3), and Yahoo
+encodes post-DST AMC prints at a fixed 20:00Z which reads as 15:00 ET and
+classifies `unknown` (recorded in trading_dash's CLAUDE.md).
 
 ## Working pattern
 
