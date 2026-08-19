@@ -3,6 +3,35 @@
 Reviewed live: dashboard.html (all 6 tabs) and index.html (NVDA), 2026-08-18, plus CLAUDE.md / ARCHITECTURE.md.
 Scope per your answers: both pages, aggressive cuts, time-of-day aware, interactive mockup (separate file — nothing existing touched).
 
+---
+
+> ## BUILT — status as of 2026-08-19
+>
+> **This document is the design rationale and the cut list. It is NOT the
+> as-built spec.** Everything below was the argument for the rebuild; the
+> dashboard now exists and won some arguments back. `CLAUDE.md` holds the
+> as-built design contract and the known-gaps list — read that for what the app
+> does, and this for why.
+>
+> All phases 0–7 shipped, live at <https://ambermlysak.github.io/decision_dash/>.
+> Four tabs — **Today · Names · Options · Diversify** — plus the per-ticker page.
+>
+> **Where as-built diverges from this document:**
+>
+> | here | as-built | why |
+> |---|---|---|
+> | tab 3 is "Income" (§Round 2 #3) | **Diversify** — categorized sleeves: `income` \| `cyclical` \| `value` \| `defensive`, category user-assigned per entry and never inferred | income-only was too narrow for what the sleeve is actually for |
+> | the sleeve uses "the same verdict format" (§Round 2 #3) | **no verdicts at all in v1** — no rating, no call, no badge | no AI touches that path, so there is nothing to render a verdict from |
+> | tax character flagged qualified vs ordinary (§Round 2 #3) | **not shipped**, with the reason on screen | not derivable — no Yahoo module carries it and it depends on the issuer's 1099-DIV allocation and the holder's holding period |
+> | Radar universe = S&P 500 + Nasdaq 100 (§Round 2 #2) | Yahoo screeners (`day_gainers`, `most_actives`) + banked sector picks, ranked by rvol | same gates, different population — what `/api/radar` could actually source |
+> | `mockup.html`'s queue chip `TRIGGERED 10:42` | `AT/THROUGH LEVEL` · `APPROACHING` · `INTACT`, each with an as-of | one 15-min-delayed snapshot is not an intraday tape; a trigger *time* is unknowable and would be fiction |
+> | BMO/AMC from `earningsTimestamp` (§Round 2 #1) | from `calendarEvents.earnings.earningsDate`, shipped as `earningsTs`/`earningsSession`/`earningsIsEstimate` | `earningsTimestamp` is on an endpoint the batch does not fetch; `calendarEvents` was already in hand at zero added cost |
+>
+> `mockup.html` remains the historical visual reference. Where it disagrees with
+> the running app, the app is right and the table above says why.
+
+---
+
 ## Diagnosis — what slows decisions today
 
 1. **The decision is spread across six tabs.** A single trade idea on AMD lives in four places: the verdict in Watchlist, the option expression in Long, the sector context in Sectors, the catalyst in Market. You are the join. Nothing on the platform ever says "here are the 3 things worth acting on right now."
@@ -84,9 +113,15 @@ Default sort: **attention** — triggered > within 3% of level > earnings ≤7d 
 
 1. **Earnings timing (BMO/AMC) is a first-class input.** A BMO print means the hold/exit decision deadline is the *prior* session's close and the report day is reaction-only; AMC means the deadline is that day's close. Source: Yahoo `earningsTimestamp` / `earningsTimestampStart` carries the datetime — a time in the 04:00–09:30 ET window classifies BMO, post-16:00 AMC, else "timing unknown → assume the earlier deadline and label the assumption." This folds into the already-open confirmed-vs-estimated-dates item (ARCHITECTURE.md not-yet-done #2): the queue renders `BMO`/`AMC` and `est.` tags, and a gate working from an estimate says so.
 2. **Scanner → Radar.** Same engine, new population: universe = S&P 500 + Nasdaq 100 (not "most active"); gates = cap > $10B, price > $20, listed options with real OI, average dollar-volume floor. Sources feeding it: golden-cross sweep over the universe, sector opportunity picks (already produce off-watchlist names), relative-strength-on-red-tape, analyst upgrade stream. Cap: 5 candidates/day, each with a one-line why + one-click add-to-watchlist. Discovery outputs into the same verdict pipeline — a Radar name gets the same one-line-call treatment once adopted.
+
+   > **AS BUILT.** The gates, the 5/day cap and the one-click adopt all shipped as written (3 mover + 2 sector slots, ranked by rvol). **The universe did not**: `/api/radar` sources the Yahoo screeners (`day_gainers`, `most_actives`) plus the banked sector picks, not an S&P 500 + Nasdaq 100 sweep — so the population is "what moved, gated hard" rather than "the index, swept". The `why` is mechanical and rendered verbatim; adoption is read-then-append against the live server list, and grows the sweep universe both dashboards share.
 3. **Income sleeve = new quiet tab.** Dividend stocks/ETFs fold in cleanly — same Yahoo stack (dividendYield, exDividendDate, trailing distributions, all free), same verdict format, different cadence. It deliberately does NOT feed the daily action queue except on events: ex-div inside 7d, a cut, payout > 90%, or price entering a stated add zone. Covered-call ETFs (JEPI/JEPQ type) belong here — they answer the "premium selling ROI doesn't justify my time" problem structurally. Tax character flagged per name (qualified vs ordinary) given the tax-minimization goal.
+
+   > **AS BUILT — this one changed the most.** It shipped as **Diversify**, not Income: categorized sleeves (`income` / `cyclical` / `value` / `defensive`), with the category **assigned by the user** on each `income:tickers` entry and never inferred. Income rows carry the full detail; the other three are compact because their detail already lives on the ticker page. The quiet-by-default rule held exactly as written — ex-div ≤ 7d joins Today's calendar, and cut / payoutHigh / inAddZone render a compact events line that is **absent** (empty HTML, not an empty shell) when there is nothing. It never feeds the queue. **Two parts did not ship:** the "same verdict format" — v1 has no verdicts, because no AI touches that path — and the qualified-vs-ordinary tax flag, which is not derivable from anything available and is omitted with its reason on screen rather than estimated. A coverage strip of **counts** was added, labelled *"list coverage, not portfolio weights — position sizes unknown"*, because the app has no position sizes and a percentage would measure nothing.
 4. **One verdict store — the freshness bug is a design rule now.** Current behavior: the watchlist renders a cached nightly `analysis:` record while the ticker page runs a fresh `synthesize()` on load, so the two can disagree on the same day. New rule: **one ticker = one verdict record per trading day, one KV key, every surface renders that record with its as-of.** The ticker page revalidates and writes back to the same key; Names re-reads on tab focus and on the existing 30-second staleness timer, so a refresh anywhere propagates everywhere. Two surfaces disagreeing is treated as a rule-5-class provenance bug, not cosmetics.
 5. **Click-through navigation.** Names ticker → ticker page; the option-rec cell → Options tab with that name's row expanded (hash deep-links already exist; reuse them: `#ticker/NVDA`, `#options/NVDA`).
+
+   > **AS BUILT, and finished.** Every internal ticker click — Names, the queue, the Today modules, Radar rows, Diversify rows, Options rows — routes to `#ticker/X`. The interim links out to the old terminal, which phases 1–4 used while our own ticker page did not exist, were all retired in phase 5. **One deliberate escape hatch remains**, on the ticker page itself: *"open X in the old terminal ↗"*, for the cards phase 5 did not carry over (chart patterns, the V/OI table, the projection overlay).
 
 ## New build = new folder, new repo, shared Worker
 
@@ -100,3 +135,20 @@ Build this as a sibling project and leave trading_dash untouched:
 ## Implementation reality check
 
 Nearly everything above is frontend-only: the Worker already computes verdicts, key levels (levelPct/levelKind), cross state, best-candidate expectancy, macro state, and the econ calendar. The action queue is a client-side join over payloads the page already fetches (analysis:, long batch, econ-calendar, movers). Optional later: a `/api/queue` endpoint assembling it from KV (~N+3 binding ops, no new fetches, fits rule #1 trivially). Cutting Scanner/IPO/movers also removes their page-load requests — primeTabs() gets cheaper, not more expensive.
+
+> **AS BUILT — this held.** The action queue is a pure client-side function of
+> the shared store plus a PT clock, with no fetching of its own; `/api/queue` was
+> never needed and is not built. Three Worker changes *were* required and were
+> done as trading_dash tasks: earnings session timing on the watchlist batch
+> (`earningsTs` / `earningsSession` / `earningsIsEstimate`), `/api/radar`, and the
+> `/api/income/*` endpoints. The Pages origin needed no `ALLOWED_ORIGINS` edit
+> after all — `https://ambermlysak.github.io` was already allowlisted, because the
+> entry is per-origin and trading_dash shares it.
+>
+> One structural decision that is not in this document and should be: **the two
+> surfaces share ONE data store.** The watchlist sweep (the list, the batch
+> chunked at 15, one long batch) runs once per load, and Today, Names, Options and
+> the ticker page all render from those same objects. Two tabs disagreeing about a
+> verdict is impossible by construction rather than by discipline — which is what
+> round-2 decision #4 was actually asking for. Measured: four tab switches cost
+> zero fetches.

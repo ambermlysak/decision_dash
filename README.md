@@ -4,15 +4,25 @@ Decision-first trading dashboard — the ground-up rebuild of
 [trading_dash](https://github.com/ambermlysak/trading_dash)'s presentation layer.
 Verdict first, with the trigger and invalidation levels; evidence on demand.
 
-- `index.html` — the app: header + four hash-routed tabs (`#today`, `#names`,
-  `#options`, `#income`). Names is built; the rest are placeholders naming their
-  phase.
+**Live: <https://ambermlysak.github.io/decision_dash/>** — all phases shipped.
+
+- `index.html` — the app. Hash-routed:
+  - `#today` — regime line · action queue · levels watch · Radar · your movers ·
+    sector heat · session brief · calendar
+  - `#names` — the 6-column watchlist table, attention-sorted
+  - `#options` — lanes A–F over the long screen; `#options/NVDA` deep-links a row
+  - `#income` — **Diversify**: categorized sleeves (income / cyclical / value /
+    defensive), no AI verdicts
+  - `#ticker/NVDA` — the per-ticker page: hero decision block + 4 evidence groups
 - `probe.html` — the CORS canary. One live `/market/snapshot` round-trip with its
   provenance. When the app goes dark, this separates "the Worker or CORS broke"
   from "our rendering broke" in a single page load. Keep it working.
-- `DESIGN.md` — the full design rationale, cut list, and round-2 decisions
-- `mockup.html` — the interactive design reference (dummy data; open in a browser)
-- `CLAUDE.md` — working rules; read its design contract before building
+- `CLAUDE.md` — the as-built design contract, the honesty rules, the Worker
+  interface facts, and the known-gaps list. **Read this first.**
+- `DESIGN.md` — why the rebuild looks like this: the diagnosis, the cut list and
+  the round-2 decisions, annotated where as-built diverged.
+- `mockup.html` — the **historical** visual reference (dummy data). It predates
+  the build and disagrees with it in places; `CLAUDE.md` lists where and why.
 
 ## Architecture
 
@@ -28,5 +38,10 @@ npx http-server C:\dev\decision_dash -p 8123
 ```
 
 Pages deploy: push to `main`; GitHub Pages serves the last pushed commit. The
-site's Pages origin must be present in the Worker's `ALLOWED_ORIGINS` (a
-trading_dash change) before API calls succeed.
+site's Pages origin is present in the Worker's `ALLOWED_ORIGINS` — the entry is
+per-origin, so `https://ambermlysak.github.io` was already allowlisted from
+trading_dash and needed no change.
+
+**Nothing on any page spends a Claude call on load.** The two paths that can
+(`refresh verdict` and `Analyze earnings`, both on the ticker page) are
+click-only and labelled as spending.
