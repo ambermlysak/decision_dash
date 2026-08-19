@@ -120,6 +120,65 @@ h2.sec .right { margin-left: auto; text-transform: none; letter-spacing: 0.03em;
 .stance.absent       { background: var(--bg-2); color: var(--ink-3); border-style: dashed; font-style: italic; }
 .regime-asof { margin-left: auto; display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
 
+/* ── action queue ── */
+.phasechip {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 3px 9px; border-radius: 5px;
+  border: 1px solid var(--line); background: var(--bg-3); color: var(--ink-0);
+}
+.testclock {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em;
+  padding: 3px 8px; border-radius: 5px;
+  background: var(--bear-soft); color: var(--bear); border: 1px solid rgba(242,95,92,0.5);
+}
+.phasewhy { font-family: var(--mono); font-size: 10px; color: var(--ink-3); letter-spacing: 0.02em; text-transform: none; }
+.queue { display: flex; flex-direction: column; gap: 8px; }
+.qcard {
+  background: var(--bg-1); border: 1px solid var(--line);
+  border-left: 3px solid var(--ink-3); border-radius: 10px;
+  padding: 11px 14px; cursor: pointer;
+}
+.qcard.buy   { border-left-color: var(--bull); }
+.qcard.avoid { border-left-color: var(--bear); }
+.qcard.watch { border-left-color: var(--amber); }
+.qtop { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; }
+.qtick {
+  font-family: var(--mono); font-weight: 600; font-size: 14.5px; color: var(--cyan);
+  text-decoration: underline dotted; text-underline-offset: 3px;
+}
+.qact {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+  padding: 2px 7px; border-radius: 4px;
+}
+.qact.b { background: var(--bull-soft);  color: var(--bull); }
+.qact.s { background: var(--bear-soft);  color: var(--bear); }
+.qact.w { background: var(--amber-soft); color: var(--amber); }
+.qact.n { background: var(--bg-2); color: var(--ink-3); border: 1px dashed var(--line); }
+.qcall { font-size: 13px; color: var(--ink-0); }
+.qstate {
+  margin-left: auto; font-family: var(--mono); font-size: 10px;
+  padding: 2px 8px; border-radius: 4px; white-space: nowrap;
+}
+.qstate.trig   { background: var(--bull-soft);  color: var(--bull);  border: 1px solid rgba(35,209,139,0.4); }
+.qstate.near   { background: var(--amber-soft); color: var(--amber); }
+.qstate.plan   { color: var(--ink-3); border: 1px solid var(--line); }
+.qstate.hard   { background: var(--bear-soft);  color: var(--bear);  border: 1px solid rgba(242,95,92,0.4); }
+.qstate.dim    { color: var(--ink-3); border: 1px dashed var(--line); font-style: italic; }
+.qsub {
+  margin-top: 5px; font-family: var(--mono); font-size: 10.5px;
+  color: var(--ink-2); display: flex; gap: 14px; flex-wrap: wrap;
+}
+.qsub b { color: var(--ink-1); font-weight: 500; }
+.qsrc {
+  display: none; margin-top: 6px; font-family: var(--mono); font-size: 9.5px;
+  color: var(--ink-3); line-height: 1.7; border-top: 1px solid var(--line-soft); padding-top: 6px;
+}
+.qcard.open .qsrc { display: block; }
+.qcut { margin-top: 8px; }
+.qcut .toggle { font-family: var(--mono); font-size: 10.5px; color: var(--cyan); cursor: pointer; }
+.qcut .list { display: none; margin-top: 7px; }
+.qcut.open .list { display: flex; gap: 6px; flex-wrap: wrap; }
+
 /* ── chip strips (levels / movers / calendar / sectors) ── */
 .strip { display: flex; gap: 7px; flex-wrap: wrap; }
 .strip.col { flex-direction: column; }
@@ -324,7 +383,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
   <div class="hdr-right">
     <span id="clock"></span>
     <a href="./probe.html" title="the CORS canary — proves the Worker round-trip independently of this app">probe</a>
-    <span id="build-tag">today-p2-2</span>
+    <span id="build-tag">queue-p3-1</span>
   </div>
 </header>
 
@@ -336,12 +395,11 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
     <!-- 1. regime line -->
     <div class="regime" id="regime"><span class="loading">loading the regime line…</span></div>
 
-    <!-- 3. action queue — phase 3 -->
-    <h2 class="sec">Action queue <span class="right n">phase 3 — assembled client-side from these same payloads</span></h2>
-    <div class="placeholder compact">
-      <div class="d">The queue is phase 3. Its inputs — verdict records, the long batch, the econ
-        calendar and your movers — are all already on this page.</div>
-    </div>
+    <!-- 3. action queue — a pure function of the shared store + a PT clock -->
+    <h2 class="sec">Action queue <span class="n" id="queue-count"></span>
+      <span class="right" id="queue-phase"></span></h2>
+    <div id="queue"><span class="loading">deriving the queue…</span></div>
+    <div class="footnote" id="queue-note"></div>
 
     <div class="cols">
       <div>
@@ -1454,7 +1512,356 @@ function goTicker(sym) {
   window.open(`https://ambermlysak.github.io/trading_dash/index.html?t=${encodeURIComponent(sym)}`, '_blank', 'noopener');
 }
 
+/* ═══ ACTION QUEUE (phase 3) ══════════════════════════════════════════════
+ *
+ * THE QUEUE IS A PURE FUNCTION OF THE SHARED STORE PLUS A CLOCK. Same payloads
+ * + same clock = same queue, always. buildQueue() takes no hidden inputs beyond
+ * `state` and `queueNow()`, does no fetching, and returns a scored row for
+ * EVERY name — including the ones it rejects, with the reason — so the whole
+ * selection is checkable by hand against the table it emits.
+ * `dumpQueueTable()` prints that table.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* TEST CLOCK — `?clock=<ISO>` freezes the queue's clock for verification, e.g.
+ *   ?clock=2026-10-14T10:00:00-07:00   (a Wednesday, intraday)
+ * It drives ONLY the queue (phase, deadlines, next-trading-day); staleness
+ * badges and as-ofs stay on the real clock, because our copies of the payloads
+ * really are as old as they are. A visible TEST CLOCK chip renders whenever the
+ * override is active, so a frozen queue can never masquerade as live. */
+const TEST_CLOCK = (() => {
+  const v = new URLSearchParams(location.search).get('clock');
+  if (!v) return null;
+  const ms = Date.parse(v);
+  return Number.isFinite(ms) ? ms : null;
+})();
+const queueNow = () => TEST_CLOCK ?? Date.now();
+
+const PT_MORNING_END = 6 * 60 + 30;   // 06:30 PT
+const PT_CLOSE       = 13 * 60;       // 13:00 PT = 16:00 ET, the close
+
+/** PT calendar date, minutes past PT midnight, and day-of-week for an instant.
+ *  The dow comes from re-parsing the ISO date in UTC — deterministic, no locale
+ *  weekday-string quirks. */
+function ptPartsOf(ms) {
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit',
+    day: '2-digit', hourCycle: 'h23', hour: '2-digit', minute: '2-digit',
+  }).formatToParts(new Date(ms));
+  const g = t => p.find(x => x.type === t)?.value;
+  const iso = `${g('year')}-${g('month')}-${g('day')}`;
+  const minutes = Number(g('hour')) * 60 + Number(g('minute'));
+  const dow = new Date(iso + 'T00:00:00Z').getUTCDay();   // 0 = Sunday
+  return { iso, minutes, dow };
+}
+
+const isoAddDays = (iso, n) => {
+  const d = new Date(iso + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const isWeekdayIso = iso => {
+  const dow = new Date(iso + 'T00:00:00Z').getUTCDay();
+  return dow >= 1 && dow <= 5;
+};
+/* KNOWN GAP: weekdays only. This frontend has no NYSE holiday calendar, so a
+ * market holiday reads as a trading day here — the phase line says so. The
+ * holiday table lives in the Worker (`NYSE_HOLIDAYS`) and is not published on
+ * any endpoint this page fetches. */
+function nextTradingDayIso(iso) {
+  let d = isoAddDays(iso, 1);
+  while (!isWeekdayIso(d)) d = isoAddDays(d, 1);
+  return d;
+}
+function prevTradingDayIso(iso) {
+  let d = isoAddDays(iso, -1);
+  while (!isWeekdayIso(d)) d = isoAddDays(d, -1);
+  return d;
+}
+const dowLabel = iso => new Date(iso + 'T00:00:00Z')
+  .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+/** Session phase from PT wall-clock. Weekends are post-close regardless of hour. */
+function sessionPhase(pt) {
+  if (pt.dow === 0 || pt.dow === 6) return 'post-close';
+  if (pt.minutes < PT_MORNING_END) return 'morning';
+  if (pt.minutes < PT_CLOSE) return 'intraday';
+  return 'post-close';
+}
+
+/* ── the pure function ───────────────────────────────────────────────────── */
+
+const QUEUE_CAP = 6;
+const TIER_LABELS = {
+  1: 'deadline today', 2: 'reaction day', 3: 'at/through level',
+  4: 'within 3% of level', 5: 'conviction fill',
+};
+
+function buildQueue() {
+  const ms = queueNow();
+  const pt = ptPartsOf(ms);
+  const phase = sessionPhase(pt);
+  const todayIso = pt.iso;
+  const nextIso = nextTradingDayIso(todayIso);
+
+  const longBySym = {};
+  for (const r of (state.longRows || [])) longBySym[r.symbol] = r;
+
+  const scored = [];
+  for (const sym of Object.keys(state.stocks || {})) {
+    const s = state.stocks[sym];
+    const best = longBySym[sym] ? bestCandidate(longBySym[sym]) : null;
+    const row = {
+      sym, rating: s.rating ?? null,
+      recRank: isNum(s.recRank) ? s.recRank : null,
+      levelPct: isNum(s.levelPct) ? s.levelPct : null,
+      levelKind: s.levelKind ?? null, levelAbove: s.levelAbove === true,
+      levelPrice: isNum(s.levelPrice) ? s.levelPrice : null,
+      earnIso: s.earningsTs ? etDateOf(s.earningsTs) : null,
+      sess: 'earningsSession' in s ? s.earningsSession : undefined,
+      isEstimate: s.earningsIsEstimate ?? null,
+      hasStructure: Boolean(best), best, longRow: longBySym[sym] || null,
+      tier: null, kind: null, why: '', deadlineIso: null, assumed: null,
+    };
+    /* Crossed = the price is on the broken side of its nearest level:
+     * below its support, or above its resistance. Literal position, from the
+     * same levelAbove flag the Names column renders. */
+    row.crossed = row.levelKind === 'support' ? s.levelAbove === false
+                : row.levelKind === 'resistance' ? s.levelAbove === true : null;
+
+    /* a. earnings deadlines — session-aware. BMO's deadline is the PRIOR
+     * trading day's close; AMC's is the report day's own close. `unknown` (and
+     * a field-absent row from an older Worker) assumes the EARLIER deadline —
+     * BMO — and the card names the assumption. */
+    if (row.earnIso === todayIso || row.earnIso === nextIso) {
+      const sess = row.sess === 'bmo' || row.sess === 'amc' ? row.sess : 'unknown';
+      if (sess === 'unknown') row.assumed = row.sess === undefined ? 'field-absent' : 'unknown';
+      const asBmo = sess !== 'amc';
+      if (row.earnIso === todayIso) {
+        if (!asBmo) {
+          row.tier = 1; row.kind = 'decide'; row.deadlineIso = todayIso;
+          row.why = 'reports AMC today — the hold/exit deadline is today’s close';
+        } else {
+          row.tier = 2; row.kind = 'react'; row.deadlineIso = prevTradingDayIso(todayIso);
+          row.why = sess === 'bmo'
+            ? 'reported BMO today — the decision deadline was the prior close; today is reaction-only'
+            : 'reports today, timing unknown — treating as BMO, so the deadline already passed at the prior close; if it is actually AMC the deadline is today’s close';
+        }
+      } else {   // next trading day
+        if (asBmo) {
+          row.tier = 1; row.kind = 'decide'; row.deadlineIso = prevTradingDayIso(row.earnIso);
+          row.why = sess === 'bmo'
+            ? `reports BMO next trading day (${row.earnIso}) — the deadline is the prior close`
+            : `reports next trading day (${row.earnIso}), timing unknown — treating as BMO, so the deadline is the prior close`;
+        }
+        // AMC next trading day: that deadline is the NEXT day's close — not a card yet.
+      }
+    }
+
+    /* b. actionable verdict at or near its level. recRank 0 is a HOLD — a real
+     * rank but not an actionable one; null is no record at all. */
+    const actionable = row.recRank != null && row.recRank !== 0;
+    if (row.tier == null && actionable && row.levelPct != null && row.levelKind
+        && Math.abs(row.levelPct) <= AT_LEVEL_PCT) {
+      row.tier = row.crossed ? 3 : 4;
+      row.kind = 'level';
+      row.why = row.crossed
+        ? `${row.rating} verdict and the price is through its ${row.levelKind}`
+        : `${row.rating} verdict within ${Math.abs(row.levelPct).toFixed(1)}% of its ${row.levelKind}`;
+    }
+
+    /* c. conviction fill. HOLDs (|recRank| 0) rank behind every conviction
+     * call; a name with no record at all cannot be ranked and stays out, with
+     * the reason in the table. */
+    if (row.tier == null && row.recRank != null) {
+      row.tier = 5; row.kind = 'fill';
+      row.why = row.recRank === 0 ? 'HOLD — fills only an otherwise-empty slot' : `${row.rating} conviction fill`;
+    }
+    if (row.tier == null) row.why = 'no verdict record — cannot be ranked';
+    scored.push(row);
+  }
+
+  /* Ranking: tier, then (tier 5 only) prefer a name whose long row carries a
+   * best structure, then |recRank| desc, then |levelPct| asc. */
+  scored.sort((a, b) => {
+    const at = a.tier ?? 9, bt = b.tier ?? 9;
+    if (at !== bt) return at - bt;
+    if (at === 5 && a.hasStructure !== b.hasStructure) return a.hasStructure ? -1 : 1;
+    const ar = a.recRank == null ? -1 : Math.abs(a.recRank);
+    const br = b.recRank == null ? -1 : Math.abs(b.recRank);
+    if (ar !== br) return br - ar;
+    const al = a.levelPct == null ? Infinity : Math.abs(a.levelPct);
+    const bl = b.levelPct == null ? Infinity : Math.abs(b.levelPct);
+    if (al !== bl) return al - bl;
+    return a.sym.localeCompare(b.sym);
+  });
+
+  const candidates = scored.filter(r => r.tier != null);
+  return {
+    ms, pt, phase, todayIso, nextIso, scored, candidates,
+    selected: candidates.slice(0, QUEUE_CAP),
+    cut: candidates.slice(QUEUE_CAP),
+  };
+}
+
+/* The full scoring table, for hand-verification. */
+function dumpQueueTable() {
+  const q = buildQueue();
+  const rows = q.scored.map(r => ({
+    sym: r.sym, tier: r.tier, rating: r.rating, recRank: r.recRank,
+    levelPct: r.levelPct, kind: r.levelKind, crossed: r.crossed,
+    earnIso: r.earnIso, sess: r.sess, struct: r.hasStructure,
+    selected: q.selected.includes(r), why: r.why,
+  }));
+  console.table(rows);
+  return { phase: q.phase, todayIso: q.todayIso, nextIso: q.nextIso, rows };
+}
+
+/* ── rendering ───────────────────────────────────────────────────────────── */
+
+/* The state chip is the CURRENT delayed price's relationship to the key level,
+ * with its as-of — never a trigger time. We hold one 15-minute-delayed
+ * snapshot, not an intraday tape: whether a level was touched between fetches
+ * is unknowable from here, so nothing here may claim it. (The mockup's
+ * "TRIGGERED 10:42" is exactly the fiction this refuses to render.) */
+function queueStateChip(row, q) {
+  const priceTip = state.meta
+    ? `Current relationship of the delayed price to the level — batch fetched ${fmtClock(state.fetchedAt)}, `
+      + `source 15-min delayed. We hold one delayed snapshot, not an intraday tape: no trigger time is knowable here.`
+    : 'no batch _meta — provenance unknown';
+
+  if (row.kind === 'decide' || row.kind === 'react') {
+    const passed = row.deadlineIso < q.todayIso
+      || (row.deadlineIso === q.todayIso && q.pt.minutes >= PT_CLOSE);
+    if (row.kind === 'react') {
+      return { label: 'REACTION DAY', cls: 'near', tip: row.why };
+    }
+    return passed
+      ? { label: `DEADLINE PASSED ${dowLabel(row.deadlineIso)}`, cls: 'dim',
+          tip: `The decision deadline was the ${row.deadlineIso} close (13:00 PT) and has passed. ${row.why}` }
+      : { label: `DECIDE BY 13:00 PT ${row.deadlineIso === q.todayIso ? 'TODAY' : dowLabel(row.deadlineIso)}`,
+          cls: 'hard', tip: row.why };
+  }
+  if (q.phase === 'morning') return { label: 'THE PLAN', cls: 'plan', tip: 'Morning: the plan. ' + priceTip };
+  if (row.crossed && row.levelPct != null && Math.abs(row.levelPct) <= AT_LEVEL_PCT)
+    return { label: 'AT/THROUGH LEVEL', cls: 'trig', tip: priceTip };
+  if (row.levelPct != null && Math.abs(row.levelPct) <= 1)
+    return { label: 'APPROACHING', cls: 'near', tip: `Within 1% of the level. ` + priceTip };
+  return { label: 'INTACT', cls: 'plan', tip: priceTip };
+}
+
+function queueCard(row, q) {
+  const s = state.stocks[row.sym];
+  const act = row.kind === 'decide' ? { t: 'DECIDE', c: 'w' }
+            : row.kind === 'react' ? { t: 'REACT', c: 'w' }
+            : row.rating === 'BUY' ? { t: 'BUY', c: 'b' }
+            : row.rating === 'SELL' ? { t: 'SELL', c: 's' }
+            : row.rating === 'HOLD' ? { t: 'HOLD', c: 'w' }
+            : { t: 'NO VERDICT', c: 'n' };
+  const edge = row.rating === 'BUY' ? 'buy' : row.rating === 'SELL' ? 'avoid' : 'watch';
+
+  /* The one-line call, VERBATIM from the analysis record — it already carries
+   * the adds and stops in the model's own words. Nothing is parsed out of it. */
+  const call = s.recommendation
+    ? esc(s.recommendation)
+    : `<span class="dim" title="${esc(row.recRank == null
+        ? (state.analysisLoading ? 'no verdict record yet — a refresh is in flight for this batch' : 'no verdict record for this ticker')
+        : 'the record carries a rating but no one-line recommendation')}">${
+        row.recRank == null ? 'no verdict record' : 'no one-line call published'}</span>`;
+
+  const st = queueStateChip(row, q);
+
+  const sub = [];
+  // trigger: the key level, from the same fields the Names column renders
+  if (row.levelPct != null && row.levelKind && row.levelPrice != null) {
+    const isSup = row.levelKind === 'support';
+    const cls = isSup ? (row.levelAbove ? 'lvl-hold' : 'lvl-break')
+                      : (row.levelAbove ? 'lvl-break-up' : 'lvl-cap');
+    sub.push(`<span>level: <b class="${cls}">${row.levelAbove ? '▲' : '▼'} ${Math.abs(row.levelPct).toFixed(1)}% ${
+      isSup ? 'sup' : 'res'} ${esc(fmt(row.levelPrice))}</b></span>`);
+  } else {
+    sub.push(`<span class="dim" title="levelPct / levelKind / levelPrice not all present in the payload">level not published</span>`);
+  }
+  // structure: only when a long row exists — omitted, never fabricated
+  if (row.best) {
+    const er = (row.best.c.expectancyMean * 100).toFixed(0) + '%';
+    sub.push(`<span title="${esc('E[R] = expectancyMean: mean P/L across historical windows ÷ capital risked, HELD TO EXPIRY. A relative ranking, not a P&L forecast.')}">structure: <b>${esc(structureLabel(row.best))}</b> · E[R] <b class="${
+      row.best.c.expectancyMean > 0 ? 'up' : 'dn'}">${er}</b>${row.best.c.upsideTruncated ? '<span class="amb">↑</span>' : ''}</span>`);
+  }
+  // deadline line on earnings cards, in PT
+  if (row.deadlineIso) {
+    sub.push(`<span class="${st.cls === 'hard' ? 'amb' : ''}">deadline: <b>${esc(dowLabel(row.deadlineIso))} 13:00 PT</b> (16:00 ET close)</span>`);
+    if (row.assumed) sub.push(`<span class="dim" title="${esc(row.assumed === 'field-absent'
+      ? 'this row carries no earningsSession field — the deployed Worker predates it; the earlier (BMO) deadline is assumed'
+      : 'the Worker could not classify the session from the timestamp; the earlier (BMO) deadline is assumed')}">timing ${
+      row.assumed === 'field-absent' ? 'not published' : 'unknown'} — treating as BMO</span>`);
+    if (row.isEstimate === true) sub.push(`<span class="dim" title="Yahoo flags this earnings date as an estimate, not company-confirmed — this deadline is built on an estimate">date est.</span>`);
+  }
+
+  const src = [
+    `why: ${esc(row.why)}`,
+    `tier ${row.tier} (${TIER_LABELS[row.tier]})` + (row.recRank != null ? ` · recRank ${row.recRank}` : ''),
+    `verdict: analysis record${isNum(s.analysisTs) ? `, as of ${esc(fmtClock(s.analysisTs))}` : ' — as-of not published'}`,
+    `level: watchlist batch, fetched ${esc(fmtClock(state.fetchedAt))}${state.meta?.delayed ? ' (source 15-min delayed)' : ''}`,
+    row.earnIso ? `earnings: ${esc(row.earnIso)} · session ${esc(String(row.sess ?? 'field-absent'))}${row.isEstimate === true ? ' · flagged estimate' : ''} (earningsTs ${esc(s.earningsTs || 'n/p')})` : null,
+    row.best ? `structure: /api/long/batch row${state.longMeta?.asOf ? `, as of ${esc(state.longMeta.asOf)}` : ''}` : null,
+    'click to collapse',
+  ].filter(Boolean).join(' · ');
+
+  return `<div class="qcard ${edge}" onclick="this.classList.toggle('open')">
+    <div class="qtop">
+      <a class="qtick" href="https://ambermlysak.github.io/trading_dash/index.html?t=${encodeURIComponent(row.sym)}"
+         target="_blank" rel="noopener" onclick="event.stopPropagation()"
+         title="${esc(row.sym)} → trading_dash ticker page (interim until phase 5)">${esc(row.sym)}</a>
+      <span class="qact ${act.c}">${act.t}</span>
+      <span class="qcall">${call}</span>
+      <span class="qstate ${st.cls}" title="${esc(st.tip)}">${esc(st.label)}</span>
+    </div>
+    <div class="qsub">${sub.join('')}</div>
+    <div class="qsrc">${src}</div>
+  </div>`;
+}
+
+function renderQueue() {
+  const el = document.getElementById('queue');
+  const head = document.getElementById('queue-phase');
+  const count = document.getElementById('queue-count');
+  if (!el) return;
+  if (!state.stocks) {
+    if (state.errors.shared) el.innerHTML = moduleFail(state.errors.shared, 'Action queue');
+    return;
+  }
+  const q = buildQueue();
+
+  const PHASE_TEXT = {
+    'morning': 'the plan', 'intraday': 'live vs the levels', 'post-close': 'what stands + next session',
+  };
+  head.innerHTML = `${TEST_CLOCK != null
+      ? `<span class="testclock" title="${esc('?clock override active — the queue clock is frozen at ' + new Date(TEST_CLOCK).toISOString() + '. Staleness badges stay on the real clock.')}">⏱ TEST CLOCK</span> `
+      : ''}<span class="phasechip">${esc(q.phase)}</span>
+    <span class="phasewhy" title="${esc('Derived from PT wall-clock: before 06:30 = morning, 06:30–13:00 = intraday, after 13:00 or a weekend = post-close. NYSE holidays are NOT modelled on this page — a market holiday reads as a weekday. The holiday table lives in the Worker and is not published on any endpoint fetched here.')}">
+      ${esc(PHASE_TEXT[q.phase])} · PT ${esc(dowLabel(q.todayIso))} ${String(Math.floor(q.pt.minutes / 60)).padStart(2, '0')}:${String(q.pt.minutes % 60).padStart(2, '0')} · holidays not modelled</span>`;
+
+  count.textContent = `· showing ${q.selected.length} of ${q.candidates.length} candidates`;
+
+  el.innerHTML = `<div class="queue">${q.selected.map(r => queueCard(r, q)).join('')}</div>`
+    + (q.cut.length ? `<div class="qcut" id="qcut">
+        <span class="toggle" onclick="document.getElementById('qcut').classList.toggle('open')">${q.cut.length} cut by the cap — show ▸</span>
+        <div class="list">${q.cut.map(r =>
+          `<span class="c" style="font-family:var(--mono);font-size:10px;background:var(--bg-2);border:1px solid var(--line);border-radius:4px;padding:3px 7px" title="${esc(row_cut_tip(r))}">${esc(r.sym)} · t${r.tier}${r.recRank != null ? ' · ' + r.recRank : ''}</span>`).join('')}</div>
+      </div>` : '');
+
+  const note = document.getElementById('queue-note');
+  const unranked = q.scored.filter(r => r.tier == null);
+  note.innerHTML = `next trading day from ${esc(q.todayIso)} is <b>${esc(dowLabel(q.nextIso))}</b> (weekday rule — holidays not modelled) · `
+    + `cap ${QUEUE_CAP} · tiers: deadline-today → reaction-day → at/through level → within 3% → conviction fill`
+    + (unranked.length ? ` · ${unranked.length} name${unranked.length === 1 ? '' : 's'} unranked (${unranked.map(r => esc(r.sym)).join(', ')}: no verdict record)` : '');
+}
+function row_cut_tip(r) {
+  return `tier ${r.tier} (${TIER_LABELS[r.tier]}) · ${r.why}`;
+}
+
 function renderToday() {
+  renderQueue();
   renderRegime();
   renderBrief();
   renderCalendar();
@@ -1780,7 +2187,10 @@ document.addEventListener('visibilitychange', () => {
 
 setInterval(() => {
   refreshBadges();
-  /* Every module's provenance ages in place, without refetching. */
+  /* Every module's provenance ages in place, without refetching. The queue
+   * re-derives too: its phase and deadline states are functions of the clock,
+   * and the clock moved. */
+  renderQueue();
   renderRegime();
   const lb = document.getElementById('levels-badges');
   const mb = document.getElementById('movers-badges');

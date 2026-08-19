@@ -156,6 +156,33 @@ least once:
 - A single negative probe right after a Worker deploy is UNCONFIRMED — stale
   isolates serve pre-deploy code for ~a minute. Re-probe before concluding.
 
+## Queue clock facts (phase 3)
+
+- **The action queue is a pure function of the shared store plus a PT clock**
+  (`buildQueue()`), and must stay one — that property is what makes the
+  selection hand-checkable against the table `dumpQueueTable()` prints. No
+  fetching, no hidden inputs.
+- **`?clock=<ISO>` freezes the queue's clock** for driving all three phases in
+  verification. It renders a red ⏱ TEST CLOCK chip whenever active and touches
+  nothing else — staleness badges stay on the real clock, because our payload
+  copies really are as old as they are.
+- **KNOWN GAP: the frontend has no NYSE holiday calendar.** Phase and
+  next-trading-day use a weekday rule only, so a market holiday reads as a
+  trading day here (measured: Thanksgiving 2026-11-26 reads `intraday`). The
+  Worker's `NYSE_HOLIDAYS` table is not published on any endpoint this page
+  fetches; shipping it on one is a trading_dash task if the gap starts to bite.
+  The phase line and queue footnote label the derivation.
+- **BMO's deadline is the PRIOR trading day's close; AMC's is the report day's
+  own close** (13:00 PT = 16:00 ET). `unknown` and field-absent both assume the
+  earlier (BMO) deadline and say so on the card — with different wording,
+  because "the Worker could not classify" and "an older Worker never sent the
+  field" are different facts.
+- **No trigger times, ever.** The page holds one 15-minute-delayed snapshot,
+  not an intraday tape: whether a level was touched between fetches is
+  unknowable here. State chips render the CURRENT price↔level relationship
+  with its as-of (AT/THROUGH · APPROACHING · INTACT). The mockup's
+  "TRIGGERED 10:42" is fiction this page refuses to produce.
+
 ## Design system
 
 Same tokens as trading_dash. CSS custom properties in `:root`; never hardcode a
