@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Geist:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root {
   --bg-0: #0a0a0c;
@@ -317,6 +318,78 @@ tr.cdeep > td { background: var(--bg-1); font-size: 10.5px; color: var(--ink-2);
 .readtag.dim { color: var(--ink-3); border-style: dashed; font-style: italic; }
 .conc-label { font-family: var(--mono); font-size: 9.5px; color: var(--amber); }
 
+/* ── ticker page ── */
+#tsearch {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-0);
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 6px;
+  padding: 4px 8px; width: 88px; outline: none;
+}
+#tsearch:focus { border-color: var(--cyan); }
+.tk-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin: 22px 0 4px; }
+.tk-sym { font-family: var(--mono); font-size: 26px; font-weight: 600; color: var(--ink-0); }
+.tk-name { font-size: 13px; color: var(--ink-2); }
+.tk-px { font-family: var(--mono); font-size: 17px; color: var(--ink-0); }
+.hero {
+  display: grid; grid-template-columns: 1.25fr 1fr 1.05fr; gap: 20px;
+  background: var(--bg-1); border: 1px solid var(--line); border-radius: 12px;
+  padding: 18px; margin-top: 12px;
+}
+@media (max-width: 1040px) { .hero { grid-template-columns: 1fr; } }
+.h3 {
+  font-family: var(--mono); font-size: 9.5px; color: var(--ink-3);
+  letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 9px;
+}
+.verdict-big { font-family: var(--serif); font-style: italic; font-size: 40px; line-height: 1; }
+.verdict-big.buy { color: var(--bull); } .verdict-big.sell { color: var(--bear); }
+.verdict-big.hold { color: var(--amber); } .verdict-big.none { color: var(--ink-3); font-size: 22px; }
+.tk-call { margin-top: 10px; font-size: 13.5px; color: var(--ink-0); line-height: 1.5; }
+.ladder { font-family: var(--mono); font-size: 11.5px; display: flex; flex-direction: column; gap: 7px; }
+.ladder .l { display: flex; gap: 10px; align-items: center; }
+.ladder .lbl { min-width: 78px; color: var(--ink-3); font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; }
+.ladder .bar { flex: 1; height: 2px; background: var(--bg-3); position: relative; border-radius: 1px; }
+.ladder .bar i { position: absolute; top: -2px; width: 6px; height: 6px; border-radius: 50%; }
+.ladder .val { color: var(--ink-1); min-width: 74px; text-align: right; }
+.ladder .now .val { color: var(--cyan); font-weight: 600; }
+.ladder .src { font-size: 9px; color: var(--ink-3); min-width: 62px; }
+.vline { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px dashed var(--line-soft); }
+.vline:last-child { border: 0; }
+.vline .k {
+  font-family: var(--mono); font-size: 9.5px; color: var(--ink-3);
+  min-width: 84px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.vline .v { font-size: 12px; color: var(--ink-1); flex: 1; }
+.btn {
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-1);
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 6px;
+  padding: 5px 10px; cursor: pointer;
+}
+.btn:hover { border-color: var(--cyan); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn.spend { border-color: rgba(244,183,64,0.45); color: var(--amber); }
+.acc { border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; background: var(--bg-1); }
+.acc .ah { display: flex; gap: 12px; align-items: baseline; padding: 12px 15px; cursor: pointer; flex-wrap: wrap; }
+.acc .ah .t { font-family: var(--serif); font-size: 15px; color: var(--ink-0); }
+.acc .ah .sum { color: var(--ink-2); font-size: 12px; flex: 1; }
+.acc .ah .car { color: var(--ink-3); font-family: var(--mono); font-size: 11px; }
+.acc .ab { display: none; padding: 0 15px 15px; color: var(--ink-1); font-size: 12.5px; }
+.acc.open .ab { display: block; }
+#tk-chart { height: 300px; width: 100%; }
+.indgrid { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.newsitem { padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 12.5px; line-height: 1.5; }
+.newsitem:last-child { border: 0; }
+.newsitem a { color: var(--ink-0); text-decoration: none; }
+.newsitem a:hover { color: var(--cyan); }
+.newsitem .pub { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); }
+.ratetile {
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; font-family: var(--mono); font-size: 11px; min-width: 220px;
+}
+.ratetile .big { font-size: 17px; color: var(--ink-0); }
+.ratetile .base { color: var(--ink-2); font-size: 10.5px; margin-top: 3px; }
+.ratetile .edge.dn { color: var(--bear); } .ratetile .edge.up { color: var(--bull); }
+.tk-links { margin-top: 14px; font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+.tk-links a { color: var(--cyan); }
+
 /* ── provenance badges ── */
 .badges { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
 .badge {
@@ -450,9 +523,12 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
     <a href="#income"  data-v="income">Income</a>
   </nav>
   <div class="hdr-right">
+    <input id="tsearch" placeholder="ticker →" spellcheck="false"
+           title="open any ticker's page — watchlist names carry a stored verdict, others render the degraded states by name"
+           onkeydown="if(event.key==='Enter'){const v=this.value.trim().toUpperCase(); if(/^[A-Z][A-Z.\-]{0,9}$/.test(v)){location.hash='#ticker/'+v; this.value='';}}" />
     <span id="clock"></span>
     <a href="./probe.html" title="the CORS canary — proves the Worker round-trip independently of this app">probe</a>
-    <span id="build-tag">opt-p4-1</span>
+    <span id="build-tag">tk-p5-3</span>
   </div>
 </header>
 
@@ -527,6 +603,11 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
     <div id="opt-toolbar"></div>
     <div id="opt-body"><div class="statusbox"><div class="loading">waiting for the shared long batch…</div></div></div>
     <div class="footnote" id="opt-notes"></div>
+  </section>
+
+  <!-- ═══ TICKER PAGE ═══ -->
+  <section class="view" id="v-ticker">
+    <div id="tk-body"><div class="statusbox"><div class="loading">loading…</div></div></div>
   </section>
 
   <!-- ═══ INCOME ═══ -->
@@ -741,13 +822,12 @@ function renderBadges(meta, fetchedAtMs, label) {
 
 /* ═══ CELL RENDERERS ═══════════════════════════════════════════════════════ */
 
-/* Ticker + price/Δ.
- * TODO(phase 5): this links out to the trading_dash ticker page as an interim.
- * When phase 5 builds our own ticker page it becomes `#ticker/${sym}` and this
- * external hop goes away. Until then the link is honest about leaving. */
+/* Ticker + price/Δ. Routes to OUR ticker page (phase 5) — the interim hop to
+ * the old terminal is retired; that link now lives once, on the ticker page
+ * itself, for the cards not carried over. */
 function tickerCell(s) {
   const sym = s.symbol;
-  const href = `https://ambermlysak.github.io/trading_dash/index.html?t=${encodeURIComponent(sym)}`;
+  const href = `#ticker/${encodeURIComponent(sym)}`;
   const px = fmt(s.price);
   const priceHtml = px == null
     ? absent('price not present in the payload')
@@ -763,8 +843,8 @@ function tickerCell(s) {
     chg = `<small class="${cls}">${gly} ${fmtPct(s.changePct, 2)}</small>`;
   }
   return `<td>
-    <a class="tick" href="${href}" target="_blank" rel="noopener"
-       title="${esc(sym)} → trading_dash ticker page (interim until phase 5 builds ours)"
+    <a class="tick" href="${href}"
+       title="${esc(sym)} → its ticker page"
        onclick="event.stopPropagation()">${esc(sym)}</a>
     <div class="px">${priceHtml} ${chg}</div>
   </td>`;
@@ -1623,11 +1703,8 @@ function toggleSector(i) {
   renderSectors();
 }
 
-/* Interim click-through, same target as the Names table.
- * TODO(phase 5): becomes `#ticker/${sym}` once our own ticker page exists. */
-function goTicker(sym) {
-  window.open(`https://ambermlysak.github.io/trading_dash/index.html?t=${encodeURIComponent(sym)}`, '_blank', 'noopener');
-}
+/* Every internal ticker click routes to our own page (phase 5). */
+function goTicker(sym) { location.hash = '#ticker/' + encodeURIComponent(sym); }
 
 /* ═══ ACTION QUEUE (phase 3) ══════════════════════════════════════════════
  *
@@ -1929,9 +2006,9 @@ function queueCard(row, q) {
 
   return `<div class="qcard ${edge}" onclick="this.classList.toggle('open')">
     <div class="qtop">
-      <a class="qtick" href="https://ambermlysak.github.io/trading_dash/index.html?t=${encodeURIComponent(row.sym)}"
-         target="_blank" rel="noopener" onclick="event.stopPropagation()"
-         title="${esc(row.sym)} → trading_dash ticker page (interim until phase 5)">${esc(row.sym)}</a>
+      <a class="qtick" href="#ticker/${encodeURIComponent(row.sym)}"
+         onclick="event.stopPropagation()"
+         title="${esc(row.sym)} → its ticker page">${esc(row.sym)}</a>
       <span class="qact ${act.c}">${act.t}</span>
       <span class="qcall">${call}</span>
       <span class="qstate ${st.cls}" title="${esc(st.tip)}">${esc(st.label)}</span>
@@ -2365,7 +2442,8 @@ function optCollapsedRow(row) {
 
   return `<tr class="row optrow${row.dim ? ' dimrow' : ''}${stale ? ' stalebg' : ''}" id="optrow-${esc(sym)}"
       onclick="toggleOption('${esc(sym)}')"${dimTip}>
-    <td><span class="tick" style="text-decoration:none">${esc(sym)}</span>
+    <td><a class="tick" href="#ticker/${encodeURIComponent(sym)}" onclick="event.stopPropagation()"
+        title="${esc(sym)} → its ticker page">${esc(sym)}</a>
       <div class="px">${isNum(row.spot) ? fmt(row.spot) : absent('spot not on the row')}</div></td>
     <td>${volChip(row)}</td>
     <td class="m11" style="white-space:normal">${bestTd}</td>
@@ -2494,6 +2572,675 @@ function renderOptions() {
     + ' · collapsed rows sort by best E[R] (held-to-expiry, a relative ranking) · methodology lives in the ? modal';
 }
 
+/* ═══ TICKER PAGE (phase 5) ═══════════════════════════════════════════════
+ *
+ * THE CENTRAL RULE: NO AI SPEND ON PAGE LOAD. The old terminal ran a fresh
+ * synthesize() every load — which both spent a gated Claude call and let the
+ * watchlist and the ticker page disagree about the same ticker on the same day.
+ * This page renders the STORED analysis record (GET /api/analysis/:ticker —
+ * the same record Names renders) with its as-of. Regenerating is a deliberate
+ * button, and on success the shared store is updated so Names and the queue
+ * move with it. Nothing here calls /api/ai or /api/earnings without a click.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+const tk = { sym: null, data: {}, loading: {}, errors: {}, open: {}, chartApi: null, busy: {} };
+
+/* ── indicator math, ported from the old terminal (math only, not layout) ── */
+function _sma(a, p) {
+  const o = [];
+  for (let i = 0; i < a.length; i++) {
+    if (i < p - 1) { o.push(null); continue; }
+    let s = 0; for (let j = i - p + 1; j <= i; j++) s += a[j];
+    o.push(s / p);
+  }
+  return o;
+}
+function _ema(a, p) {
+  const o = []; const k = 2 / (p + 1); let prev = null;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] == null) { o.push(null); continue; }
+    if (prev == null) { prev = a[i]; o.push(prev); continue; }
+    prev = a[i] * k + prev * (1 - k); o.push(prev);
+  }
+  return o;
+}
+function _rsi(c, p = 14) {
+  if (c.length <= p) return [];
+  const o = new Array(c.length).fill(null);
+  let g = 0, l = 0;
+  for (let i = 1; i <= p; i++) { const d = c[i] - c[i - 1]; if (d >= 0) g += d; else l -= d; }
+  let ag = g / p, al = l / p;
+  o[p] = 100 - 100 / (1 + (al === 0 ? 100 : ag / al));
+  for (let i = p + 1; i < c.length; i++) {
+    const d = c[i] - c[i - 1];
+    ag = (ag * (p - 1) + (d > 0 ? d : 0)) / p;
+    al = (al * (p - 1) + (d < 0 ? -d : 0)) / p;
+    o[i] = 100 - 100 / (1 + (al === 0 ? 100 : ag / al));
+  }
+  return o;
+}
+function _macd(c, f = 12, s = 26, sg = 9) {
+  const ef = _ema(c, f), es = _ema(c, s);
+  const m = c.map((_, i) => (ef[i] != null && es[i] != null) ? ef[i] - es[i] : null);
+  const sig = _ema(m.map(v => v == null ? 0 : v), sg);
+  return { macd: m, signal: sig, hist: m.map((v, i) => v == null ? null : v - sig[i]) };
+}
+function _bb(c, p = 20, mult = 2) {
+  const m = _sma(c, p), u = [], lo = [];
+  for (let i = 0; i < c.length; i++) {
+    if (i < p - 1) { u.push(null); lo.push(null); continue; }
+    let s = 0; for (let j = i - p + 1; j <= i; j++) s += (c[j] - m[i]) ** 2;
+    const sd = Math.sqrt(s / p);
+    u.push(m[i] + mult * sd); lo.push(m[i] - mult * sd);
+  }
+  return { mid: m, upper: u, lower: lo };
+}
+function _stoch(h, l, c, kp = 14, dp = 3) {
+  const k = [];
+  for (let i = 0; i < c.length; i++) {
+    if (i < kp - 1) { k.push(null); continue; }
+    let hi = -Infinity, lo = Infinity;
+    for (let j = i - kp + 1; j <= i; j++) { if (h[j] > hi) hi = h[j]; if (l[j] < lo) lo = l[j]; }
+    k.push(hi === lo ? 50 : ((c[i] - lo) / (hi - lo)) * 100);
+  }
+  return { k, d: _sma(k.map(v => v == null ? 0 : v), dp) };
+}
+function _hv(c, p = 30) {
+  if (c.length < p + 1) return null;
+  const r = [];
+  for (let i = c.length - p; i < c.length; i++) r.push(Math.log(c[i] / c[i - 1]));
+  const mean = r.reduce((a, b) => a + b, 0) / r.length;
+  return Math.sqrt(r.reduce((a, b) => a + (b - mean) ** 2, 0) / r.length) * Math.sqrt(252) * 100;
+}
+/* Local-extrema S/R over the visible bars — CLIENT-SIDE, and labelled as such
+ * wherever it renders. The Worker ships its own support/resist on watchlist
+ * rows; the two are different computations and must not wear one label. */
+function _sr(h, l, look = 60) {
+  const n = h.length; if (n < 10) return { support: null, resist: null };
+  const from = Math.max(0, n - look);
+  const hs = [], ls = [];
+  for (let i = from + 2; i < n - 2; i++) {
+    if (h[i] > h[i - 1] && h[i] > h[i - 2] && h[i] > h[i + 1] && h[i] > h[i + 2]) hs.push(h[i]);
+    if (l[i] < l[i - 1] && l[i] < l[i - 2] && l[i] < l[i + 1] && l[i] < l[i + 2]) ls.push(l[i]);
+  }
+  const last = h[n - 1];
+  const above = hs.filter(v => v > last).sort((a, b) => a - b);
+  const below = ls.filter(v => v < last).sort((a, b) => b - a);
+  return { support: below[0] ?? null, resist: above[0] ?? null };
+}
+
+function tkIndicators() {
+  const c = tk.data.chart;
+  const res = c?.chart?.result?.[0];
+  if (!res) return null;
+  const q = res.indicators?.quote?.[0] || {};
+  const ts = res.timestamp || [];
+  const rows = [];
+  for (let i = 0; i < ts.length; i++) {
+    if (q.close?.[i] == null || q.open?.[i] == null) continue;
+    rows.push({ t: ts[i], o: q.open[i], h: q.high[i] ?? q.close[i], l: q.low[i] ?? q.close[i], c: q.close[i], v: q.volume?.[i] ?? null });
+  }
+  if (rows.length < 30) return { rows, thin: true };
+  const closes = rows.map(r => r.c), highs = rows.map(r => r.h), lows = rows.map(r => r.l);
+  const last = a => a.length ? a[a.length - 1] : null;
+  const bb = _bb(closes), st = _stoch(highs, lows, closes), md = _macd(closes);
+  const bbU = last(bb.upper), bbL = last(bb.lower), px = last(closes);
+  return {
+    rows, thin: false, px,
+    rsi: last(_rsi(closes)),
+    macdHist: last(md.hist),
+    macdCross: (() => {
+      const m = md.macd, s = md.signal, n = m.length;
+      if (n < 2 || m[n - 1] == null || m[n - 2] == null) return null;
+      const now = m[n - 1] > s[n - 1], prev = m[n - 2] > s[n - 2];
+      return now === prev ? (now ? 'bullish' : 'bearish') : (now ? 'bullish cross' : 'bearish cross');
+    })(),
+    bbPct: (isNum(bbU) && isNum(bbL) && bbU !== bbL) ? ((px - bbL) / (bbU - bbL)) * 100 : null,
+    stochK: last(st.k), stochD: last(st.d),
+    hv30: _hv(closes),
+    sma50: last(_sma(closes, 50)), sma200: last(_sma(closes, 200)),
+    sr: _sr(highs, lows),
+    bb,
+  };
+}
+
+/* ── fetching: on open, once per ticker per session ───────────────────────── */
+
+const TK_ENDPOINTS = [
+  ['analysis', t => `/analysis/${t}`],
+  ['chart',    t => `/chart/${t}?range=6mo&interval=1d`],
+  ['quote',    t => `/quote/${t}`],
+  ['short',    t => `/short/${t}`],
+  ['insider',  t => `/insider/${t}`],
+  ['f13',      t => `/13f/${t}`],
+  ['track',    t => `/track/${t}`],
+  ['news',     t => `/news/${t}`],
+];
+
+/* Stale by each payload's OWN declared ttlSeconds — not a number of ours. */
+function tkStale(key) {
+  const d = tk.data[key];
+  if (!d || !isNum(d.__fetchedAt)) return true;
+  const ttl = d._meta && isNum(d._meta.ttlSeconds) ? d._meta.ttlSeconds : null;
+  if (ttl == null) return (Date.now() - d.__fetchedAt) > 15 * 60 * 1000;   // no TTL declared
+  return (Date.now() - d.__fetchedAt) > ttl * 1000;
+}
+
+async function loadTicker(sym, force) {
+  if (tk.sym !== sym) { tk.sym = sym; tk.data = {}; tk.errors = {}; tk.chartApi = null; }
+  const jobs = TK_ENDPOINTS.filter(([k]) => force || (!tk.data[k] && !tk.loading[k]) || (tk.data[k] && tkStale(k)));
+  await Promise.all(jobs.map(async ([key, path]) => {
+    tk.loading[key] = true;
+    try {
+      const d = await apiFetch(path(sym));
+      d.__fetchedAt = Date.now();
+      tk.data[key] = d;
+      delete tk.errors[key];
+    } catch (e) {
+      console.warn('[ticker] %s %s failed · %s · %s', sym, key, e.kind, e.message);
+      tk.errors[key] = e;
+    } finally {
+      tk.loading[key] = false;
+    }
+  }));
+  if (currentView() === 'ticker' && tk.sym === sym) renderTicker();
+}
+
+/* The ONE deliberate spend path. Gated, x-dash-key, click-only. On success the
+ * SHARED STORE is updated so Names and the queue reflect the new record at
+ * once — one verdict store, one record, every surface. */
+async function refreshVerdict(sym) {
+  if (tk.busy.verdict) return;
+  tk.busy.verdict = true; renderTicker();
+  try {
+    const r = await fetch(API_BASE + `/ai/synthesis/${encodeURIComponent(sym)}`, {
+      method: 'POST', headers: { 'x-dash-key': DASH_KEY, 'Content-Type': 'application/json' },
+    });
+    if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { kind: 'http', status: r.status });
+    const fresh = await apiFetch(`/analysis/${sym}`);
+    fresh.__fetchedAt = Date.now();
+    tk.data.analysis = fresh;
+    /* Propagate into the shared store so Names and the queue cannot disagree. */
+    if (state.stocks && state.stocks[sym]) {
+      const s = state.stocks[sym];
+      s.rating = fresh.rating ?? null;
+      s.confidence = fresh.confidence ?? null;
+      s.recommendation = fresh.recommendation ?? null;
+      s.summary = fresh.summary ?? null;
+      s.drivers = fresh.drivers ?? null;
+      s.analysisTs = fresh.ts ?? null;
+      s.recRank = fresh.rating
+        ? (fresh.rating === 'BUY' ? 1 : fresh.rating === 'SELL' ? -1 : 0) * (fresh.confidence ?? 50)
+        : null;
+      paintAll();
+    }
+    delete tk.errors.verdict;
+  } catch (e) {
+    tk.errors.verdict = e;
+    console.warn('[ticker] verdict refresh failed ·', e.kind, e.message);
+  } finally {
+    tk.busy.verdict = false; renderTicker();
+  }
+}
+
+/* Button-triggered ONLY — this endpoint spends against the daily Claude ceiling
+ * on a cache miss and is never wired to load. */
+async function analyzeEarnings(sym) {
+  if (tk.busy.earnings) return;
+  tk.busy.earnings = true; renderTicker();
+  try {
+    tk.data.earnings = await apiFetch(`/earnings/${sym}`);
+    tk.data.earnings.__fetchedAt = Date.now();
+    delete tk.errors.earnings;
+  } catch (e) {
+    tk.errors.earnings = e;
+  } finally {
+    tk.busy.earnings = false; renderTicker();
+  }
+}
+
+/* ── hero ─────────────────────────────────────────────────────────────────── */
+
+function tkQuoteMod() { return tk.data.quote?.quoteSummary?.result?.[0] || null; }
+
+function heroVerdict(sym) {
+  const a = tk.data.analysis;
+  const inStore = state.stocks && state.stocks[sym];
+  if (tk.errors.analysis && tk.errors.analysis.status === 404) {
+    return `<div class="verdict-big none">no verdict record</div>
+      <div class="tk-call dim">${esc(inStore
+        ? 'The store holds no analysis record for this ticker.'
+        : sym + ' is not on the watchlist, so no nightly verdict is generated for it. Nothing is generated on load — use “refresh verdict” to spend one deliberately.')}</div>`;
+  }
+  if (!a || !a.rating) {
+    return `<div class="verdict-big none">no verdict record</div>
+      <div class="tk-call dim">${esc(tk.loading.analysis ? 'loading…'
+        : 'GET /api/analysis returned no rating for this ticker. No verdict is generated on load — that would both spend a gated Claude call and let this page disagree with Names.')}</div>`;
+  }
+  const cls = a.rating === 'BUY' ? 'buy' : a.rating === 'SELL' ? 'sell' : 'hold';
+  const conf = confLabel(a.confidence);
+  const age = isNum(a.ts) ? Date.now() - a.ts : null;
+  const aged = age != null && age > VERDICT_FRESH_MS;
+  return `<div class="verdict-big ${cls}">${esc(a.rating)}</div>
+    <div class="m11" style="margin-top:5px">${conf
+      ? `<span title="${esc(`model confidence, ordinal — the payload carries a self-reported ${a.confidence} and a self-reported percentage has no calibration behind it`)}">${esc(conf)} confidence</span>`
+      : '<span class="dim">confidence not published</span>'}</div>
+    <div class="tk-call">${a.recommendation ? esc(a.recommendation) : '<span class="dim">the record carries a rating but no one-line call</span>'}</div>
+    <div class="rasof${aged ? ' aged' : ''}" style="margin-top:8px" ${isNum(a.ts) ? `data-ts="${a.ts}"` : ''}>${
+      isNum(a.ts) ? verdictAsOfHtml(a.ts) : '<span class="dim">as-of not published</span>'}</div>
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn spend" onclick="refreshVerdict('${esc(sym)}')" ${tk.busy.verdict ? 'disabled' : ''}
+        title="${esc('POSTs /api/ai/synthesis — a gated Claude call against the daily ceiling. Deliberate and click-only; nothing on this page spends on load. On success the shared store updates so Names and the queue move with it.')}">${
+        tk.busy.verdict ? 'refreshing…' : '↻ refresh verdict (spends)'}</button>
+      ${tk.errors.verdict ? `<span class="dn m10">refresh failed: ${esc(tk.errors.verdict.message)}</span>` : ''}
+    </div>`;
+}
+
+/* The ladder renders ONLY levels the data actually carries, each labelled with
+ * where it came from. Nothing is invented to balance the picture. */
+function heroLadder(sym) {
+  const s = state.stocks?.[sym];
+  const ind = tk.indicators;
+  const qm = tkQuoteMod();
+  const px = isNum(s?.price) ? s.price : (isNum(qm?.price?.regularMarketPrice?.raw) ? qm.price.regularMarketPrice.raw : ind?.px);
+  const items = [];
+  const add = (label, val, src, cls, why) => { if (isNum(val)) items.push({ label, val, src, cls, why }); };
+
+  add('52w high', qm?.summaryDetail?.fiftyTwoWeekHigh?.raw ?? s?.w52High, 'Yahoo', 'dim');
+  add('target', qm?.financialData?.targetMeanPrice?.raw ?? s?.targetMean, 'analyst mean', 'up');
+  /* The watchlist row carries BOTH support and resist as separate fields;
+   * levelPrice/levelKind is only the NEARER of the two. Render both when they
+   * exist, and mark which one the Worker called nearest. */
+  if (s) {
+    add('resistance', s.resist, s.levelKind === 'resistance' ? 'worker · nearest' : 'worker', 'amb');
+    add('support', s.support, s.levelKind === 'support' ? 'worker · nearest' : 'worker', 'up');
+  }
+  if (ind?.sr) {
+    if (isNum(ind.sr.resist) && (!s || !isNum(s.resist))) add('resistance', ind.sr.resist, 'computed here', 'amb');
+    if (isNum(ind.sr.support) && (!s || !isNum(s.support))) add('support', ind.sr.support, 'computed here', 'up');
+  }
+  add('52w low', qm?.summaryDetail?.fiftyTwoWeekLow?.raw ?? s?.w52Low, 'Yahoo', 'dim');
+
+  if (isNum(px)) items.push({ label: 'now', val: px, src: 'delayed quote', cls: 'now', now: true });
+  if (!items.length) return `<div class="dim">No level fields are present for this ticker.</div>`;
+
+  items.sort((a, b) => b.val - a.val);
+  const hi = items[0].val, lo = items[items.length - 1].val;
+  const span = hi - lo || 1;
+  return `<div class="ladder">${items.map(i => {
+    const pos = ((i.val - lo) / span) * 100;
+    const colour = i.now ? 'var(--cyan)' : i.cls === 'up' ? 'var(--bull)' : i.cls === 'amb' ? 'var(--amber)' : 'var(--ink-3)';
+    return `<div class="l ${i.now ? 'now' : ''}">
+      <span class="lbl">${esc(i.label)}</span>
+      <span class="bar"><i style="left:${pos.toFixed(1)}%;background:${colour}"></i></span>
+      <span class="val ${i.cls === 'now' ? '' : i.cls}">${esc(fmt(i.val))}</span>
+      <span class="src" title="${esc(i.src === 'computed here'
+        ? 'computed client-side from the daily bars in this page\'s chart fetch (local extrema, 60-bar lookback) — a different computation from the Worker\'s'
+        : 'from the ' + i.src + ' payload')}">${esc(i.src)}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function heroExpress(sym) {
+  const lr = longRowFor(sym);
+  const s = state.stocks?.[sym];
+  const ind = tk.indicators;
+  const out = [];
+
+  // best structure
+  const best = lr && lr.status === 'ok' ? bestCandidate(lr) : null;
+  out.push(`<div class="vline"><span class="k">Best option</span><span class="v">${
+    best ? `<span style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px"
+        onclick="location.hash='#options/${esc(sym)}'">${esc(structureLabel(best))} · E[R] <b class="${
+        best.c.expectancyMean > 0 ? 'up' : 'dn'}">${(best.c.expectancyMean * 100).toFixed(0)}%</b>${
+        best.c.upsideTruncated ? '<span class="amb">↑</span>' : ''} · BE/EM ${isNum(best.c.beEm) ? best.c.beEm.toFixed(2) + '×' : '—'}</span>`
+      : lr ? `<span class="dim">${esc(lr.status === 'ok' ? 'no candidate carries a scored expectancy' : 'row status ' + lr.status)}</span>`
+      : `<span class="dim" title="${esc('the long batch lists this ticker as not loaded — a load state, not a verdict')}">not loaded — <span style="cursor:pointer;text-decoration:underline dotted" onclick="location.hash='#options/${esc(sym)}'">open in Options to fetch</span></span>`
+  }</span></div>`);
+
+  // vol line
+  const ivParts = [];
+  if (lr) {
+    if (isNum(lr.front?.atmIv)) ivParts.push(`IV <b>${lr.front.atmIv.toFixed(1)}%</b>`);
+    if (isNum(lr.hv30)) ivParts.push(`HV30 <b>${lr.hv30.toFixed(1)}%</b>`);
+    if (isNum(lr.ivHvRatio)) ivParts.push(`ratio <b>${lr.ivHvRatio.toFixed(2)}×</b>`);
+    ivParts.push(isNum(lr.ivRank) ? `rank <b>${lr.ivRank}</b>` : `<span class="dim" title="${esc(lr.rankReason || 'rank unavailable')}">${esc(lr.rankReason || 'rank not published')}</span>`);
+  } else if (isNum(ind?.hv30)) {
+    ivParts.push(`HV30 <b>${ind.hv30.toFixed(1)}%</b> <span class="m10">computed here</span>`);
+    ivParts.push(`<span class="dim">IV needs the options row — not loaded</span>`);
+  }
+  out.push(`<div class="vline"><span class="k">Vol</span><span class="v">${ivParts.length ? ivParts.join(' · ') : '<span class="dim">no vol data for this ticker</span>'}</span></div>`);
+
+  // catalyst + deadline implication
+  const eIso = lr?.earnings?.iso || (s?.earningsTs ? etDateOf(s.earningsTs) : null);
+  if (eIso) {
+    const sess = s && 'earningsSession' in s ? s.earningsSession : undefined;
+    const days = isNum(lr?.earnings?.daysAway) ? lr.earnings.daysAway : (isNum(s?.daysToEarnings) ? s.daysToEarnings : null);
+    const dl = sess === 'amc'
+      ? `deadline is <b>that day's close</b>`
+      : `deadline is the <b>prior session's close</b>${sess === 'bmo' ? '' : ' (timing ' + (sess === undefined ? 'not published' : 'unknown') + ' — assuming the earlier, BMO)'}`;
+    out.push(`<div class="vline"><span class="k">Catalyst</span><span class="v">Earnings <b>${esc(shortExpiry(eIso))}</b>${
+      days != null ? ` · E-${days}d` : ''} ${sess ? sessionTag({ session: sess, ts: s?.earningsTs }) : ''}
+      ${s?.earningsIsEstimate === true ? estimateTag({ isEstimate: true }) : ''}<br /><span class="m10">${dl}</span></span></div>`);
+  } else {
+    out.push(`<div class="vline"><span class="k">Catalyst</span><span class="v dim">no scheduled earnings date on any payload for this ticker</span></div>`);
+  }
+
+  out.push(`<div class="vline"><span class="k">Earnings</span><span class="v">
+    <button class="btn spend" onclick="analyzeEarnings('${esc(sym)}')" ${tk.busy.earnings ? 'disabled' : ''}
+      title="${esc('GET /api/earnings — spends a Claude call on a cache miss, against the daily ceiling. Button-triggered only; never runs on load.')}">${
+      tk.busy.earnings ? 'analysing…' : 'Analyze earnings (spends)'}</button>
+    ${tk.errors.earnings ? `<span class="dn m10"> ${esc(tk.errors.earnings.message)}</span>` : ''}</span></div>`);
+  if (tk.data.earnings) {
+    const e = tk.data.earnings;
+    out.push(`<div class="m11" style="margin-top:8px;line-height:1.6">${esc(e.headline || e.summary || JSON.stringify(e).slice(0, 240))}</div>`);
+  }
+  return out.join('');
+}
+
+/* ── evidence groups ──────────────────────────────────────────────────────── */
+
+function accordion(id, title, summary, bodyHtml) {
+  const open = tk.open[id];
+  return `<div class="acc${open ? ' open' : ''}">
+    <div class="ah" onclick="tk.open['${id}']=!tk.open['${id}'];renderTicker()">
+      <span class="t">${esc(title)}</span><span class="sum">${summary}</span><span class="car">${open ? '▴' : '▾'}</span>
+    </div>
+    <div class="ab">${bodyHtml}</div>
+  </div>`;
+}
+
+function groupTechnicals(sym) {
+  const ind = tk.indicators;
+  const s = state.stocks?.[sym];
+  if (tk.errors.chart) return { sum: '<span class="dn">chart unavailable</span>', body: moduleFail(tk.errors.chart, 'Technicals') };
+  if (!ind) return { sum: '<span class="dim">loading…</span>', body: '<div class="loading">loading bars…</div>' };
+  if (ind.thin) return { sum: `<span class="dim">only ${ind.rows.length} usable bars — indicators need 30</span>`,
+    body: `<div class="empty-state">The chart fetch returned ${ind.rows.length} usable daily bars; the indicators need at least 30. Nothing is computed from a shorter series rather than computing it on fewer bars and labelling it the same.</div>` };
+
+  const chip = (label, val, tip) => `<span class="c" title="${esc(tip || '')}">${esc(label)} ${val == null ? '<span class="dim">n/p</span>' : `<b>${val}</b>`}</span>`;
+  const cross = (isNum(s?.crossSpread)) ? (s.crossSpread > 0 ? 'golden' : 'death')
+    : (isNum(ind.sma50) && isNum(ind.sma200)) ? (ind.sma50 > ind.sma200 ? 'golden (computed)' : 'death (computed)') : null;
+  const bits = [];
+  if (isNum(ind.rsi)) bits.push(`RSI ${ind.rsi.toFixed(0)}`);
+  if (ind.macdCross) bits.push(`MACD ${ind.macdCross}`);
+  if (cross) bits.push(cross);
+  const nearest = isNum(s?.levelPrice) ? `${s.levelKind === 'support' ? 'above' : 'below'} ${fmt(s.levelPrice)}` : null;
+  const sum = `${nearest ? esc(nearest) + ' — ' : ''}${bits.join(' · ') || 'indicators computed'}`;
+
+  const body = `<div id="tk-chart"></div>
+    <div class="indgrid">
+      ${chip('RSI(14)', isNum(ind.rsi) ? ind.rsi.toFixed(1) : null, 'Wilder RSI over the daily closes in this fetch')}
+      ${chip('MACD hist', isNum(ind.macdHist) ? ind.macdHist.toFixed(2) : null, '12/26/9 EMA')}
+      ${chip('%B', isNum(ind.bbPct) ? ind.bbPct.toFixed(0) + '%' : null, 'position inside the 20/2 Bollinger band')}
+      ${chip('Stoch %K/%D', isNum(ind.stochK) ? `${ind.stochK.toFixed(0)}/${isNum(ind.stochD) ? ind.stochD.toFixed(0) : '—'}` : null, '14/3')}
+      ${chip('HV30', isNum(ind.hv30) ? ind.hv30.toFixed(1) + '%' : null, 'annualised close-to-close realised vol over 30 sessions — NOT implied vol')}
+      ${chip('SMA50', isNum(ind.sma50) ? fmt(ind.sma50) : null, 'computed from these bars')}
+      ${chip('SMA200', isNum(ind.sma200) ? fmt(ind.sma200) : null, 'computed from these bars; a 6-month fetch has fewer than 200 bars, so this is null by construction here')}
+      ${chip('S/R (computed)', (isNum(ind.sr.support) || isNum(ind.sr.resist)) ? `${isNum(ind.sr.support) ? fmt(ind.sr.support) : '—'} / ${isNum(ind.sr.resist) ? fmt(ind.sr.resist) : '—'}` : null, 'local extrema over the last 60 bars, computed on this page — a different computation from the Worker\'s support/resist')}
+    </div>
+    <div class="lnote" style="margin-top:8px">${tk.data.chart?._meta ? esc(`${tk.data.chart._meta.source} · ${tk.data.chart._meta.note || ''}`) : 'no _meta on the chart payload'}
+      · every indicator above is computed in this page from those bars, not fetched</div>`;
+  return { sum, body };
+}
+
+function groupPositioning(sym) {
+  const sh = tk.data.short, ins = tk.data.insider, f13 = tk.data.f13;
+  const lines = [];
+  const heads = [];
+
+  // short interest
+  if (tk.errors.short) { lines.push(`<div class="vline"><span class="k">Short int</span><span class="v dn">${esc(tk.errors.short.message)}</span></div>`); }
+  else if (sh?.latest) {
+    /* `periods` arrives NEWEST-FIRST. Sorting by settlementDate rather than
+     * trusting the order is not defensiveness for its own sake: reading it the
+     * other way inverted the direction word, so the header said "rising" beside
+     * a line reading "−9.7% vs prior" — the label and the number contradicting
+     * each other on the same screen. */
+    const p = (sh.periods || []).slice()
+      .filter(x => x && x.settlementDate && isNum(x.shares))
+      .sort((a, b) => a.settlementDate < b.settlementDate ? -1 : 1);   // oldest → newest
+    let dir = null;
+    if (p.length >= 2) {
+      let falling = 0, rising = 0;
+      for (let i = p.length - 1; i > 0; i--) { if (p[i].shares < p[i - 1].shares) falling++; else break; }
+      for (let i = p.length - 1; i > 0; i--) { if (p[i].shares > p[i - 1].shares) rising++; else break; }
+      dir = falling >= 2 ? `falling ${falling} settlements`
+          : rising >= 2 ? `rising ${rising} settlements`
+          : falling === 1 ? 'falling' : rising === 1 ? 'rising' : 'flat';
+    }
+    const chg = (isNum(sh.latest.shares) && isNum(sh.latest.priorShares) && sh.latest.priorShares !== 0)
+      ? ((sh.latest.shares - sh.latest.priorShares) / sh.latest.priorShares) * 100 : null;
+    heads.push(dir ? `Shorts ${dir}` : 'Short interest read');
+    lines.push(`<div class="vline"><span class="k">Short int</span><span class="v">
+      <b>${(sh.latest.shares / 1e6).toFixed(1)}M</b> shares${chg != null ? ` · <span class="${chg < 0 ? 'up' : 'dn'}">${chg > 0 ? '+' : ''}${chg.toFixed(1)}% vs prior</span>` : ''}
+      ${dir ? ` · ${esc(dir)}` : ''} · ${isNum(sh.latest.daysToCover) ? sh.latest.daysToCover.toFixed(1) + ' days to cover' : 'days-to-cover n/p'}
+      <span class="m10">(${esc(sh._meta?.source || 'source n/p')} · settled ${esc(sh.latest.settlementDate)}${sh.official ? '' : ' · UNOFFICIAL estimate'})</span></span></div>`);
+  } else lines.push(`<div class="vline"><span class="k">Short int</span><span class="v dim">no short-interest record returned</span></div>`);
+
+  // insider
+  if (tk.errors.insider) lines.push(`<div class="vline"><span class="k">Insider</span><span class="v dn">${esc(tk.errors.insider.message)}</span></div>`);
+  else if (ins) {
+    const n = (ins.transactions || []).length;
+    const su = ins.summary || {};
+    const opens = (ins.transactions || []).filter(t => t.code === 'P').length;
+    const head = n === 0 ? `No Form 4s in ${ins.windowDays ?? 90}d` : (opens > 0 ? `${opens} open-market buy${opens === 1 ? '' : 's'}` : 'No open-market buys');
+    heads.push(head);
+    lines.push(`<div class="vline"><span class="k">Insider</span><span class="v">
+      ${n === 0 ? `<b>No Form 4 transactions in ${ins.windowDays ?? 90} days</b>` :
+        `<b>${n}</b> transactions across ${ins.filings} filings · <b>${su.buyCount ?? 0}</b> buys / <b>${su.sellCount ?? 0}</b> sells
+         · net ${isNum(su.netValue) ? `<span class="${su.netValue >= 0 ? 'up' : 'dn'}">${su.netValue >= 0 ? '+' : '−'}$${Math.abs(su.netValue / 1e6).toFixed(1)}M</span>` : 'n/p'}
+         ${opens === 0 ? '<br /><span class="m10">no code-P open-market buys — grants and option exercises are not the same signal</span>' : ''}`}
+      <span class="m10">(${esc(ins._meta?.source || 'SEC EDGAR')}${isNum(ins.parseFailures) && ins.parseFailures > 0 ? ` · ${ins.parseFailures} filings failed to parse` : ''})</span></span></div>`);
+  } else lines.push(`<div class="vline"><span class="k">Insider</span><span class="v dim">no insider payload</span></div>`);
+
+  // 13F — partial mapping is NOT absence of interest
+  if (tk.errors.f13) lines.push(`<div class="vline"><span class="k">13F</span><span class="v dn">${esc(tk.errors.f13.message)}</span></div>`);
+  else if (f13) {
+    const cov = f13.coverage || {};
+    const held = (f13.holders || []).length;
+    const q = (f13.holders || [])[0]?.quarter || null;
+    if (f13.mapped === false || held === 0) {
+      heads.push('No mapped 13F holdings');
+      lines.push(`<div class="vline"><span class="k">13F</span><span class="v"><b>No mapped holdings</b> across ${cov.managersOk ?? '—'}/${cov.managersTotal ?? '—'} tracked managers.
+        <br /><span class="m10">Mapping is by issuer name and roughly 1 in 3 positions fail to resolve to a ticker (${cov.unresolved ?? '—'} unresolved of ${(cov.resolved ?? 0) + (cov.unresolved ?? 0)}).
+        This says the index holds no resolved row for ${esc(sym)} — NOT that no institution owns it.</span></span></div>`);
+    } else {
+      heads.push(`${held}/${cov.managersTotal ?? '—'} managers held`);
+      const top = (f13.holders || []).slice(0, 3).map(h => `${esc(h.manager || h.firm)} ${isNum(h.shares) ? (h.shares / 1e6).toFixed(1) + 'M' : ''}`).join(' · ');
+      const staleDays = q ? isoDayDiff(q, new Date().toISOString().slice(0, 10)) : null;
+      lines.push(`<div class="vline"><span class="k">13F</span><span class="v">
+        <b>${held}</b> of ${cov.managersTotal ?? '—'} tracked managers held${q ? ` · <span class="amb">as of ${esc(q)}${staleDays != null ? ` — ${staleDays}d stale` : ''}</span>` : ''}
+        <br /><span class="m10">top: ${top}. 13F staleness is STRUCTURAL — filings land 45 days after quarter-end, so this can never be current.
+        ${cov.managersFailed ? `${cov.managersFailed} manager(s) failed to fetch this pass.` : ''}</span></span></div>`);
+    }
+  } else lines.push(`<div class="vline"><span class="k">13F</span><span class="v dim">no 13F payload</span></div>`);
+
+  return { sum: heads.length ? esc(heads.join(' · ')) : '<span class="dim">no positioning data</span>', body: lines.join('') };
+}
+
+function groupStreet(sym) {
+  const qm = tkQuoteMod();
+  const news = tk.data.news?.news || [];
+  const lines = [];
+  const heads = [];
+  if (tk.errors.quote) lines.push(moduleFail(tk.errors.quote, 'Analyst data'));
+  else if (qm) {
+    const fd = qm.financialData || {}, tr = qm.recommendationTrend?.trend?.[0];
+    const tm = fd.targetMeanPrice?.raw, cp = fd.currentPrice?.raw;
+    const up = (isNum(tm) && isNum(cp) && cp !== 0) ? ((tm - cp) / cp) * 100 : null;
+    if (tr) {
+      const buys = (tr.strongBuy || 0) + (tr.buy || 0);
+      heads.push(`${buys} buys`);
+      lines.push(`<div class="vline"><span class="k">Ratings</span><span class="v">
+        <b>${tr.strongBuy || 0}</b> strong buy · <b>${tr.buy || 0}</b> buy · <b>${tr.hold || 0}</b> hold · <b>${tr.sell || 0}</b> sell · <b>${tr.strongSell || 0}</b> strong sell
+        ${fd.recommendationKey ? `<span class="m10">(key: ${esc(fd.recommendationKey)})</span>` : ''}</span></div>`);
+    }
+    if (isNum(tm)) {
+      heads.push(`$${fmt(tm)} target${up != null ? ` (${up > 0 ? '+' : ''}${up.toFixed(0)}%)` : ''}`);
+      lines.push(`<div class="vline"><span class="k">Target</span><span class="v">
+        mean <b>$${fmt(tm)}</b>${up != null ? ` · <span class="${up > 0 ? 'up' : 'dn'}">${up > 0 ? '+' : ''}${up.toFixed(1)}%</span> from $${fmt(cp)}` : ''}
+        · range ${isNum(fd.targetLowPrice?.raw) ? '$' + fmt(fd.targetLowPrice.raw) : '—'}–${isNum(fd.targetHighPrice?.raw) ? '$' + fmt(fd.targetHighPrice.raw) : '—'}
+        <span class="m10">(${isNum(fd.numberOfAnalystOpinions?.raw) ? fd.numberOfAnalystOpinions.raw + ' analysts' : 'analyst count n/p'})</span></span></div>`);
+    }
+    const ug = (qm.upgradeDowngradeHistory?.history || []).slice(0, 4);
+    if (ug.length) lines.push(`<div class="vline"><span class="k">Actions</span><span class="v">${ug.map(u =>
+      `${esc(u.firm)} <b>${esc(u.toGrade || '')}</b>${u.fromGrade && u.fromGrade !== u.toGrade ? ` (from ${esc(u.fromGrade)})` : ''}${
+        isNum(u.currentPriceTarget) ? ` · PT $${u.currentPriceTarget}${isNum(u.priorPriceTarget) && u.priorPriceTarget !== u.currentPriceTarget ? ` from $${u.priorPriceTarget}` : ''}` : ''}
+        <span class="m10">${esc(u.epochGradeDate ? new Date(u.epochGradeDate * 1000).toISOString().slice(0, 10) : '')}</span>`).join('<br />')}</span></div>`);
+  }
+  if (news.length) {
+    heads.push(`${news.length} headlines`);
+    const item = n => `<div class="newsitem"><a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a>
+      <div class="pub">${esc(n.publisher || '')}${n.providerPublishTime ? ' · ' + esc(new Date(n.providerPublishTime * 1000).toISOString().slice(0, 10)) : ''}</div></div>`;
+    lines.push(`<div style="margin-top:10px">${news.slice(0, 3).map(item).join('')}
+      ${news.length > 3 ? `<div id="tk-news-more" style="display:none">${news.slice(3).map(item).join('')}</div>
+        <span class="more" style="font-family:var(--mono);font-size:10.5px;color:var(--cyan);cursor:pointer"
+          onclick="const e=document.getElementById('tk-news-more');e.style.display=e.style.display==='none'?'block':'none'">${news.length - 3} more ▸</span>` : ''}</div>`);
+  } else if (tk.errors.news) lines.push(`<div class="vline"><span class="k">News</span><span class="v dn">${esc(tk.errors.news.message)}</span></div>`);
+  else lines.push(`<div class="vline"><span class="k">News</span><span class="v dim">no headlines returned</span></div>`);
+
+  return { sum: heads.length ? esc(heads.join(' · ')) : '<span class="dim">no street data</span>', body: lines.join('') };
+}
+
+/* Record — EVERY rate renders with its base rate beside it and the signed edge.
+ * Not in a tooltip: beside the number. This closes the item the old page never
+ * shipped. */
+function groupRecord(sym) {
+  if (tk.errors.track) return { sum: '<span class="dn">record unavailable</span>', body: moduleFail(tk.errors.track, 'Record') };
+  const t = tk.data.track;
+  if (!t) return { sum: '<span class="dim">loading…</span>', body: '<div class="loading">loading…</div>' };
+  const cal = t.calibration || {};
+  const byR = cal.byRating || {};
+  const entries = t.entries || [];
+
+  const tile = (rating, o, magnitude) => {
+    if (!o) return '';
+    const label = magnitude ? `${rating} · magnitude` : rating;
+    if (!isNum(o.hitRate)) {
+      /* A refusal names its own numbers — never a blank tile. */
+      return `<div class="ratetile"><div class="m10">${esc(label)}</div>
+        <div class="dim" style="margin-top:4px">no rate published</div>
+        <div class="base">${esc(o.hitRateReason || 'reason not published')}${isNum(o.n) ? ` · n=${o.n}` : ''}${
+          isNum(cal.ratingMinN) ? ` · floor n≥${cal.ratingMinN}` : ''}</div></div>`;
+    }
+    const edge = o.edgePts;
+    return `<div class="ratetile"><div class="m10">${esc(label)}</div>
+      <div class="big">${(o.hitRate * 100).toFixed(1)}%<span class="m10"> hit rate</span></div>
+      <div class="base">vs base <b>${isNum(o.baseRate) ? (o.baseRate * 100).toFixed(1) + '%' : 'n/p'}</b>
+        ${isNum(edge) ? `· edge <b class="edge ${edge >= 0 ? 'up' : 'dn'}">${edge > 0 ? '+' : ''}${edge.toFixed(1)} pts</b>` : '· edge n/p'}</div>
+      <div class="base">n=${o.n ?? '—'}${isNum(o.benchmarkedN) && o.benchmarkedN !== o.n ? ` (benchmarked ${o.benchmarkedN})` : ''}${
+        isNum(o.meanFwd5) ? ` · mean fwd5 ${o.meanFwd5 > 0 ? '+' : ''}${o.meanFwd5}%` : ''}${
+        isNum(o.meanFwd20) ? ` · fwd20 ${o.meanFwd20 > 0 ? '+' : ''}${o.meanFwd20}%` : ''}</div></div>`;
+  };
+
+  const tiles = ['BUY', 'HOLD', 'SELL'].map(r => tile(r, byR[r])).join('');
+  const mag = cal.byRatingMagnitude || {};
+  const magTiles = ['BUY', 'SELL'].map(r => tile(r, mag[r], true)).filter(Boolean).join('');
+
+  const buy = byR.BUY;
+  const sum = isNum(buy?.hitRate)
+    ? `BUY ${(buy.hitRate * 100).toFixed(0)}% vs base ${isNum(buy.baseRate) ? (buy.baseRate * 100).toFixed(0) + '%' : 'n/p'} — <b class="${buy.edgePts >= 0 ? 'up' : 'dn'}">${buy.edgePts > 0 ? '+' : ''}${isNum(buy.edgePts) ? buy.edgePts.toFixed(1) : '—'} pts</b>`
+    : `<span class="dim">${esc(buy?.hitRateReason || 'no resolved outcomes yet')}</span>`;
+
+  const body = `<div style="display:flex;gap:8px;flex-wrap:wrap">${tiles}</div>
+    ${magTiles ? `<div class="m10" style="margin-top:10px">Magnitude — did the move clear the stated bar, not just the sign:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${magTiles}</div>` : ''}
+    <div class="vline" style="margin-top:12px"><span class="k">Brier</span><span class="v">${
+      isNum(cal.brier) ? `<b>${cal.brier.toFixed(4)}</b> over n=${cal.brierN ?? '—'} <span class="m10">— a scored measurement against realised outcomes, so it stays numeric (unlike model confidence, which is ordinal)</span>`
+      : `<span class="dim">${esc(cal.reason || 'not scored yet')}</span>`}</span></div>
+    <div class="vline"><span class="k">Entries</span><span class="v">${entries.length} logged${
+      entries.length ? ` · latest ${esc(entries[entries.length - 1].rating)} at $${fmt(entries[entries.length - 1].price)}` : ''}
+      <span class="m10">(${esc(t._meta?.source || '')} · ${esc(t._meta?.note || '')})</span></span></div>
+    <div class="lnote">HOLD is excluded from hit-rate scoring by construction — it makes no directional claim, so no outcome counts as right.
+      Every rate above ships with its base rate and signed edge beside it, never in a tooltip.</div>`;
+  return { sum, body };
+}
+
+/* ── page ─────────────────────────────────────────────────────────────────── */
+
+function renderTicker() {
+  const el = document.getElementById('tk-body');
+  const sym = tk.sym;
+  if (!el || !sym) return;
+  tk.indicators = tkIndicators();
+
+  const s = state.stocks?.[sym];
+  const qm = tkQuoteMod();
+  const px = isNum(s?.price) ? s.price : qm?.price?.regularMarketPrice?.raw;
+  const chg = isNum(s?.changePct) ? s.changePct
+    : (isNum(qm?.price?.regularMarketChangePercent?.raw) ? qm.price.regularMarketChangePercent.raw * 100 : null);
+  const name = qm?.price?.longName || qm?.price?.shortName || null;
+  const onWatchlist = Boolean(s);
+
+  const tech = groupTechnicals(sym), pos = groupPositioning(sym), street = groupStreet(sym), rec = groupRecord(sym);
+
+  el.innerHTML = `
+    <div class="tk-head">
+      <span class="tk-sym">${esc(sym)}</span>
+      ${name ? `<span class="tk-name">${esc(name)}</span>` : ''}
+      ${isNum(px) ? `<span class="tk-px">${esc(fmt(px))}</span>` : '<span class="tk-px dim">price n/p</span>'}
+      ${isNum(chg) ? `<span class="${chg > 0 ? 'up' : chg < 0 ? 'dn' : 'flat'}" style="font-family:var(--mono);font-size:13px">${chg > 0 ? '▲ +' : chg < 0 ? '▼ ' : '■ '}${chg.toFixed(2)}%</span>` : ''}
+      ${!onWatchlist ? `<span class="badge absent" title="${esc('not on the watchlist — no batch row, so no stored levels and no nightly verdict pass')}">off-watchlist</span>` : ''}
+      <span class="badges" style="margin-left:auto">${tk.data.quote?._meta ? renderBadges(tk.data.quote._meta, tk.data.quote.__fetchedAt, 'quote') : ''}</span>
+    </div>
+
+    <div class="hero">
+      <div>
+        <div class="h3">Verdict · stored record</div>
+        ${heroVerdict(sym)}
+      </div>
+      <div>
+        <div class="h3">The levels</div>
+        ${heroLadder(sym)}
+      </div>
+      <div>
+        <div class="h3">Express it / what's next</div>
+        ${heroExpress(sym)}
+      </div>
+    </div>
+
+    <h2 class="sec">Evidence <span class="n">· four groups, each leading with its verdict</span></h2>
+    ${accordion('tech', 'Technicals', tech.sum, tech.body)}
+    ${accordion('pos', 'Positioning', pos.sum, pos.body)}
+    ${accordion('street', 'Street & story', street.sum, street.body)}
+    ${accordion('record', 'Record', rec.sum, rec.body)}
+
+    <div class="tk-links">
+      Not carried over from the old terminal (patterns, V/OI table, projection overlay):
+      <a href="https://ambermlysak.github.io/trading_dash/index.html?t=${encodeURIComponent(sym)}" target="_blank" rel="noopener">open ${esc(sym)} in the old terminal ↗</a>
+    </div>`;
+
+  if (tk.open.tech) drawTkChart();
+}
+
+function drawTkChart() {
+  const host = document.getElementById('tk-chart');
+  const ind = tk.indicators;
+  if (!host || !ind || ind.thin || !window.LightweightCharts) {
+    if (host && !window.LightweightCharts) host.innerHTML = `<div class="empty-state">the charting library did not load from its CDN — the indicators below are unaffected, they are computed from the same bars</div>`;
+    return;
+  }
+  host.innerHTML = '';
+  const c = LightweightCharts.createChart(host, {
+    height: 300,
+    layout: { background: { color: 'transparent' }, textColor: '#888591', fontFamily: 'JetBrains Mono, monospace', fontSize: 10 },
+    grid: { vertLines: { color: '#1c1c26' }, horzLines: { color: '#1c1c26' } },
+    rightPriceScale: { borderColor: '#23232f' },
+    timeScale: { borderColor: '#23232f' },
+    crosshair: { mode: 0 },
+  });
+  const series = c.addCandlestickSeries({
+    upColor: '#23d18b', downColor: '#f25f5c', borderVisible: false,
+    wickUpColor: '#23d18b', wickDownColor: '#f25f5c',
+  });
+  series.setData(ind.rows.map(r => ({ time: r.t, open: r.o, high: r.h, low: r.l, close: r.c })));
+  const mid = c.addLineSeries({ color: '#5ec5ea', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  mid.setData(ind.rows.map((r, i) => ({ time: r.t, value: ind.bb.mid[i] })).filter(p => p.value != null));
+  c.timeScale().fitContent();
+  tk.chartApi = c;
+}
+
 /* ═══ STATE + RENDER ═══════════════════════════════════════════════════════ */
 
 /* ONE STORE, SHARED BY EVERY TAB.
@@ -2593,8 +3340,8 @@ function renderNotes() {
     + 'to classify — assume the earlier deadline. A row with no field at all came from an older Worker '
     + 'and says so instead.');
   notes.push('The options chip navigates to that name’s row on the Options tab (fetching it if '
-    + 'needed). The ticker link goes to the trading_dash ticker page as an interim until phase 5 '
-    + 'builds ours.');
+    + 'needed); the ticker links to its own page. Neither spends — the ticker page renders the '
+    + 'STORED verdict record, the same one this column shows.');
   if (state.longMeta && state.longMeta.note)
     notes.push('long batch: ' + esc(state.longMeta.note));
   document.getElementById('names-notes').innerHTML = notes.map(n => '· ' + n).join('<br />');
@@ -2773,6 +3520,7 @@ function paintAll() {
   if (state.stocks) renderNames();
   renderToday();
   renderOptions();
+  if (tk.sym) renderTicker();   // the ticker page reads the shared store too
 }
 
 function loadAll(reason) {
@@ -2782,7 +3530,7 @@ function loadAll(reason) {
 
 /* ── routing ─────────────────────────────────────────────────────────────── */
 
-const VIEWS = ['today', 'names', 'options', 'income'];
+const VIEWS = ['today', 'names', 'options', 'income', 'ticker'];
 
 /* The resolved view, which is NOT the same as the hash: the default route is
  * Today on an empty or unrecognised hash. Anything that asks "which tab is on?"
@@ -2802,8 +3550,26 @@ function route() {
   });
   /* Switching tabs does not refetch — all data tabs read the store that is
    * already loading or loaded. Only the first arrival starts it. */
-  if ((v === 'today' || v === 'names' || v === 'options') && !sharedInflight && !sharedDone) loadShared('route');
+  /* The ticker page reads the shared store too — a watchlist name's batch row
+   * carries its levels, its earnings session and its verdict. Deep-linking
+   * straight to #ticker must therefore start the same shared sweep, or the
+   * page silently degrades to off-watchlist rendering for a name that is on it. */
+  if ((v === 'today' || v === 'names' || v === 'options' || v === 'ticker') && !sharedInflight && !sharedDone) loadShared('route');
   if (v === 'today' && !todayInflight && !todayDone) loadToday('route');
+
+  /* #ticker/TICKER. Its endpoints are fetched on open, once per ticker per
+   * session — and none of them spends. */
+  if (v === 'ticker') {
+    const sub = ((location.hash || '').split('/')[1] || '').trim().toUpperCase();
+    if (sub && /^[A-Z][A-Z.\-]{0,9}$/.test(sub)) {
+      if (tk.sym !== sub) { tk.sym = sub; tk.data = {}; tk.errors = {}; renderTicker(); }
+      loadTicker(sub);
+    } else {
+      document.getElementById('tk-body').innerHTML =
+        `<div class="statusbox"><div class="fail-title">no ticker in the route</div>
+         <div class="fail-body">Use <code>#ticker/NVDA</code>, or the search box in the header.</div></div>`;
+    }
+  }
 
   /* #options/TICKER deep-links to the tab with that row expanded, fetching it
    * if the store holds nothing fresh for it. */
