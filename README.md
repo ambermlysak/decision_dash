@@ -8,7 +8,8 @@ Verdict first, with the trigger and invalidation levels; evidence on demand.
 
 - `index.html` — the app. Hash-routed:
   - `#today` — regime line · action queue · levels watch · Radar · your movers ·
-    sector heat · session brief · calendar
+    sector heat · session brief (every brief published so far today — 06:00
+    open, 11:30 pulse, 13:15 close — stacked, each with its own as-of) · calendar
   - `#names` — the 6-column watchlist table, attention-sorted
   - `#options` — lanes A–F over the long screen; `#options/NVDA` deep-links a row
   - `#income` — **Diversify**: categorized sleeves (income / cyclical / value /

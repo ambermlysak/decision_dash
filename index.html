@@ -222,7 +222,14 @@ h2.sec .right { margin-left: auto; text-transform: none; letter-spacing: 0.03em;
 .lanechip.sector { color: var(--violet); border-color: rgba(180,142,173,0.4); }
 
 /* ── 2. session brief ── */
+.brief-stack { display: flex; flex-direction: column; gap: 11px; }
 .brief { background: var(--bg-1); border: 1px solid var(--line); border-radius: 10px; padding: 15px 17px; }
+.brief .slot {
+  display: flex; gap: 9px; align-items: baseline; flex-wrap: wrap; margin-bottom: 9px;
+  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+}
+.brief .slot .nm { color: var(--cyan); text-transform: uppercase; letter-spacing: 0.06em; }
+.brief .prov { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 10px; }
 .brief .head {
   font-family: var(--serif); font-style: italic; font-size: 16.5px;
   line-height: 1.4; color: var(--ink-0); margin-bottom: 9px;
@@ -1439,6 +1446,179 @@ function isoDayDiff(fromIso, toIso) {
 
 /* ── 2. session brief ─────────────────────────────────────────────────────── */
 
+/* THE SESSION BRIEF IS A STACK, NOT A CARD.
+ *
+ * The Worker writes THREE narrative records into ONE per-PT-date `/daily`
+ * payload — the 06:00 open (top-level `headline` + `open{}`), the 11:30 midday
+ * pulse (`midday{}`) and the 13:15 close recap (`eod{}`). They live under
+ * separate keys, so a later job never overwrites an earlier one and all three
+ * persist to the rollover. Phases 2–7 read only the morning record, so the
+ * midday and close narratives were fetched on every load and thrown away; the
+ * timeline reported that they existed without ever showing them. Every slot
+ * present for the CURRENT trading day now renders, in session order, each with
+ * its own as-of.
+ *
+ * The three shapes differ and are NOT normalised away silently: the morning body
+ * is `open.body`, the midday's is `midday.narrative`, the close's is `eod.body`,
+ * and only the close carries `complete`. Each slot also carries its own
+ * `_instr`, so provenance is per-record rather than per-payload. */
+const BRIEF_SLOTS = [
+  {
+    key: 'open', label: 'Morning brief', cron: '06:00', dueMin: 6 * 60,
+    pick: d => ({
+      /* The top-level headline is the day's master line; `open.headline` is the
+       * open-specific one. When both exist and differ, both are shown. */
+      headline: d.headline || d.open?.headline || '',
+      subhead: (d.headline && d.open?.headline && d.open.headline !== d.headline)
+        ? d.open.headline : '',
+      body: d.open?.body || '',
+      ts: d.ts, complete: undefined, instr: d._instr, loading: d.loading === true,
+    }),
+  },
+  {
+    key: 'midday', label: 'Midday pulse', cron: '11:30', dueMin: 11 * 60 + 30,
+    pick: d => ({
+      headline: d.midday?.headline || '', subhead: '',
+      body: d.midday?.narrative || '',          // NOT `body` — this record names it `narrative`
+      ts: d.midday?.ts, complete: undefined, instr: d.midday?._instr,
+      loading: d.middayLoading === true,
+    }),
+  },
+  {
+    key: 'eod', label: 'Close recap', cron: '13:15', dueMin: 13 * 60 + 15,
+    pick: d => ({
+      headline: d.eod?.headline || '', subhead: '', body: d.eod?.body || '',
+      ts: d.eod?.ts, complete: d.eod?.complete, instr: d.eod?._instr,
+      loading: d.eodLoading === true,
+    }),
+  },
+];
+
+/* WHY THERE IS A CLIENT-SIDE BANK.
+ *
+ * `/daily` is ONE object per PT date and a re-run of the briefing job REPLACES
+ * IT WHOLE. Measured 2026-08-19: at 17:56 PT the payload carried open 06:02 /
+ * midday 11:31 / eod 13:13; at 18:11 PT a fresh `_instr.phase: briefing` run had
+ * rewritten it to open 18:11 / eod 18:11 and `midday` was GONE. So the slots do
+ * not simply accumulate — an earlier slot can be dropped by a later write.
+ *
+ * Making the Worker merge instead of replace is a trading_dash task and is not
+ * this repo's to make. What this page can do is keep the slots it has already
+ * seen for the CURRENT trading day, so a brief that really was published does
+ * not disappear from the stack when the Worker rewrites the key.
+ *
+ * The rules that keep this honest:
+ *   · Only a record with content, a real ts, and today's PT date is ever banked.
+ *     Nothing is synthesized, nothing is carried across the rollover.
+ *   · NEWEST ts WINS per slot. A revision of a slot replaces the banked copy; an
+ *     absence never does. That is the "a later slot must never overwrite an
+ *     earlier one" rule, applied per slot rather than per payload.
+ *   · A card served from the bank rather than the live payload SAYS SO, on the
+ *     card and in the timeline. It is still a real brief with its real as-of —
+ *     but "we still hold this" and "the Worker still serves this" are different
+ *     facts and must not render identically.
+ *   · `?clock=` NEVER writes. A test clock must not be able to corrupt the bank.
+ */
+const BRIEF_STORE_KEY = 'dd:brief-slots';
+let briefStoreWarn = null;      // named state when storage is unavailable
+
+function briefStoreRead(todayIso) {
+  try {
+    const raw = localStorage.getItem(BRIEF_STORE_KEY);
+    if (!raw) return {};
+    const o = JSON.parse(raw);
+    /* THE ROLLOVER RESET — one stored day at a time. A bank stamped with any
+     * other PT date is dropped whole, never merged forward. */
+    if (!o || o.ptDate !== todayIso) return {};
+    return (o.slots && typeof o.slots === 'object') ? o.slots : {};
+  } catch (e) { briefStoreWarn = e.message; return {}; }
+}
+function briefStoreWrite(todayIso, slots) {
+  if (TEST_CLOCK) return;       // a test clock never mutates real state
+  try { localStorage.setItem(BRIEF_STORE_KEY, JSON.stringify({ ptDate: todayIso, slots })); }
+  catch (e) { briefStoreWarn = e.message; }
+}
+/* Only the fields that render are banked — an `_instr` blob is not a narrative. */
+const briefBankable = r => ({
+  headline: r.headline || '', subhead: r.subhead || '', body: r.body || '',
+  ts: r.ts, complete: r.complete,
+  instr: r.instr ? {
+    phase: r.instr.phase, measured: r.instr.measured,
+    capCost: r.instr.capCost, settledRejected: r.instr.settledRejected,
+  } : null,
+});
+
+/** Wall-clock in US Pacific — the timezone the cron slots are NAMED in. Printing
+ *  the browser's local time beside a slot labelled "11:30" would read as the job
+ *  running hours late for any reader outside PT. */
+function fmtClockPt(ms) {
+  if (!isNum(ms) || ms <= 0) return null;
+  const dt = new Date(ms);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt.toLocaleString('en-US', {
+    timeZone: 'America/Los_Angeles', month: 'short', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }) + ' PT';
+}
+
+/* One state machine, consumed by BOTH the stack and the timeline — the card and
+ * its tick cannot disagree about a slot because they read the same record.
+ *
+ * The trading day comes from `ptPartsOf(queueNow())`, the SAME clock the action
+ * queue uses: one definition of the rollover on this page, and `?clock=` shifts
+ * the brief's day exactly as it shifts the queue's. (The old code called a
+ * private `ptMinutesNow()` here — a second clock that `?clock=` could not reach,
+ * so the rollover was untestable.)
+ *
+ * `complete === false` IS THE TEST, never `!complete`. A record with no
+ * `complete` field came from a Worker predating the field and is a REAL summary;
+ * treating absent as false would relabel every genuine older record as failed.
+ * That exact bug shipped in trading_dash — a failed generation rendered as a
+ * timestamped market-close report. */
+function briefSlotStates(d) {
+  const now = ptPartsOf(queueNow());
+  const weekend = now.dow === 0 || now.dow === 6;
+  const bank = briefStoreRead(now.iso);
+  let banked = false;
+
+  const out = BRIEF_SLOTS.map(s => {
+    const r = s.pick(d) || {};
+    const hasContent = Boolean(r.headline || r.body);
+    /* The slot's own PT date, from its own timestamp. `/daily` has a 24h TTL, so
+     * between the rollover and the next 06:00 run the endpoint still serves
+     * YESTERDAY's whole record — undated content or content stamped another day
+     * must never render under today's heading. */
+    const tsIso = isNum(r.ts) && r.ts > 0 ? ptPartsOf(r.ts).iso : null;
+    /* Bankable = real content, a real ts, today's PT date, and not the Worker's
+     * own `complete: false` placeholder. */
+    const live = hasContent && r.complete !== false && tsIso === now.iso ? r : null;
+    const prior = bank[s.key] || null;
+    if (live && (!prior || !isNum(prior.ts) || live.ts > prior.ts)) {
+      bank[s.key] = briefBankable(live); banked = true;
+    }
+    const rec = bank[s.key] || null;
+    /* Does the payload on the wire still carry the record we are about to show? */
+    const fromLive = Boolean(rec && live && live.ts === rec.ts);
+
+    let st, show = null;
+    if (rec) { show = rec; st = fromLive ? 'today' : 'held'; }
+    else if (r.complete === false) st = 'refused';
+    else if (hasContent && tsIso && tsIso !== now.iso) st = 'other-day';
+    else if (hasContent && !tsIso) { show = r; st = 'undated'; }
+    else if (r.loading === true) st = 'generating';
+    else if (weekend) st = 'no-session';
+    else st = now.minutes >= s.dueMin ? 'missing' : 'pending';
+
+    /* The date reported must be the date of the record SHOWN, not of whatever
+     * the payload happened to carry for this slot. */
+    const shownIso = show && isNum(show.ts) && show.ts > 0 ? ptPartsOf(show.ts).iso : tsIso;
+    return { ...s, ...r, ...(show || {}), st, tsIso: shownIso, nowIso: now.iso };
+  });
+
+  if (banked) briefStoreWrite(now.iso, bank);
+  return out;
+}
+
 function renderBrief() {
   const el = document.getElementById('brief');
   const b = document.getElementById('daily-badges');
@@ -1447,114 +1627,118 @@ function renderBrief() {
   const d = state.daily;
   if (!d) return;
 
-  /* A payload with no headline and no morning body is not an empty card — it is
-   * "the 6am job has not produced anything today", which is a finding. */
-  const hasMorning = Boolean(d.headline || d.open?.headline || d.open?.body);
-  if (!hasMorning) {
-    el.innerHTML = `<div class="brief"><div class="head" style="font-style:normal;color:var(--amber)">
-      No briefing generated today</div>
-      <div class="sub">The 6:00am PT job has not written a snapshot. Nothing is shown in its place —
-      yesterday's briefing rendered as today's would be indistinguishable from the real thing.</div>
-      ${briefTimeline(d)}</div>`;
-    return;
-  }
+  const slots = briefSlotStates(d);
+  /* Rendered in session order. `undated` renders too — withholding a real brief
+   * is its own dishonesty — but it says on its face that its day is unconfirmed. */
+  const shown = slots.filter(s => s.st === 'today' || s.st === 'held' || s.st === 'undated');
+  el.innerHTML = (shown.length
+    ? `<div class="brief-stack">${shown.map(briefCard).join('')}</div>`
+    : briefNoneCard(slots)) + briefTimeline(slots);
+}
 
-  const headline = d.headline || d.open?.headline || '';
-  const body = d.open?.body || '';
+function briefCard(s) {
+  const id = `brief-card-${s.key}`;
   /* Two to three sentences visible; the rest expands. Split on sentence ends
    * followed by a capital, so a decimal ("4.71%") does not cut the line. */
-  const sentences = body.split(/(?<=[.!?])\s+(?=[A-Z"'])/);
+  const sentences = String(s.body || '').split(/(?<=[.!?])\s+(?=[A-Z"'])/);
   const visible = sentences.slice(0, 3).join(' ');
   const rest = sentences.slice(3).join(' ');
+  const clock = fmtClockPt(s.ts);
+  const asOf = clock
+    ? `<span>as-of ${esc(clock)}</span>`
+    : `<span class="amb">as-of not published — this page cannot confirm which trading day this belongs to</span>`;
+  /* "we still hold this" and "the Worker still serves this" are different facts. */
+  const held = s.st === 'held'
+    ? `<span class="amb" title="the current /daily payload no longer carries this record — a later briefing run replaced the key. This is the copy this browser received earlier today, with its own as-of; nothing about it is regenerated.">held locally · not in the current /daily</span>`
+    : '';
 
-  el.innerHTML = `<div class="brief" id="brief-card">
-    <div class="head">${esc(headline)}</div>
-    ${d.open?.headline && d.open.headline !== headline ? `<div class="sub" style="margin-bottom:7px">${esc(d.open.headline)}</div>` : ''}
-    <div class="sub">${esc(visible)}</div>
+  return `<div class="brief" id="${id}">
+    <div class="slot"><span class="nm">${esc(s.label)}</span><span>${s.cron} PT job</span>${asOf}${held}</div>
+    ${s.headline ? `<div class="head">${esc(s.headline)}</div>` : ''}
+    ${s.subhead ? `<div class="sub" style="margin-bottom:7px">${esc(s.subhead)}</div>` : ''}
+    ${visible ? `<div class="sub">${esc(visible)}</div>`
+      : `<div class="sub" style="color:var(--amber)">This record carries a headline and no body.</div>`}
     ${rest ? `<div class="full">${esc(rest)}</div>
-              <span class="more" onclick="document.getElementById('brief-card').classList.toggle('open')">full brief ▸</span>` : ''}
-    ${briefTimeline(d)}
+              <span class="more" onclick="document.getElementById('${id}').classList.toggle('open')">full brief ▸</span>` : ''}
+    <div class="prov">${briefProv(s)}</div>
   </div>`;
 }
 
-/* Three points, three distinguishable states.
- *
- * `complete === false` IS THE TEST, never `!complete`. A record with no
- * `complete` field came from a Worker predating the field and is a REAL summary;
- * treating absent as false would relabel every genuine older record as failed.
- * That exact bug shipped in trading_dash — a failed generation rendered as a
- * timestamped market-close report. */
-function briefTimeline(d) {
-  const rows = [];
-  const mk = (time, label, cls, detail, why) =>
-    `<div class="t ${cls}"><span class="tm">${time}</span><span>${label}${
-      detail ? ` <span class="why">${esc(detail)}</span>` : ''}</span></div>`;
-
-  // 06:00 — morning briefing
-  if (d.headline || d.open) {
-    rows.push(mk('06:00', 'Morning brief', 'done',
-      isNum(d.ts) ? `written ${fmtClock(d.ts)}` : 'as-of not published'));
-  } else {
-    rows.push(mk('06:00', 'Morning brief — not generated', 'missing', null));
-  }
-
-  // 11:30 — midday pulse
-  if (d.midday) {
-    rows.push(mk('11:30', 'Midday pulse', 'done',
-      isNum(d.midday.ts) ? `written ${fmtClock(d.midday.ts)}` : null));
-  } else if (d.middayLoading === true) {
-    rows.push(mk('11:30', 'Midday pulse — generating', 'pend', 'the Worker reports middayLoading'));
-  } else {
-    /* Before 11:30 PT this is simply pending; after it, the job did not produce
-     * one. The page cannot tell those apart from the payload alone, so it says
-     * which one it is by the clock and labels the reasoning. */
-    const past = ptMinutesNow() != null && ptMinutesNow() >= 11 * 60 + 30;
-    rows.push(past
-      ? mk('11:30', 'Midday pulse — none today', 'missing', 'past 11:30 PT and the payload carries midday: null')
-      : mk('11:30', 'Midday pulse — pending', 'pend', 'not yet 11:30 PT'));
-  }
-
-  // 13:15 — close recap
-  if (d.eod && d.eod.complete === false) {
-    rows.push(mk('13:15', 'Close recap — could not be generated', 'missing',
-      'the payload carries eod.complete: false, the Worker’s own placeholder — it retries'));
-  } else if (d.eod && (d.eod.headline || d.eod.body)) {
-    rows.push(mk('13:15', 'Close recap', 'done',
-      isNum(d.eod.ts) && d.eod.ts > 0 ? `written ${fmtClock(d.eod.ts)}`
-        : 'as-of not published' + (d.eod.complete === undefined ? ' · record predates the complete flag' : '')));
-  } else if (d.eodLoading === true) {
-    rows.push(mk('13:15', 'Close recap — generating', 'pend', 'the Worker reports eodLoading'));
-  } else {
-    const past = ptMinutesNow() != null && ptMinutesNow() >= 13 * 60 + 15;
-    rows.push(past
-      ? mk('13:15', 'Close recap — none today', 'missing', 'past 13:15 PT and the payload carries no eod record')
-      : mk('13:15', 'Close recap — pending', 'pend', 'not yet 13:15 PT'));
-  }
-
-  /* Provenance of the generating run. `_instr.phase` names the JOB that stamped
-   * the payload — it is not by itself a truncation signal (the truncation signal
-   * is eod.complete === false, handled above), so it is rendered as what it is. */
-  const ins = d._instr;
-  const prov = ins
-    ? `job <b>${esc(ins.phase || 'unnamed')}</b> · ${ins.measured === true
-        ? `capCost ${ins.capCost}` : 'not instrumented (measured false)'}${
-        ins.settledRejected ? ` · <span class="amb">${ins.settledRejected} rejected</span>` : ''}`
-    : 'no _instr on this payload';
-  rows.push(`<div class="t"><span class="tm"></span><span class="why">${prov}</span></div>`);
-
-  return `<div class="tl">${rows.join('')}</div>`;
+/* Provenance of the run that stamped THIS record. `_instr.phase` names the JOB —
+ * it is not by itself a truncation signal (that signal is `eod.complete === false`,
+ * handled as its own state), so it is rendered as what it is. */
+function briefProv(s) {
+  const ins = s.instr;
+  const flag = s.complete === undefined && s.key === 'eod'
+    ? ' · <span class="amb">record predates the complete flag</span>' : '';
+  if (!ins) return `no _instr on the ${esc(s.key)} record${flag}`;
+  return `job <b>${esc(ins.phase || 'unnamed')}</b> · ${ins.measured === true
+    ? `capCost ${ins.capCost}` : 'not instrumented (measured false)'}${
+    ins.settledRejected ? ` · <span class="amb">${ins.settledRejected} rejected</span>` : ''}${flag}`;
 }
 
-/** Minutes past midnight, US Pacific — the clock the cron jobs are scheduled on. */
-function ptMinutesNow() {
-  try {
-    const p = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Los_Angeles', hourCycle: 'h23', hour: '2-digit', minute: '2-digit',
-    }).formatToParts(new Date());
-    const h = Number(p.find(x => x.type === 'hour')?.value);
-    const m = Number(p.find(x => x.type === 'minute')?.value);
-    return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
-  } catch { return null; }
+/* Nothing renderable for today. This is a finding, not an empty card — and when
+ * the payload still holds ANOTHER day's set, saying so is the whole point: that
+ * set is exactly what a naive renderer would have shown as today's. */
+function briefNoneCard(slots) {
+  const other = slots.filter(s => s.st === 'other-day');
+  const nowIso = slots[0]?.nowIso || '—';
+  const weekend = slots.some(s => s.st === 'no-session');
+  const why = weekend
+    ? `PT date <b>${esc(nowIso)}</b> is a weekend by this page's weekday rule — the briefing jobs do not run.`
+    : `No ${esc(nowIso)} record has been written yet.`;
+  const held = other.length
+    ? ` The <code>/daily</code> payload still carries the ${other.map(s =>
+        `<b>${esc(s.tsIso)}</b> ${esc(s.label.toLowerCase())}`).join(', ')} — held back deliberately:
+        a previous day's briefing under today's heading would be indistinguishable from the real thing.`
+    : '';
+  return `<div class="brief"><div class="head" style="font-style:normal;color:var(--amber)">
+    No brief for this trading day</div>
+    <div class="sub">${why}${held}</div></div>`;
+}
+
+/* The timeline is the one place a slot's STATE is reported, including the states
+ * that render no card. Same records as the stack. */
+function briefTimeline(slots) {
+  const mk = (time, label, cls, detail) =>
+    `<div class="t ${cls}"><span class="tm">${time}</span><span>${esc(label)}${
+      detail ? ` <span class="why">${esc(detail)}</span>` : ''}</span></div>`;
+
+  const rows = slots.map(s => {
+    switch (s.st) {
+      case 'today':
+        return mk(s.cron, s.label, 'done', `written ${fmtClockPt(s.ts)}`);
+      case 'held':
+        return mk(s.cron, `${s.label} — held locally`, 'done',
+          `written ${fmtClockPt(s.ts)}; the current /daily no longer carries it — a later briefing run replaced the key`);
+      case 'undated':
+        return mk(s.cron, `${s.label} — as-of not published`, 'missing',
+          `shown, but this page cannot confirm it is ${s.nowIso}'s`);
+      case 'other-day':
+        return mk(s.cron, `${s.label} — belongs to ${s.tsIso}`, 'missing',
+          `not rendered as ${s.nowIso}'s; the payload has not rolled over yet`);
+      case 'refused':
+        return mk(s.cron, `${s.label} — could not be generated`, 'missing',
+          'the payload carries eod.complete: false, the Worker’s own placeholder — it retries');
+      case 'generating':
+        return mk(s.cron, `${s.label} — generating`, 'pend', `the Worker reports ${s.key}Loading`);
+      case 'no-session':
+        return mk(s.cron, `${s.label} — no session`, 'pend',
+          `${s.nowIso} is a weekend by the page’s weekday rule (no holiday calendar client-side)`);
+      case 'pending':
+        return mk(s.cron, `${s.label} — pending`, 'pend', `not yet ${s.cron} PT`);
+      default:
+        return mk(s.cron, `${s.label} — none today`, 'missing',
+          `past ${s.cron} PT and the payload carries no ${s.key} record for ${s.nowIso}`);
+    }
+  });
+
+  rows.push(`<div class="t"><span class="tm"></span><span class="why">trading day ${
+    esc(slots[0]?.nowIso || '—')} from the shared PT queue clock${
+    TEST_CLOCK ? ' · ⏱ TEST CLOCK (bank not written)' : ''}${
+    briefStoreWarn ? ` · <span class="amb">slot bank unavailable (${esc(briefStoreWarn)}) — only what the current payload carries can be shown</span>` : ''}</span></div>`);
+
+  return `<div class="tl">${rows.join('')}</div>`;
 }
 
 /* ── 3. calendar ──────────────────────────────────────────────────────────── */

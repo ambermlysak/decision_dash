@@ -54,7 +54,7 @@ These decisions are settled (rationale in `DESIGN.md`). Do not relitigate them
 silently; flag if a task conflicts.
 
 1. **Surfaces:** four tabs — **Today** (regime line · action queue · levels watch
-   · Radar · session-brief timeline · calendar · your-movers · sector heat strip),
+   · Radar · session-brief stack + timeline · calendar · your-movers · sector heat strip),
    **Names**, **Options**, **Diversify** — plus the per-ticker page (hero decision
    block + 4 collapsed evidence groups: Technicals / Positioning / Street & story
    / Record). No Midday tab, no momentum scanner, no IPO calendar, no market-wide
@@ -190,6 +190,18 @@ least once:
   "Shorts rising" beside a line reading "−9.7% vs prior", the label and the
   number contradicting each other on one screen. **Sort on `settlementDate`;
   never trust array order for a time series.** Found in phase 5.
+- **`/api/daily` carries THREE narrative records in ONE per-PT-date object**, and
+  a re-run of the briefing job **REPLACES THAT OBJECT WHOLE**. The slots are the
+  06:00 open (top-level `headline` + `open{}`), the 11:30 pulse (`midday{}` —
+  its body field is **`narrative`**, not `body`) and the 13:15 close (`eod{}` —
+  `body`, plus `complete`). Only the close carries `complete`; each slot carries
+  its own `_instr`. **Measured 2026-08-19: at 17:56 PT the payload served open
+  06:02 / midday 11:31 / eod 13:13; at 18:11 PT a fresh `_instr.phase: briefing`
+  run had rewritten it to open 18:11 / eod 18:11 with `midday` GONE.** So the
+  slots do not simply accumulate to the rollover — an earlier one can be dropped
+  by a later write. Making the Worker merge instead of replace is a trading_dash
+  task. Phase 8's frontend answer is a per-slot bank in `localStorage`
+  (`dd:brief-slots`) — see the session-brief rules below.
 - `/api/analysis/:ticker` **404s for any ticker with no stored record** (every
   off-watchlist name) and carries **no `_meta`** — just
   `rating/confidence/recommendation/drivers/summary/ts`. A 404 here is the
@@ -253,6 +265,44 @@ least once:
   with its as-of (AT/THROUGH · APPROACHING · INTACT). The mockup's
   "TRIGGERED 10:42" is fiction this page refuses to produce.
 
+## Session-brief facts (phase 8)
+
+- **The brief is a STACK, not a card.** Every slot published for the current
+  trading day renders in session order, each with its own as-of. Rendering only
+  the 06:00 record — which is what phases 2–7 did — meant the 11:30 and 13:15
+  narratives were fetched on every load and thrown away, while the timeline
+  reported that they existed. Fetching a fact and refusing to show it is the
+  same class of bug as not having it.
+- **The trading day is `ptPartsOf(queueNow()).iso` — the queue's clock, not a
+  second one.** The old `briefTimeline()` called a private `ptMinutesNow()`,
+  which `?clock=` could not reach, so the rollover was untestable. That function
+  is deleted; do not reintroduce a local clock in this module.
+- **Every rendered brief is stamped with ITS OWN PT date and must match today's.**
+  `/daily` has a 24h TTL, so between the rollover and the next 06:00 run the
+  endpoint still serves YESTERDAY's whole object. A record from another PT date
+  renders as `other-day` on the timeline and NEVER as a card. Verified: clock
+  2026-08-19 23:59 → 3 cards; 2026-08-20 00:01 → 0 cards.
+- **The per-slot bank (`localStorage` `dd:brief-slots`) exists because the Worker
+  replaces the whole payload** (see the interface facts above). Rules, all
+  load-bearing: only content with a real ts on today's PT date is banked;
+  **newest ts wins per slot**, so a revision replaces and an absence never does;
+  **one PT date at a time** — a bank stamped with any other date is dropped
+  whole, which IS the rollover reset; **`?clock=` never writes**, so a test clock
+  cannot corrupt real state; and a card served from the bank rather than the live
+  payload **says so on its face** (`held locally · not in the current /daily`) —
+  "we still hold this" and "the Worker still serves this" are different facts.
+  When storage is unavailable the footer names it and the page degrades to
+  payload-only rather than silently showing less.
+- **A slot that has not run renders as a state, never as content.** The states
+  are `today` · `held` · `undated` · `other-day` · `refused` (`eod.complete ===
+  false`, the Worker's own placeholder) · `generating` (`middayLoading` /
+  `eodLoading`) · `no-session` (weekend) · `pending` · `missing`. `complete ===
+  false` IS THE TEST, never `!complete` — absent means an older Worker, and a
+  real summary must not be relabelled as a failed one.
+- **As-ofs render in PT** (`fmtClockPt`), because the slots are named for PT cron
+  times; printing the reader's local clock beside a slot labelled "11:30" reads
+  as the job running hours late.
+
 ## Design system
 
 Same tokens as trading_dash. CSS custom properties in `:root`; never hardcode a
@@ -274,6 +324,7 @@ Status is never conveyed by color alone.
 | 5 | **Ticker page** — hero decision block + 4 evidence groups; base-rate-beside-rate on Record; no AI spend on load | `e4cbac1` |
 | 6 | **Radar** — `/api/radar`, read-then-append adoption | `8408918` |
 | 7 | **Diversify** — `/api/income/*`, categorized sleeves, no verdicts | `f832412` |
+| 8 | **Session-brief stack** — all slots published for the current trading day, stacked with per-slot as-of; per-slot bank against the Worker's whole-payload rewrite | this commit |
 
 Doc-sync commits: `557329e` (phase-1 payload facts), `e626a64` (phase-5 payload
 facts).
@@ -313,6 +364,17 @@ These are stated, not fixed. Each is a real limit of the built surfaces.
    how much is held. Every "coverage" figure is a count for this reason.
 6. **Radar's universe is the Yahoo screeners, not the S&P 500 + Nasdaq 100 sweep**
    originally specified (design contract #5). Same gates, different population.
+7. **The session-brief bank is per browser profile** (phase 8). It can only hold
+   a slot this browser actually received. If the Worker rewrites `/daily` and
+   drops the 11:30 pulse before you ever load the page that day, that pulse is
+   gone for good on this surface — nothing client-side can recover it. The real
+   fix is making the Worker merge rather than replace, which is a trading_dash
+   task. The stack degrades correctly (the slot reads `missing`, not blank), but
+   it degrades.
+8. **`?clock=` cannot exercise the bank's WRITE path** (phase 8), by design — a
+   test clock that could write would be able to corrupt real state. The write
+   path is therefore verified on the real clock with recorded payloads, and the
+   read/reset path with the test clock. Nothing verifies the two together.
 
 ## Working pattern
 
