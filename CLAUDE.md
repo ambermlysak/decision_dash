@@ -330,6 +330,31 @@ least once:
   times; printing the reader's local clock beside a slot labelled "11:30" reads
   as the job running hours late.
 
+## Render-scope facts (2026-08-20)
+
+- **`index.html` is ONE `<script>` block (lines ~778–4720), so every render helper
+  shares one global scope and a duplicate `function` name silently replaces the
+  earlier one for EVERY caller.** Phase 7 added a second `function trendCell(r)`
+  for Diversify beside the phase-1 `function trendCell(s)` that renders the Names
+  column. The later declaration won, so Names called the Diversify renderer for
+  four commits. **Name cell helpers for their surface** (`divTrendCell`,
+  `optionsCell`) and grep for the bare name before adding one.
+- **A cell helper that returns a bare `<span>` where the caller concatenates
+  `<td>`s does not render in the wrong style — it leaves the table entirely.**
+  HTML foster-parenting hoists non-cell content out of a `<table>` and paints it
+  *above* the table. The symptom was 39 italic `trend n/a` spans (one per row)
+  running together above the Names header. **Every `*Cell()` called from a `<tr>`
+  concatenation must return its own `<td>`;** a helper called from a flex row
+  returns a `<span>`, and the two are not interchangeable.
+- **The visible spill was the harmless half of that bug.** Losing one `<td>`
+  left 5 cells under 6 `<th>`, so every column after Key level shifted LEFT:
+  earnings dates rendered under the **Trend** header and the options
+  `not loaded` state under **Earnings**, while Options sat empty. That is
+  honesty rule 1 — one quantity under another's label — and it reads as
+  plausible data, which is why it survived four commits unreported. **Assert the
+  `<td>` count per row against the `<th>` count** when a table renderer changes;
+  `renderNames()` now verifies at 6/6 across 39 rows.
+
 ## Design system
 
 Same tokens as trading_dash. CSS custom properties in `:root`; never hardcode a
@@ -381,7 +406,8 @@ Status is never conveyed by color alone.
 | 6 | **Radar** — `/api/radar`, read-then-append adoption | `8408918` |
 | 7 | **Diversify** — `/api/income/*`, categorized sleeves, no verdicts | `f832412` |
 | 8 | **Session-brief stack** — all slots published for the current trading day, stacked with per-slot as-of; per-slot bank against the Worker's whole-payload rewrite | `504d1bb` |
-| 9 | **Ticker verdict auto-fetch + refresh button in every branch; two record shapes normalised; WCAG AA ink palette** | this commit |
+| 9 | **Ticker verdict auto-fetch + refresh button in every branch; two record shapes normalised; WCAG AA ink palette** | `ecc8086` |
+| fix | **Names column shift** — phase 7's `trendCell` shadowed phase 1's; renamed to `divTrendCell`. Names lost its Trend `<td>`, spilling 39 spans above the table and shifting every later column left | this commit |
 
 Doc-sync commits: `557329e` (phase-1 payload facts), `e626a64` (phase-5 payload
 facts).

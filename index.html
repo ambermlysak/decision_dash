@@ -633,7 +633,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
            onkeydown="if(event.key==='Enter'){const v=this.value.trim().toUpperCase(); if(/^[A-Z][A-Z.\-]{0,9}$/.test(v)){location.hash='#ticker/'+v; this.value='';}}" />
     <span id="clock"></span>
     <a href="./probe.html" title="the CORS canary — proves the Worker round-trip independently of this app">probe</a>
-    <span id="build-tag">div-p7-1</span>
+    <span id="build-tag">names-p9-2</span>
   </div>
 </header>
 
@@ -3967,7 +3967,14 @@ function exDivCell(r) {
     r.lastDivExDate ? `last ${esc(r.lastDivExDate)} · next not published` : 'n/a'}</span>`;
 }
 
-function trendCell(r) {
+/* Diversify's trend chip. Named divTrendCell, NOT trendCell, deliberately:
+ * this file is ONE script block, so a second top-level `function trendCell`
+ * silently replaced the Names column renderer at line ~1081 for every caller.
+ * That one emits a <td>; this one emits a bare <span>, so Names lost a cell —
+ * the parser foster-parented 39 spans above the table and shifted every column
+ * left, printing earnings dates under the Trend header. Shipped in f832412,
+ * caught 2026-08-20. Keep the surface prefix on any new cell helper. */
+function divTrendCell(r) {
   if (r.aboveSma200 === true) return `<span class="up" title="${esc(`price ${fmt(r.price)} above the 200D ${fmt(r.sma200)}`)}">● &gt; 200D</span>`;
   if (r.aboveSma200 === false) return `<span class="dn" title="${esc(`price ${fmt(r.price)} below the 200D ${fmt(r.sma200)}`)}">● &lt; 200D</span>`;
   return `<span class="dim" title="${esc(r.trendReason || 'no 200-day average available')}">trend n/a</span>`;
@@ -4004,10 +4011,10 @@ function divRowHtml(r, cat) {
        <span class="f"><span class="k">5y growth</span>${growthCell(r)}</span>
        <span class="f"><span class="k">payout</span>${payoutCell(r)}</span>
        <span class="f"><span class="k">ex-div</span>${exDivCell(r)}</span>
-       <span class="f grow"><span class="k">trend</span>${trendCell(r)}</span>`
+       <span class="f grow"><span class="k">trend</span>${divTrendCell(r)}</span>`
     /* Compact for the non-income sleeves: the detail lives on the ticker page
      * and is not rebuilt here. */
-    : `<span class="f"><span class="k">trend</span>${trendCell(r)}</span>
+    : `<span class="f"><span class="k">trend</span>${divTrendCell(r)}</span>
        ${r.paysDividend !== false ? `<span class="f"><span class="k">yield</span>${yieldCell}</span>` : ''}
        <span class="f grow"></span>`;
 
