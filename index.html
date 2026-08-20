@@ -16,10 +16,27 @@
   --bg-3: #1a1a25;
   --line: #23232f;
   --line-soft: #1c1c26;
+  /* INK TIERS — every one meets WCAG AA (4.5:1) for body text against the
+   * DARKEST-to-LIGHTEST surface range bg-0..bg-3, worst case measured on bg-3.
+   *
+   *   ink-0 #f5f1eb  15.32:1  primary
+   *   ink-1 #c9c5be  10.02:1  secondary body
+   *   ink-2 #a9a6b5   7.23:1  muted labels, nav          (was #888591, 4.77:1)
+   *   ink-3 #858391   4.64:1  metadata, provenance, .dim (was #5a5862, 2.47:1)
+   *
+   * ink-3 was the site's most-used ink (49 CSS references) and sat at 2.47:1 —
+   * under even the 3:1 large-text floor. It powers `.dim`, every `.why`
+   * provenance string and every "not published" reason, which is precisely the
+   * text that explains why a number is missing; unreadable, it may as well be
+   * the blank cell the honesty rules forbid.
+   *
+   * This is a DARK theme, so raising contrast means moving the grays LIGHTER.
+   * The tiers keep ~1.4–1.55x contrast steps between them, so muted still reads
+   * as muted rather than collapsing into primary. */
   --ink-0: #f5f1eb;
   --ink-1: #c9c5be;
-  --ink-2: #888591;
-  --ink-3: #5a5862;
+  --ink-2: #a9a6b5;
+  --ink-3: #858391;
   --bull: #23d18b;
   --bull-soft: rgba(35,209,139,0.12);
   --bear: #f25f5c;
@@ -246,7 +263,12 @@ h2.sec .right { margin-left: auto; text-transform: none; letter-spacing: 0.03em;
 .tl .t .tm { font-family: var(--mono); font-size: 10px; color: var(--ink-3); min-width: 46px; }
 .tl .t.done    { color: var(--ink-1); }
 .tl .t.done .tm { color: var(--bull); }
-.tl .t.pend    { opacity: 0.5; }
+/* Recessive by COLOR, not by opacity. `opacity: 0.5` composited this row down to
+ * 2.15:1 against bg-1 — the least readable text on the site, on the states that
+ * exist to explain why something is absent. ink-3 is the dim tier and clears AA;
+ * the row is still distinguishable from `.done` (ink-1) and `.missing` (amber),
+ * and every one of these rows carries its state in words too. */
+.tl .t.pend    { color: var(--ink-3); }
 .tl .t.missing { color: var(--amber); }
 .tl .t.missing .tm { color: var(--amber); }
 .tl .t .why { color: var(--ink-3); font-family: var(--mono); font-size: 10px; }
@@ -328,7 +350,9 @@ table.cands th {
 table.cands td { padding: 6px 8px; border-bottom: 1px solid var(--line-soft); font-family: var(--mono); font-size: 11px; color: var(--ink-1); }
 tr.cand { cursor: pointer; }
 tr.cand:hover > td { background: rgba(255,255,255,0.02); }
-tr.cand.illiq > td { opacity: 0.55; }   /* liquidity breach: dimmed, never dropped */
+/* liquidity breach: dimmed, never dropped. 0.55 composited to 4.06:1, under AA;
+ * 0.72 matches the other dim-row rules and clears it at 6.17:1. */
+tr.cand.illiq > td { opacity: 0.72; }
 tr.cdeep { display: none; }
 tr.cdeep.show { display: table-row; }
 tr.cdeep > td { background: var(--bg-1); font-size: 10.5px; color: var(--ink-2); line-height: 1.8; padding: 8px 12px; }
@@ -800,6 +824,46 @@ const WL_CHUNK = 15;
  * policy. Price staleness is a different clock entirely (ttlSeconds, 60s) and
  * gets its own badge. */
 const VERDICT_FRESH_MS = 24 * 3600 * 1000;
+
+/* THE VERDICT STORE HOLDS TWO RECORD SHAPES, and they must render identically.
+ *
+ *   nightly batch pass : { rating, confidence, recommendation, drivers[], summary, ts }
+ *   /api/ai/synthesis  : { rating, confidence, action, factors{}, thesis, trend,
+ *                          pattern, summary, ts }
+ *
+ * Measured 2026-08-19 against the deployed Worker: NVDA (nightly) carries
+ * `recommendation` + `drivers[]`; KO and a freshly generated COST carry `action`
+ * + `factors{}` and NO `recommendation`. Reading only `recommendation` — which
+ * every surface did — renders "the record carries a rating but no one-line call"
+ * on a verdict that has one, immediately after generating it. Same fact, two
+ * field names; the reader must not be able to tell which pass wrote the record.
+ *
+ * `factors` is six named dimensions each with a `note`, which is the same thing
+ * the nightly `drivers[]` strings are, so it flattens to the same chips. */
+function verdictCall(r) {
+  if (!r) return null;
+  return r.recommendation ?? r.action ?? null;
+}
+function verdictDrivers(r) {
+  if (!r) return null;
+  if (Array.isArray(r.drivers) && r.drivers.length) return r.drivers;
+  const f = r.factors;
+  if (!f || typeof f !== 'object' || Array.isArray(f)) return null;
+  const out = Object.entries(f)
+    .filter(([, v]) => v && typeof v === 'object' && v.note)
+    .map(([k, v]) => `${k.charAt(0).toUpperCase()}${k.slice(1)}: ${v.note}`);
+  return out.length ? out : null;
+}
+
+/** Is this verdict record the CURRENT trading day's, by the app's shared PT
+ *  clock? Not a TTL question — `/api/ai/synthesis` stamps `ttlSeconds: 172800`,
+ *  so a record outlives its trading day by design and "not expired" and "is
+ *  today's" are different facts. Design contract #3 is one record per ticker per
+ *  TRADING DAY, so that is what this measures. */
+function verdictIsToday(r) {
+  if (!r || !isNum(r.ts) || r.ts <= 0) return false;
+  return ptPartsOf(r.ts).iso === ptPartsOf(queueNow()).iso;
+}
 const AT_LEVEL_PCT = 3;      // design contract: "within ~3% of the key level"
 const EARNINGS_SOON_DAYS = 7;
 
@@ -965,9 +1029,10 @@ function verdictCell(s, analysisLoading) {
     ? `<span class="rconf" title="model confidence, ordinal — the payload carries a self-reported percentage (${s.confidence}) and a self-reported percentage has no calibration behind it">${conf}</span>`
     : `<span class="rconf dim" title="confidence not present in the payload">confidence not published</span>`;
 
-  const rec = s.recommendation
-    ? esc(s.recommendation)
-    : absent('the record carries a rating but no one-line recommendation');
+  const recText = verdictCall(s);      // `recommendation` or `action` — see verdictCall
+  const rec = recText
+    ? esc(recText)
+    : absent('the record carries a rating but no one-line call under either field name (recommendation / action)');
 
   /* As-of of the VERDICT, which is a different clock from the price. Aged
    * against the daily-refresh policy the batch _meta states. `data-ts` carries
@@ -1227,11 +1292,12 @@ function expanderRow(s, meta, fetchedAtMs) {
     'pe is null in the payload — typically a company with no positive trailing earnings, which is a fact about the company, not a gap in the feed'));
   chips.push(chip('sector', s.sector ? esc(s.sector) : null));
 
-  const drivers = Array.isArray(s.drivers) && s.drivers.length
-    ? s.drivers.map(d => `<span class="c">${esc(d)}</span>`).join('')
+  const drvList = verdictDrivers(s);   // `drivers[]` or flattened `factors{}`
+  const drivers = drvList
+    ? drvList.map(d => `<span class="c">${esc(d)}</span>`).join('')
     : `<span class="c absent" title="${esc(s.rating == null
         ? 'no analysis record for this ticker, so no drivers'
-        : 'the record carries a rating but no drivers array')}">drivers n/p</span>`;
+        : 'the record carries a rating but neither a drivers array nor a factors object')}">drivers n/p</span>`;
 
   const summary = s.summary
     ? `<div class="xsum">${esc(s.summary)}</div>`
@@ -2389,11 +2455,12 @@ function queueCard(row, q) {
 
   /* The one-line call, VERBATIM from the analysis record — it already carries
    * the adds and stops in the model's own words. Nothing is parsed out of it. */
-  const call = s.recommendation
-    ? esc(s.recommendation)
+  const callText = verdictCall(s);     // `recommendation` or `action` — see verdictCall
+  const call = callText
+    ? esc(callText)
     : `<span class="dim" title="${esc(row.recRank == null
         ? (state.analysisLoading ? 'no verdict record yet — a refresh is in flight for this batch' : 'no verdict record for this ticker')
-        : 'the record carries a rating but no one-line recommendation')}">${
+        : 'the record carries a rating but no one-line call under either field name (recommendation / action)')}">${
         row.recRank == null ? 'no verdict record' : 'no one-line call published'}</span>`;
 
   const st = queueStateChip(row, q);
@@ -3179,43 +3246,139 @@ async function loadTicker(sym, force) {
     }
   }));
   if (currentView() === 'ticker' && tk.sym === sym) renderTicker();
+  /* After the store read settles — never before, or it cannot tell "no record"
+   * from "not loaded yet" and would spend on every load. */
+  maybeAutoVerdict(sym);
 }
 
-/* The ONE deliberate spend path. Gated, x-dash-key, click-only. On success the
- * SHARED STORE is updated so Names and the queue reflect the new record at
- * once — one verdict store, one record, every surface. */
-async function refreshVerdict(sym) {
-  if (tk.busy.verdict) return;
-  tk.busy.verdict = true; renderTicker();
-  try {
-    const r = await fetch(API_BASE + `/ai/synthesis/${encodeURIComponent(sym)}`, {
-      method: 'POST', headers: { 'x-dash-key': DASH_KEY, 'Content-Type': 'application/json' },
-    });
-    if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { kind: 'http', status: r.status });
-    const fresh = await apiFetch(`/analysis/${sym}`);
-    fresh.__fetchedAt = Date.now();
-    tk.data.analysis = fresh;
-    /* Propagate into the shared store so Names and the queue cannot disagree. */
-    if (state.stocks && state.stocks[sym]) {
-      const s = state.stocks[sym];
-      s.rating = fresh.rating ?? null;
-      s.confidence = fresh.confidence ?? null;
-      s.recommendation = fresh.recommendation ?? null;
-      s.summary = fresh.summary ?? null;
-      s.drivers = fresh.drivers ?? null;
-      s.analysisTs = fresh.ts ?? null;
-      s.recRank = fresh.rating
-        ? (fresh.rating === 'BUY' ? 1 : fresh.rating === 'SELL' ? -1 : 0) * (fresh.confidence ?? 50)
-        : null;
-      paintAll();
-    }
+/* THE SPEND PATH. Gated, x-dash-key. Two callers: the refresh button (always
+ * spends, deliberately) and the ticker page's load-time auto-fetch, which
+ * spends ONLY when the store holds no record for the current trading day.
+ *
+ * `verdictJobs` dedupes by ticker: a second call while one is in flight JOINS
+ * the running promise instead of starting a second generation. That is what
+ * makes rapid re-loads of the same ticker page cost one call, not N.
+ *
+ * `verdictAutoTried` is the no-retry-loop guardrail: the auto path attempts a
+ * ticker at most once per page session, whether it succeeded or failed. After a
+ * failure the button is the retry, because a retry the reader did not ask for
+ * spends their ceiling on a call that already failed once. */
+const verdictJobs = new Map();        // sym -> in-flight promise
+const verdictAutoTried = new Set();   // sym -> the auto path has had its one attempt
+
+function generateVerdict(sym, reason) {
+  const running = verdictJobs.get(sym);
+  if (running) return running;        // in flight — join it, never a second spend
+
+  const p = (async () => {
+    tk.busy.verdict = true;
     delete tk.errors.verdict;
-  } catch (e) {
-    tk.errors.verdict = e;
-    console.warn('[ticker] verdict refresh failed ·', e.kind, e.message);
-  } finally {
-    tk.busy.verdict = false; renderTicker();
-  }
+    if (tk.sym === sym) renderTicker();
+    try {
+      const r = await fetch(API_BASE + `/ai/synthesis/${encodeURIComponent(sym)}`, {
+        method: 'POST', headers: { 'x-dash-key': DASH_KEY, 'Content-Type': 'application/json' },
+      });
+      if (!r.ok) throw Object.assign(new Error(`POST /ai/synthesis returned HTTP ${r.status}`),
+        { kind: 'http', status: r.status });
+      const posted = await r.json();
+
+      /* READ THE STORE BACK — but KV IS EVENTUALLY CONSISTENT and the read can
+       * lose the race with the write it is confirming. Measured 2026-08-19 on a
+       * cold KMB: POST 200, then GET /api/analysis 404 at +60ms and 200 at
+       * +839ms. The previous code re-read once, immediately, and reported
+       * "refresh failed: HTTP 404" after a SUCCESSFUL generation — throwing away
+       * a verdict that had already been paid for, and blaming the failure on the
+       * generation. A 404 on the read-back is a not-yet, not a no.
+       *
+       * The store copy is preferred because it is what every other surface will
+       * serve. The POST body is the same record and is the fallback, stamped
+       * with the envelope `ts` (the nested `analysis.ts` is null) and labelled,
+       * because "the store served this back" is a fact we would not have. */
+      let fresh = null;
+      for (const wait of [0, 400, 900, 1500]) {
+        if (wait) await new Promise(res => setTimeout(res, wait));
+        try { fresh = await apiFetch(`/analysis/${sym}`); break; }
+        catch (e) {
+          if (e.status !== 404) throw e;      // a real read failure, not the race
+        }
+      }
+      let storeConfirmed = true;
+      if (!fresh) {
+        storeConfirmed = false;
+        fresh = { ...(posted.analysis || {}), ts: posted.ts ?? null };
+        console.warn('[ticker] %s generated but the store had not served it back within 2.8s — '
+          + 'rendering the POST body; the store copy will win on the next read', sym);
+      }
+      fresh.__storeConfirmed = storeConfirmed;
+      fresh.__fetchedAt = Date.now();
+      if (tk.sym === sym) {
+        tk.data.analysis = fresh;
+        delete tk.errors.analysis;      // a prior 404 is now stale — the record exists
+      }
+      /* Propagate into the shared store so Names and the queue cannot disagree.
+       * Off-watchlist names have no batch row; for those, `/api/analysis` IS the
+       * store and the next read of it gets this record. */
+      if (state.stocks && state.stocks[sym]) {
+        const s = state.stocks[sym];
+        s.rating = fresh.rating ?? null;
+        s.confidence = fresh.confidence ?? null;
+        s.recommendation = verdictCall(fresh);
+        s.summary = fresh.summary ?? null;
+        s.drivers = verdictDrivers(fresh);
+        s.analysisTs = fresh.ts ?? null;
+        s.recRank = fresh.rating
+          ? (fresh.rating === 'BUY' ? 1 : fresh.rating === 'SELL' ? -1 : 0) * (fresh.confidence ?? 50)
+          : null;
+      }
+      console.log('[ticker] %s verdict generated (%s) · %s · ts %s · store %s', sym, reason,
+        fresh.rating, fresh.ts, storeConfirmed ? 'confirmed' : 'NOT yet serving it back');
+      paintAll();
+    } catch (e) {
+      if (tk.sym === sym) tk.errors.verdict = e;
+      console.warn('[ticker] %s verdict generation failed (%s) · %s · %s', sym, reason, e.kind, e.message);
+    } finally {
+      verdictJobs.delete(sym);
+      tk.busy.verdict = false;
+      if (tk.sym === sym) renderTicker();
+    }
+  })();
+
+  verdictJobs.set(sym, p);
+  return p;
+}
+
+/** The button. Always regenerates, replacing the day's record — newest wins for
+ *  the same trading day, the same revision rule the brief bank uses per slot. */
+function refreshVerdict(sym) {
+  if (verdictJobs.has(sym)) return;   // already working; the button reads "generating…"
+  generateVerdict(sym, 'button');
+}
+
+/* THE LOAD-TIME AUTO-FETCH — the one amendment to "nothing spends on load".
+ * It spends only when the store has no record for the CURRENT TRADING DAY, and
+ * only when we positively know that: a settled 404, or a record stamped another
+ * day. A network or 5xx failure on the analysis read leaves the state unknown,
+ * and spending on an unknown state is how a transient outage turns into a bill.
+ * That case renders the error and waits for the button. */
+function maybeAutoVerdict(sym) {
+  if (tk.sym !== sym) return;
+  if (verdictAutoTried.has(sym)) return;   // one attempt per ticker per page session
+  if (verdictJobs.has(sym)) return;        // a generation is already running for it
+  if (tk.loading.analysis) return;         // the store read has not settled yet
+
+  const err = tk.errors.analysis;
+  const rec = tk.data.analysis;
+  const settled404 = Boolean(err && err.status === 404);
+  const haveRecord = Boolean(rec && rec.rating);
+
+  if (err && !settled404) return;          // unknown state — never spend on it
+  if (haveRecord && verdictIsToday(rec)) return;   // today's record exists: render it, no spend
+  if (!settled404 && !haveRecord) return;  // nothing to act on
+
+  verdictAutoTried.add(sym);
+  console.log('[ticker] %s auto-generating verdict · %s', sym,
+    settled404 ? 'no stored record (404)' : `stored record is from ${ptPartsOf(rec.ts).iso}, not ${ptPartsOf(queueNow()).iso}`);
+  generateVerdict(sym, 'auto');
 }
 
 /* Button-triggered ONLY — this endpoint spends against the daily Claude ceiling
@@ -3238,37 +3401,87 @@ async function analyzeEarnings(sym) {
 
 function tkQuoteMod() { return tk.data.quote?.quoteSummary?.result?.[0] || null; }
 
+/* The button row renders in EVERY branch. It used to render only where a record
+ * already existed — so the "no verdict record" state told the reader to use
+ * “refresh verdict” while being the one state that did not draw the button. */
+function verdictButtonRow(sym) {
+  const busy = verdictJobs.has(sym) || tk.busy.verdict;
+  const err = tk.errors.verdict;
+  return `<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button class="btn spend" onclick="refreshVerdict('${esc(sym)}')" ${busy ? 'disabled' : ''}
+      title="${esc('POSTs /api/ai/synthesis — a gated Claude call against the daily ceiling. It replaces this trading day’s record for this ticker: newest wins for the same day. On success the shared store updates so Names and the queue move with it. The page also generates once on load when the store holds no record for the current trading day.')}">${
+      busy ? '⟳ generating…' : '↻ refresh verdict (spends)'}</button>
+    ${err ? `<span class="dn m10">generation failed: ${esc(err.message)}${
+      err.kind === 'network' ? ' — no HTTP response; a blocked CORS preflight looks like this' : ''}</span>` : ''}
+  </div>`;
+}
+
 function heroVerdict(sym) {
   const a = tk.data.analysis;
-  const inStore = state.stocks && state.stocks[sym];
-  if (tk.errors.analysis && tk.errors.analysis.status === 404) {
-    return `<div class="verdict-big none">no verdict record</div>
-      <div class="tk-call dim">${esc(inStore
-        ? 'The store holds no analysis record for this ticker.'
-        : sym + ' is not on the watchlist, so no nightly verdict is generated for it. Nothing is generated on load — use “refresh verdict” to spend one deliberately.')}</div>`;
+  const busy = verdictJobs.has(sym) || tk.busy.verdict;
+  const err404 = tk.errors.analysis && tk.errors.analysis.status === 404;
+  const haveRating = Boolean(a && a.rating);
+
+  /* GENERATING — a named state, like the brief timeline's. Never a blank, and
+   * never a placeholder verdict: there is no rating yet, so none is shown. */
+  if (busy && !haveRating) {
+    return `<div class="verdict-big none">generating…</div>
+      <div class="tk-call dim">${esc(`POST /api/ai/synthesis/${sym} is running. No record exists for `
+        + `${ptPartsOf(queueNow()).iso}, so one is being generated — the only load-time Claude spend on this page. `
+        + 'Nothing is shown in its place while it runs.')}</div>
+      ${verdictButtonRow(sym)}`;
   }
-  if (!a || !a.rating) {
+
+  if (!haveRating) {
+    /* The store read itself is still open. */
+    if (tk.loading.analysis) {
+      return `<div class="verdict-big none">loading…</div>
+        <div class="tk-call dim">reading the stored record</div>`;
+    }
+    const tried = verdictAutoTried.has(sym);
+    const gerr = tk.errors.verdict;
+    let why;
+    if (gerr) {
+      /* A REFUSED generation is a finding, not an absence — it names its own
+       * failure and the button is the retry, deliberately not an auto-retry. */
+      why = `The load-time generation failed (${gerr.kind || 'error'}: ${gerr.message}). `
+        + 'Nothing is retried automatically — a retry you did not ask for spends the daily ceiling '
+        + 'on a call that already failed. Use the button.';
+    } else if (err404) {
+      why = tried
+        ? `The store holds no record for ${sym} and the load-time generation did not produce one.`
+        : `The store holds no record for ${sym} (GET /api/analysis 404). One is generated on load `
+          + 'when the current trading day has no record.';
+    } else if (tk.errors.analysis) {
+      why = `GET /api/analysis failed (${tk.errors.analysis.kind}: ${tk.errors.analysis.message}). `
+        + 'Nothing is generated from an unknown state — a transient read failure must not be able to spend.';
+    } else {
+      why = 'GET /api/analysis returned no rating for this ticker.';
+    }
     return `<div class="verdict-big none">no verdict record</div>
-      <div class="tk-call dim">${esc(tk.loading.analysis ? 'loading…'
-        : 'GET /api/analysis returned no rating for this ticker. No verdict is generated on load — that would both spend a gated Claude call and let this page disagree with Names.')}</div>`;
+      <div class="tk-call dim">${esc(why)}</div>
+      ${verdictButtonRow(sym)}`;
   }
+
   const cls = a.rating === 'BUY' ? 'buy' : a.rating === 'SELL' ? 'sell' : 'hold';
   const conf = confLabel(a.confidence);
   const age = isNum(a.ts) ? Date.now() - a.ts : null;
   const aged = age != null && age > VERDICT_FRESH_MS;
+  const call = verdictCall(a);
+  /* A record from a PREVIOUS trading day is a real record and renders — but the
+   * design contract is one record per ticker per trading day, so which day it is
+   * is part of the reading, not a footnote. */
+  const notToday = isNum(a.ts) && a.ts > 0 && !verdictIsToday(a);
   return `<div class="verdict-big ${cls}">${esc(a.rating)}</div>
     <div class="m11" style="margin-top:5px">${conf
       ? `<span title="${esc(`model confidence, ordinal — the payload carries a self-reported ${a.confidence} and a self-reported percentage has no calibration behind it`)}">${esc(conf)} confidence</span>`
       : '<span class="dim">confidence not published</span>'}</div>
-    <div class="tk-call">${a.recommendation ? esc(a.recommendation) : '<span class="dim">the record carries a rating but no one-line call</span>'}</div>
+    <div class="tk-call">${call ? esc(call) : '<span class="dim">the record carries a rating but no one-line call under either field name (recommendation / action)</span>'}</div>
     <div class="rasof${aged ? ' aged' : ''}" style="margin-top:8px" ${isNum(a.ts) ? `data-ts="${a.ts}"` : ''}>${
       isNum(a.ts) ? verdictAsOfHtml(a.ts) : '<span class="dim">as-of not published</span>'}</div>
-    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button class="btn spend" onclick="refreshVerdict('${esc(sym)}')" ${tk.busy.verdict ? 'disabled' : ''}
-        title="${esc('POSTs /api/ai/synthesis — a gated Claude call against the daily ceiling. Deliberate and click-only; nothing on this page spends on load. On success the shared store updates so Names and the queue move with it.')}">${
-        tk.busy.verdict ? 'refreshing…' : '↻ refresh verdict (spends)'}</button>
-      ${tk.errors.verdict ? `<span class="dn m10">refresh failed: ${esc(tk.errors.verdict.message)}</span>` : ''}
-    </div>`;
+    ${notToday ? `<div class="m10 amb" style="margin-top:5px" title="${esc('design contract #3: one ticker = one verdict record per trading day. This record predates the current trading day; the button regenerates it.')}">record is from ${esc(ptPartsOf(a.ts).iso)}, not ${esc(ptPartsOf(queueNow()).iso)}</div>` : ''}
+    ${a.__storeConfirmed === false ? `<div class="m10 amb" style="margin-top:5px" title="${esc('The generation succeeded and this is the record it returned, but GET /api/analysis had not served it back within 2.8s — KV is eventually consistent. The stored copy wins on the next read; this is not a different verdict, only one whose store round-trip is unconfirmed.')}">generated · store round-trip not yet confirmed</div>` : ''}
+    ${verdictButtonRow(sym)}`;
 }
 
 /* The ladder renders ONLY levels the data actually carries, each labelled with

@@ -43,6 +43,9 @@ site's Pages origin is present in the Worker's `ALLOWED_ORIGINS` — the entry i
 per-origin, so `https://ambermlysak.github.io` was already allowlisted from
 trading_dash and needed no change.
 
-**Nothing on any page spends a Claude call on load.** The two paths that can
-(`refresh verdict` and `Analyze earnings`, both on the ticker page) are
-click-only and labelled as spending.
+**Nothing on any page spends a Claude call on load, with one exception:** the
+ticker page generates a verdict when the store holds no record for the current
+trading day. It attempts that at most once per ticker per page session, never
+retries a failure automatically, and never spends when the store read itself
+failed. `refresh verdict` (which always regenerates) and `Analyze earnings` stay
+click-only and are labelled as spending.
