@@ -196,6 +196,13 @@ h2.sec .right { margin-left: auto; text-transform: none; letter-spacing: 0.03em;
 .qcut .toggle { font-family: var(--mono); font-size: 10.5px; color: var(--cyan); cursor: pointer; }
 .qcut .list { display: none; margin-top: 7px; }
 .qcut.open .list { display: flex; gap: 6px; flex-wrap: wrap; }
+/* A cut chip expands IN PLACE into the same full card the queue renders: it
+ * takes the whole row of the wrapping flex line, so the surrounding chips keep
+ * their order rather than reflowing around it. */
+.qcut .list .c { font-family: var(--mono); font-size: 10px; background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: 4px; padding: 3px 7px; cursor: pointer; color: var(--ink-1); }
+.qcut .list .c:hover { border-color: var(--cyan); color: var(--cyan); }
+.qcut .list .qcard.cutcard { flex: 0 0 100%; margin: 2px 0; }
 
 /* ── chip strips (levels / movers / calendar / sectors) ── */
 .strip { display: flex; gap: 7px; flex-wrap: wrap; }
@@ -633,7 +640,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
            onkeydown="if(event.key==='Enter'){const v=this.value.trim().toUpperCase(); if(/^[A-Z][A-Z.\-]{0,9}$/.test(v)){location.hash='#ticker/'+v; this.value='';}}" />
     <span id="clock"></span>
     <a href="./probe.html" title="the CORS canary — proves the Worker round-trip independently of this app">probe</a>
-    <span id="build-tag">names-p9-2</span>
+    <span id="build-tag">queue-p10-1</span>
   </div>
 </header>
 
@@ -2363,37 +2370,68 @@ function buildQueue() {
         : `${row.rating} verdict within ${Math.abs(row.levelPct).toFixed(1)}% of its ${row.levelKind}`;
     }
 
-    /* c. conviction fill. HOLDs (|recRank| 0) rank behind every conviction
-     * call; a name with no record at all cannot be ranked and stays out, with
-     * the reason in the table. */
-    if (row.tier == null && row.recRank != null) {
+    /* c. conviction fill — CONVICTION ONLY (amended 2026-08-20).
+     * A HOLD is a verdict, not an action: recRank 0 gets NO tier and is never a
+     * queue candidate on verdict grounds. It renders in the scored table with
+     * its own reason, beside the no-record names — a different reason, because
+     * "the model published HOLD" and "no record exists" are different facts.
+     * Tiers 1–2 above are CLOCK-driven, not verdict-driven, so a HOLD-rated
+     * name that reports earnings still cards: the deadline is a fact of the
+     * calendar and does not depend on the rating. Tiers 3–4 already required
+     * `actionable`, so this closes the last verdict-driven HOLD path.
+     * Trigger: 2026-08-20, AAPL (HOLD, recRank 0) held a card while NVDA
+     * (BUY, 73) sat in the cut list. See CLAUDE.md → queue clock facts. */
+    if (row.tier == null && row.recRank != null && row.recRank !== 0) {
       row.tier = 5; row.kind = 'fill';
-      row.why = row.recRank === 0 ? 'HOLD — fills only an otherwise-empty slot' : `${row.rating} conviction fill`;
+      row.why = `${row.rating} conviction fill`;
     }
-    if (row.tier == null) row.why = 'no verdict record — cannot be ranked';
+    if (row.tier == null) {
+      row.why = row.recRank === 0
+        ? 'HOLD — not actionable'
+        : 'no verdict record — cannot be ranked';
+    }
     scored.push(row);
   }
 
-  /* Ranking: tier, then (tier 5 only) prefer a name whose long row carries a
-   * best structure, then |recRank| desc, then |levelPct| asc. */
+  /* Ranking: tier, then |recRank| desc, then (tier 5 only) a loaded structure
+   * as a TIEBREAK, then |levelPct| asc.
+   *
+   * ORDER MATTERS AND IS LOAD-BEARING (amended 2026-08-20). `hasStructure` used
+   * to sort BEFORE |recRank| inside tier 5, which made queue membership a
+   * function of WHICH OPTIONS ROWS HAPPENED TO BE LOADED: `state.longRows` is
+   * populated by expanding a row on the Options tab, so on 2026-08-20 exactly
+   * one name (AAPL) carried a structure and it took the last slot ahead of four
+   * BUYs ranked 62–74. Conviction is the verdict; a loaded long row is a cache
+   * state. The verdict must never rank behind the cache. */
   scored.sort((a, b) => {
     const at = a.tier ?? 9, bt = b.tier ?? 9;
     if (at !== bt) return at - bt;
-    if (at === 5 && a.hasStructure !== b.hasStructure) return a.hasStructure ? -1 : 1;
     const ar = a.recRank == null ? -1 : Math.abs(a.recRank);
     const br = b.recRank == null ? -1 : Math.abs(b.recRank);
     if (ar !== br) return br - ar;
+    if (at === 5 && a.hasStructure !== b.hasStructure) return a.hasStructure ? -1 : 1;
     const al = a.levelPct == null ? Infinity : Math.abs(a.levelPct);
     const bl = b.levelPct == null ? Infinity : Math.abs(b.levelPct);
     if (al !== bl) return al - bl;
     return a.sym.localeCompare(b.sym);
   });
 
+  /* THE CAP IS TIER-AWARE (amended 2026-08-20). Tiers 1–4 are the things with a
+   * clock or a level behind them — a deadline today, a reaction day, a price at
+   * or near its level. Every one of them renders as a full card, UNCAPPED: a
+   * real deadline must not be evicted by an arithmetic limit. Tier-5 conviction
+   * fills only TOP UP the queue to QUEUE_CAP total, so when tiers 1–4 already
+   * number QUEUE_CAP or more, zero fills render. An empty queue on a quiet day
+   * is honest information and is rendered as such — never padded. */
   const candidates = scored.filter(r => r.tier != null);
+  const core     = candidates.filter(r => r.tier <= 4);
+  const fillPool = candidates.filter(r => r.tier === 5);
+  const fills    = fillPool.slice(0, Math.max(0, QUEUE_CAP - core.length));
+  const selected = core.concat(fills);
   return {
     ms, pt, phase, todayIso, nextIso, scored, candidates,
-    selected: candidates.slice(0, QUEUE_CAP),
-    cut: candidates.slice(QUEUE_CAP),
+    core, fillPool, fills, selected,
+    cut: fillPool.slice(fills.length),
   };
 }
 
@@ -2443,7 +2481,14 @@ function queueStateChip(row, q) {
   return { label: 'INTACT', cls: 'plan', tip: priceTip };
 }
 
-function queueCard(row, q) {
+/* `opts.cut` renders this row as an expanded CUT chip rather than a queue card:
+ * same renderer, same provenance, same sub-lines, same as-ofs — the only
+ * differences are that it opens already showing its provenance (the chip was
+ * clicked to SEE that) and that clicking it collapses back to the chip instead
+ * of toggling the provenance line. Open state comes from `state`, never from a
+ * class on the node, because renderQueue() replaces this subtree wholesale on
+ * the 30-second staleness cycle. */
+function queueCard(row, q, opts = {}) {
   const s = state.stocks[row.sym];
   const act = row.kind === 'decide' ? { t: 'DECIDE', c: 'w' }
             : row.kind === 'react' ? { t: 'REACT', c: 'w' }
@@ -2502,10 +2547,13 @@ function queueCard(row, q) {
     `level: watchlist batch, fetched ${esc(fmtClock(state.fetchedAt))}${state.meta?.delayed ? ' (source 15-min delayed)' : ''}`,
     row.earnIso ? `earnings: ${esc(row.earnIso)} · session ${esc(String(row.sess ?? 'field-absent'))}${row.isEstimate === true ? ' · flagged estimate' : ''} (earningsTs ${esc(s.earningsTs || 'n/p')})` : null,
     row.best ? `structure: /api/long/batch row${state.longMeta?.asOf ? `, as of ${esc(state.longMeta.asOf)}` : ''}` : null,
-    'click to collapse',
+    opts.cut ? 'below the fill cap — click to collapse back to its chip' : 'click to collapse',
   ].filter(Boolean).join(' · ');
 
-  return `<div class="qcard ${edge}" onclick="this.classList.toggle('open')">
+  const isOpen = opts.cut || state.queueOpenSyms.includes(row.sym);
+  const onclick = opts.cut ? `toggleCutCard('${esc(row.sym)}')` : `toggleQueueCard('${esc(row.sym)}')`;
+
+  return `<div class="qcard ${edge}${isOpen ? ' open' : ''}${opts.cut ? ' cutcard' : ''}" onclick="${onclick}">
     <div class="qtop">
       <a class="qtick" href="#ticker/${encodeURIComponent(row.sym)}"
          onclick="event.stopPropagation()"
@@ -2539,23 +2587,65 @@ function renderQueue() {
     <span class="phasewhy" title="${esc('Derived from PT wall-clock: before 06:30 = morning, 06:30–13:00 = intraday, after 13:00 or a weekend = post-close. NYSE holidays are NOT modelled on this page — a market holiday reads as a weekday. The holiday table lives in the Worker and is not published on any endpoint fetched here.')}">
       ${esc(PHASE_TEXT[q.phase])} · PT ${esc(dowLabel(q.todayIso))} ${String(Math.floor(q.pt.minutes / 60)).padStart(2, '0')}:${String(q.pt.minutes % 60).padStart(2, '0')} · holidays not modelled</span>`;
 
-  count.textContent = `· showing ${q.selected.length} of ${q.candidates.length} candidates`;
+  count.textContent = `· ${q.core.length} tier 1–4 (uncapped) + ${q.fills.length} of ${q.fillPool.length} conviction fill${
+    q.fillPool.length === 1 ? '' : 's'}`;
 
-  el.innerHTML = `<div class="queue">${q.selected.map(r => queueCard(r, q)).join('')}</div>`
-    + (q.cut.length ? `<div class="qcut" id="qcut">
-        <span class="toggle" onclick="document.getElementById('qcut').classList.toggle('open')">${q.cut.length} cut by the cap — show ▸</span>
-        <div class="list">${q.cut.map(r =>
-          `<span class="c" style="font-family:var(--mono);font-size:10px;background:var(--bg-2);border:1px solid var(--line);border-radius:4px;padding:3px 7px" title="${esc(row_cut_tip(r))}">${esc(r.sym)} · t${r.tier}${r.recRank != null ? ' · ' + r.recRank : ''}</span>`).join('')}</div>
+  /* An empty queue is a FINDING, not a gap to pad (amended 2026-08-20). The
+   * former behaviour let a HOLD fill the slot; nothing does now, so the quiet
+   * day has to say what it looked at. */
+  const body = q.selected.length
+    ? `<div class="queue">${q.selected.map(r => queueCard(r, q)).join('')}</div>`
+    : `<div class="empty-state">No actionable card right now: no name carries an earnings deadline today or next
+        session, none is within ${AT_LEVEL_PCT}% of its key level, and no BUY or SELL verdict is on file to fill.
+        ${q.scored.length} name${q.scored.length === 1 ? '' : 's'} scored — an empty queue on a quiet day is the
+        answer, not a missing module.</div>`;
+
+  el.innerHTML = body
+    + (q.cut.length ? `<div class="qcut${state.queueCutOpen ? ' open' : ''}" id="qcut">
+        <span class="toggle" onclick="toggleQueueCut()" title="${esc(
+          'Conviction fills below the ' + QUEUE_CAP + '-card cap. Click any chip to expand it into the same full card the queue renders, with its own provenance and as-ofs.')
+        }">${q.cut.length} conviction fill${q.cut.length === 1 ? '' : 's'} below the cap — ${
+          state.queueCutOpen ? 'hide ▾' : 'show ▸'}</span>
+        <div class="list">${q.cut.map(r => state.queueCutSyms.includes(r.sym)
+          ? queueCard(r, q, { cut: true })
+          : `<span class="c" onclick="toggleCutCard('${esc(r.sym)}')" title="${
+              esc(row_cut_tip(r) + ' — click to expand into its full card')}">${esc(r.sym)} · t${r.tier}${
+              r.recRank != null ? ' · ' + r.recRank : ''}</span>`).join('')}</div>
       </div>` : '');
 
   const note = document.getElementById('queue-note');
-  const unranked = q.scored.filter(r => r.tier == null);
+  /* HOLDs and no-record names are BOTH unranked and are NOT the same state:
+   * one has a verdict that is not an action, the other has no verdict at all.
+   * Printing them under one label would be one quantity under another's. */
+  const holds    = q.scored.filter(r => r.tier == null && r.recRank === 0);
+  const noRecord = q.scored.filter(r => r.tier == null && r.recRank == null);
   note.innerHTML = `next trading day from ${esc(q.todayIso)} is <b>${esc(dowLabel(q.nextIso))}</b> (weekday rule — holidays not modelled) · `
-    + `cap ${QUEUE_CAP} · tiers: deadline-today → reaction-day → at/through level → within 3% → conviction fill`
-    + (unranked.length ? ` · ${unranked.length} name${unranked.length === 1 ? '' : 's'} unranked (${unranked.map(r => esc(r.sym)).join(', ')}: no verdict record)` : '');
+    + `tiers 1–4 (deadline-today → reaction-day → at/through level → within ${AT_LEVEL_PCT}%) render uncapped; `
+    + `tier-5 conviction fills top the queue up to ${QUEUE_CAP} cards total`
+    + (holds.length ? ` · ${holds.length} HOLD${holds.length === 1 ? '' : 's'} not actionable, so unranked (${holds.map(r => esc(r.sym)).join(', ')})` : '')
+    + (noRecord.length ? ` · ${noRecord.length} name${noRecord.length === 1 ? '' : 's'} unranked (${noRecord.map(r => esc(r.sym)).join(', ')}: no verdict record)` : '');
 }
 function row_cut_tip(r) {
   return `tier ${r.tier} (${TIER_LABELS[r.tier]}) · ${r.why}`;
+}
+
+/* -- queue expansion state -------------------------------------------------
+ * All of it lives in `state`, NOT as classes on DOM. renderQueue() rebuilds its
+ * whole subtree with innerHTML every 30 seconds (the staleness cycle) and on
+ * every renderToday(); measured 2026-08-20, the rebuilt node is not the same
+ * node — `sameNode=false` — so a class set by a click is destroyed, not merely
+ * declassed. These flags outlive the render and persist until the user
+ * collapses them. No timer is involved, and none may be added. */
+function toggleQueueCut() { state.queueCutOpen = !state.queueCutOpen; renderQueue(); }
+function toggleCutCard(sym) {
+  const i = state.queueCutSyms.indexOf(sym);
+  if (i >= 0) state.queueCutSyms.splice(i, 1); else state.queueCutSyms.push(sym);
+  renderQueue();
+}
+function toggleQueueCard(sym) {
+  const i = state.queueOpenSyms.indexOf(sym);
+  if (i >= 0) state.queueOpenSyms.splice(i, 1); else state.queueOpenSyms.push(sym);
+  renderQueue();
 }
 
 function renderToday() {
@@ -4339,6 +4429,13 @@ const state = {
   daily: null, dailyMeta: null, dailyFetchedAt: null,
   sectors: null, sectorsMeta: null, sectorsFetchedAt: null,
   openSector: null,
+  /* Queue expansion state. It lives here rather than as classes on the DOM
+   * because renderQueue() replaces its whole subtree via innerHTML on the
+   * 30-second staleness cycle, which silently collapsed every open cut list and
+   * every open card seconds after a click. See toggleQueueCut() et al. */
+  queueCutOpen: false,   // the cut list itself
+  queueCutSyms: [],      // cut chips expanded into full cards
+  queueOpenSyms: [],     // queue cards showing their provenance line
   errors: {},   // per-module failure, so one dead endpoint cannot blank the tab
 };
 

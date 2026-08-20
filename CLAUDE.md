@@ -291,6 +291,46 @@ least once:
   unknowable here. State chips render the CURRENT price↔level relationship
   with its as-of (AT/THROUGH · APPROACHING · INTACT). The mockup's
   "TRIGGERED 10:42" is fiction this page refuses to produce.
+- **HOLDs are never queue candidates on verdict grounds** (amended 2026-08-20).
+  A HOLD is a verdict, not an action. `recRank === 0` gets NO tier and renders in
+  the scored table with its own reason, `HOLD — not actionable`, listed in the
+  footnote separately from the no-record names — "the model published HOLD" and
+  "no record exists" are different facts and must not share a label. The ONE
+  exception is deliberate: **tiers 1–2 are clock-driven, not verdict-driven**, so
+  a HOLD-rated name reporting earnings still cards, because the deadline is a
+  fact of the calendar and does not depend on the rating. The old
+  `'HOLD — fills only an otherwise-empty slot'` why-string described a rule NO
+  CODE ENFORCED and rendered on a card sitting beside five others: a provenance
+  line asserting a false claim about our own derivation. It is deleted.
+- **Tier-5 order is |recRank| FIRST; a loaded structure is a tiebreak only**
+  (amended 2026-08-20). `hasStructure` used to sort ahead of `|recRank|` inside
+  tier 5. `state.longRows` is populated by expanding a row on the Options tab,
+  so that made **queue membership a function of which Options rows happened to
+  be loaded**. Measured on live Pages 2026-08-20: `longRows` held exactly one
+  symbol, AAPL (HOLD, recRank 0), and it took the last slot ahead of MU (74),
+  NVDA (73), TSM (72) and AMZN (72), all `hasStructure: false`. Conviction is the
+  verdict; a loaded long row is a cache state, and **the verdict must never rank
+  behind the cache**. Neither membership nor order may depend on a load state.
+- **The cap is TIER-AWARE** (amended 2026-08-20). Tiers 1–4 always render as
+  full cards, uncapped — an arithmetic limit must not evict a real deadline.
+  Tier-5 conviction fills only top the queue up to `QUEUE_CAP` (6) total; when
+  tiers 1–4 already number ≥6, zero fills render. `buildQueue()` returns
+  `core` / `fillPool` / `fills` alongside `selected` and `cut` so the split is
+  checkable. **An empty queue renders a stated finding naming what it looked
+  at**, never a blank and never a padded slot: a quiet day is the answer.
+- **Queue expansion state lives in `state`, NEVER as a class on the DOM.**
+  `renderQueue()` rebuilds its whole subtree with `innerHTML` on the 30-second
+  staleness cycle and on every `renderToday()`. Measured 2026-08-20: after
+  reopening, `before === after` is **false** — the node is destroyed, not merely
+  declassed — so `classList.toggle('open')` on `#qcut` or on a `.qcard` was wiped
+  seconds after the click. `state.queueCutOpen` / `queueCutSyms` /
+  `queueOpenSyms` outlive the render and persist until the user collapses them.
+  **No timer is involved and none may be added** — re-rendering less often would
+  hide the bug rather than fix it, and the 30-second re-derive is what keeps the
+  queue's clock-driven states honest. Cut chips are clickable and expand IN
+  PLACE through the same `queueCard()` renderer (`opts.cut`), so an expanded chip
+  carries identical provenance, sub-lines and as-ofs to a queue card — there is
+  no second card renderer and no sub-queue.
 
 ## Session-brief facts (phase 8)
 
@@ -407,7 +447,8 @@ Status is never conveyed by color alone.
 | 7 | **Diversify** — `/api/income/*`, categorized sleeves, no verdicts | `f832412` |
 | 8 | **Session-brief stack** — all slots published for the current trading day, stacked with per-slot as-of; per-slot bank against the Worker's whole-payload rewrite | `504d1bb` |
 | 9 | **Ticker verdict auto-fetch + refresh button in every branch; two record shapes normalised; WCAG AA ink palette** | `ecc8086` |
-| fix | **Names column shift** — phase 7's `trendCell` shadowed phase 1's; renamed to `divTrendCell`. Names lost its Trend `<td>`, spilling 39 spans above the table and shifting every later column left | this commit |
+| fix | **Names column shift** — phase 7's `trendCell` shadowed phase 1's; renamed to `divTrendCell`. Names lost its Trend `<td>`, spilling 39 spans above the table and shifting every later column left | `b5d7f7b` |
+| 10 | **Queue amendments** — HOLDs excluded on verdict grounds, tier-aware cap (1–4 uncapped, tier-5 fills to 6), tier-5 ordered by \|recRank\| with structure as a tiebreak, clickable cut chips expanding through `queueCard()`, expansion state moved into `state` so the 30-second re-render preserves it | this commit |
 
 Doc-sync commits: `557329e` (phase-1 payload facts), `e626a64` (phase-5 payload
 facts).
