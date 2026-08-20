@@ -364,13 +364,17 @@ These are stated, not fixed. Each is a real limit of the built surfaces.
    how much is held. Every "coverage" figure is a count for this reason.
 6. **Radar's universe is the Yahoo screeners, not the S&P 500 + Nasdaq 100 sweep**
    originally specified (design contract #5). Same gates, different population.
-7. **The session-brief bank is per browser profile** (phase 8). It can only hold
-   a slot this browser actually received. If the Worker rewrites `/daily` and
-   drops the 11:30 pulse before you ever load the page that day, that pulse is
-   gone for good on this surface — nothing client-side can recover it. The real
-   fix is making the Worker merge rather than replace, which is a trading_dash
-   task. The stack degrades correctly (the slot reads `missing`, not blank), but
-   it degrades.
+7. **The session-brief bank is per browser profile AND per ORIGIN** (phase 8).
+   `localhost:8123` and `ambermlysak.github.io` keep separate banks, so a slot
+   banked while testing locally is not there on the live site — measured
+   2026-08-19: the local copy held the 11:31 midday and rendered it `held
+   locally`; the live site, which never saw that payload, correctly rendered
+   `missing`. More generally the bank can only hold a slot this browser actually
+   received: if the Worker rewrites `/daily` and drops the 11:30 pulse before you
+   load the page that day, that pulse is gone for good on this surface and
+   nothing client-side can recover it. The real fix is making the Worker merge
+   rather than replace, which is a trading_dash task. The stack degrades
+   correctly (the slot reads `missing`, not blank), but it degrades.
 8. **`?clock=` cannot exercise the bank's WRITE path** (phase 8), by design — a
    test clock that could write would be able to corrupt real state. The write
    path is therefore verified on the real clock with recorded payloads, and the
