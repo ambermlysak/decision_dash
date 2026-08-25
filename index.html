@@ -331,6 +331,67 @@ h2.sec .right { margin-left: auto; text-transform: none; letter-spacing: 0.03em;
 .opt-toolbar button:hover { border-color: var(--cyan); }
 .opt-toolbar button:disabled { opacity: 0.5; cursor: default; }
 .opt-progress { font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); }
+
+/* ── the daily top-3 options ranking (the `top3` rider on /api/long/batch) ── */
+.t3 { background: var(--bg-1); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+.t3h { display: flex; gap: 9px; align-items: baseline; flex-wrap: wrap; margin-bottom: 9px; }
+.t3h .ttl { font-family: var(--serif); font-style: italic; font-size: 15px; color: var(--ink-0); }
+.t3h .asof { font-family: var(--mono); font-size: 10px; color: var(--ink-2); }
+.t3h .asof.dim { color: var(--ink-3); }
+.t3list { display: flex; flex-direction: column; gap: 7px; }
+.t3e {
+  background: var(--bg-2); border: 1px solid var(--line); border-left: 3px solid var(--cyan);
+  border-radius: 8px; padding: 9px 12px; cursor: pointer;
+}
+.t3e:hover { border-color: var(--cyan); }
+.t3top { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.t3rank {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; color: var(--ink-2);
+  border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px;
+}
+.t3e .tk {
+  font-family: var(--mono); font-weight: 600; font-size: 13.5px; color: var(--cyan);
+  text-decoration: underline dotted; text-underline-offset: 3px;
+}
+.t3dir { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 4px; }
+.t3dir.call { background: var(--bull-soft); color: var(--bull); }
+.t3dir.put  { background: var(--bear-soft); color: var(--bear); }
+.t3c { font-family: var(--mono); font-size: 12px; color: var(--ink-0); font-weight: 500; }
+.t3sc {
+  margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--ink-1);
+  border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; cursor: pointer; white-space: nowrap;
+}
+.t3sc:hover { border-color: var(--cyan); color: var(--cyan); }
+.t3sc.dim { cursor: default; }
+.t3facts, .t3prov {
+  margin-top: 5px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-2);
+  display: flex; gap: 13px; flex-wrap: wrap;
+}
+.t3facts b { color: var(--ink-1); font-weight: 500; }
+.t3prov { font-size: 9.5px; color: var(--ink-3); }
+.t3break { margin-top: 8px; border-top: 1px solid var(--line-soft); padding-top: 7px; overflow-x: auto; }
+.t3break table { border-collapse: collapse; font-family: var(--mono); font-size: 10px; }
+.t3break th { text-align: left; color: var(--ink-3); font-weight: 400; padding: 2px 12px 4px 0; white-space: nowrap; }
+.t3break td { color: var(--ink-1); padding: 3px 12px 3px 0; white-space: nowrap; border-top: 1px solid var(--line-soft); }
+.t3break td.pts { color: var(--ink-0); }
+.t3break .f { color: var(--ink-3); font-family: var(--mono); font-size: 9.5px; line-height: 1.7; margin-bottom: 6px; }
+.t3pool { margin-top: 9px; font-family: var(--mono); font-size: 10px; color: var(--ink-3); line-height: 1.8; }
+.t3pool b { color: var(--ink-2); font-weight: 500; }
+.t3pool .toggle { color: var(--cyan); cursor: pointer; }
+.t3excl {
+  margin-top: 6px; display: flex; flex-direction: column; gap: 3px;
+  font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); line-height: 1.6;
+}
+.t3excl b { color: var(--ink-2); font-weight: 500; }
+/* The queue's one informational line. Deliberately NOT a `.qcard`: it fills no
+ * card slot, competes for none, and must not read like one. */
+.q3 {
+  margin-top: 8px; background: var(--bg-1); border: 1px dashed var(--line); border-radius: 8px;
+  padding: 8px 12px; font-family: var(--mono); font-size: 11px; color: var(--ink-2); cursor: pointer;
+}
+.q3:hover { border-color: var(--cyan); }
+.q3 b { color: var(--ink-0); font-weight: 500; }
+.q3 .note { color: var(--ink-3); font-size: 9.5px; }
 .volc.mid { background: var(--bg-2); color: var(--ink-1); border: 1px solid var(--line); } /* tri-state null: NEUTRAL, not dim */
 .optrow td { vertical-align: middle; }
 .optrow.dimrow > td { opacity: 0.72; }
@@ -713,6 +774,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
       <span class="qm" onclick="document.getElementById('opt-modal').classList.add('show')" title="methodology — every word of legend lives here, none above the data">?</span>
       <span class="right badges" id="opt-badges"></span></h2>
     <div id="opt-macro"></div>
+    <div id="opt-top3"></div>
     <div id="opt-toolbar"></div>
     <div id="opt-body"><div class="statusbox"><div class="loading">waiting for the shared long batch…</div></div></div>
     <div class="footnote" id="opt-notes"></div>
@@ -778,6 +840,23 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
     <p><b>The directional tag</b> (aligned/counter/out-of-horizon) is informational only — the
       rating measured a negative edge and reorders nothing here. "no tag" (lane doesn't take one)
       and "no read" (the rating store held nothing) are different states.</p>
+    <h3 style="margin-top:18px">The daily top-3 ranking</h3>
+    <p><b>What the score is.</b> A weighted composite of six components, each clipped to [0,1] and each
+      measured against a <b>fixed anchor</b> — not a percentile of the day's pool. A percentile would make
+      today's score incomparable with yesterday's and would guarantee a top 3 exists however bad the day's
+      candidates are. The score is <b>decomposable</b>: every entry ships each component's raw input, its
+      anchor, the clipped component, its weight and the points it contributed, and the strip renders all of
+      them — click the score to open the table. No score renders as a bare number.</p>
+    <p><b>Why E[$] and not E[R].</b> E[R] is held to expiry and an <i>uncapped</i> long is scored only as far
+      as the largest observed move, while a vertical is <i>capped by construction</i> — the candidate's own
+      truncation note says so. That makes E[R] incomparable across capped and uncapped structures on one
+      axis, and the ranking mixes both lanes, so the blend carries <b>E[$] per contract</b> instead. E[R]
+      stays on the record and renders in the breakdown, labelled as not scored.</p>
+    <p><b>A missing input EXCLUDES; it never scores zero.</b> Any score input that is absent or non-numeric
+      drops the candidate with the field named. Same for the concentration gate: a missing episode count
+      fails it rather than passing it. A null pushed through the arithmetic would become a fabricated
+      measurement.</p>
+    <div id="opt-modal-top3"></div>
     <p class="m10" style="color:var(--ink-3)">esc or click outside to close</p>
   </div>
 </div>
@@ -802,6 +881,14 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
      - model confidence is ordinal. The payload carries a percentage; a
        percentage is not what the model actually knows.
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/* BUILD ID. GitHub Pages serves the last pushed commit and the browser caches
+ * aggressively, so "the edit is live" and "the browser is running the edit" are
+ * different questions. `window.DD_BUILD` answers the second from the console:
+ * curl can confirm the bytes on the wire, only the page itself can confirm the
+ * bundle actually executing. Bumped by hand with each shipped phase. */
+const DD_BUILD = 'phase-11-top3-strip';
+window.DD_BUILD = DD_BUILD;
 
 const API_BASE = 'https://stock-research-worker.ambermlysak.workers.dev/api';
 
@@ -2438,6 +2525,22 @@ function buildQueue() {
    * fills only TOP UP the queue to QUEUE_CAP total, so when tiers 1–4 already
    * number QUEUE_CAP or more, zero fills render. An empty queue on a quiet day
    * is honest information and is rendered as such — never padded. */
+  /* THE TOP-3 RIDER IS ONE INFORMATIONAL LINE, NOT A CARD AND NOT A TIER. It is
+   * verdict-driven, and the queue's tiers 1–4 are clock-driven — a deadline is a
+   * fact of the calendar and must never lose a slot to a ranking. So this takes
+   * part in NO selection arithmetic: it is computed here, beside the tiers, only
+   * so it stays a pure function of the shared store plus the clock, and it is
+   * rendered below the cards where it can displace nothing.
+   * It renders only for entries on the CURRENT trading day: a ranking keyed to
+   * another PT day is aged, and an aged ranking belongs on the Options strip
+   * with its as-of, not in a queue line that reads as today's news. */
+  const t3 = state.top3;
+  const t3Iso = top3RecordIso(t3);
+  const t3Entries = t3 && Array.isArray(t3.entries) ? t3.entries : null;
+  const top3Line = (t3Entries && t3Entries.length && t3Iso === todayIso)
+    ? { rec: t3, best: t3Entries[0], iso: t3Iso, n: t3Entries.length }
+    : null;
+
   const candidates = scored.filter(r => r.tier != null);
   const core     = candidates.filter(r => r.tier <= 4);
   const fillPool = candidates.filter(r => r.tier === 5);
@@ -2445,7 +2548,7 @@ function buildQueue() {
   const selected = core.concat(fills);
   return {
     ms, pt, phase, todayIso, nextIso, scored, candidates,
-    core, fillPool, fills, selected,
+    core, fillPool, fills, selected, top3Line,
     cut: fillPool.slice(fills.length),
   };
 }
@@ -2460,7 +2563,11 @@ function dumpQueueTable() {
     selected: q.selected.includes(r), why: r.why,
   }));
   console.table(rows);
-  return { phase: q.phase, todayIso: q.todayIso, nextIso: q.nextIso, rows };
+  console.log('[queue] top-3 line: %s', q.top3Line
+    ? `${q.top3Line.best.symbol} ${top3StructureLabel(q.top3Line.best)} score ${q.top3Line.best.score} `
+      + `(${q.top3Line.n} entries, PT ${q.top3Line.iso}) — informational, occupies no card slot`
+    : 'none (no top-3 entries for the current trading day)');
+  return { phase: q.phase, todayIso: q.todayIso, nextIso: q.nextIso, rows, top3Line: q.top3Line };
 }
 
 /* ── rendering ───────────────────────────────────────────────────────────── */
@@ -2616,6 +2723,7 @@ function renderQueue() {
         answer, not a missing module.</div>`;
 
   el.innerHTML = body
+    + queueTop3Line(q)
     + (q.cut.length ? `<div class="qcut${state.queueCutOpen ? ' open' : ''}" id="qcut">
         <span class="toggle" onclick="toggleQueueCut()" title="${esc(
           'Conviction fills below the ' + QUEUE_CAP + '-card cap. Click any chip to expand it into the same full card the queue renders, with its own provenance and as-ofs.')
@@ -2640,6 +2748,25 @@ function renderQueue() {
     + (holds.length ? ` · ${holds.length} HOLD${holds.length === 1 ? '' : 's'} not actionable, so unranked (${holds.map(r => esc(r.sym)).join(', ')})` : '')
     + (noRecord.length ? ` · ${noRecord.length} name${noRecord.length === 1 ? '' : 's'} unranked (${noRecord.map(r => esc(r.sym)).join(', ')}: no verdict record)` : '');
 }
+/* The top-3 rider's one line. It sits BELOW the cards and outside the selection
+ * entirely — no tier, no slot, nothing displaced — and says so on its face.
+ * Absent, null and stale records render nothing here: the Options strip is where
+ * every one of those states is named, and a queue line reporting the absence of
+ * an informational rider would be noise, not a finding. */
+function queueTop3Line(q) {
+  const t = q.top3Line;
+  if (!t) return '';
+  const e = t.best;
+  return `<div class="q3" onclick="location.hash='#options'"
+    title="${esc(`The daily top-3 options ranking published ${t.n} entr${t.n === 1 ? 'y' : 'ies'} for PT ${t.iso}`
+      + (isNum(t.rec.asOf) ? `, sweep completed ${fmtClockPt(t.rec.asOf)}` : '')
+      + '. Click: the Top plays strip on the Options tab, where the score decomposes and the pool counts render.')}">
+    Top options plays published — best: <b>${esc(e.symbol)}</b> <b>${esc(top3StructureLabel(e))}</b> · score <b>${
+      isNum(e.score) ? e.score : 'n/p'}</b>${t.n > 1 ? ` <span class="note">· ${t.n - 1} more</span>` : ''}
+    <span class="note">· informational, occupies no card slot — open the Options strip →</span>
+  </div>`;
+}
+
 function row_cut_tip(r) {
   return `tier ${r.tier} (${TIER_LABELS[r.tier]}) · ${r.why}`;
 }
@@ -2898,17 +3025,28 @@ function candRow8(L, c, idx) {
   </tr>${candDeepRow(L, c)}`;
 }
 
+/* GAP AND DRIFT ARE ADJACENT — the adjacency is the point: gap conflates how fat
+ * the tails were with which way the stock ran, and on a trending name the drift
+ * term dominates. Never separate them. ONE definition, called by the candidate
+ * deep row and by the top-3 strip, so the two cannot drift apart. `gap` is in
+ * percentage POINTS (coverage − pBe); `drift` is a fraction. */
+function gapDriftBit(c, w) {
+  const gap = c['gap' + w], drift = c['drift' + w];
+  if (!isNum(gap)) {
+    return `gap${w} <span class="dim" title="${esc(c.coverageReason || 'coverage refused, so no gap')}">—</span>`;
+  }
+  const d = isNum(drift) ? `${drift > 0 ? '+' : ''}${(drift * 100).toFixed(1)}%` : '—';
+  return `gap${w} <b>${gap > 0 ? '+' : ''}${gap.toFixed(1)}</b> pts (drift${w} <b>${d}</b>)`;
+}
+
 /* The deep row. GAP AND DRIFT ARE ADJACENT — the adjacency is the point: gap
  * conflates how fat the tails were with which way the stock ran, and on a
  * trending name the drift term dominates. Never separate them. */
 function candDeepRow(L, c) {
   const p1 = v => isNum(v) ? (v > 0 ? '+' : '') + (v * 100).toFixed(1) + '%' : '—';
   const bits = [];
-  const g = (gap, drift, w) => isNum(gap)
-    ? `gap${w} <b>${gap > 0 ? '+' : ''}${gap.toFixed(1)}</b> pts (drift${w} <b>${p1(drift)}</b>)`
-    : `gap${w} <span class="dim" title="${esc(c.coverageReason || 'coverage refused, so no gap')}">—</span>`;
-  bits.push(g(c.gap1y, c.drift1y, '1y'));
-  bits.push(g(c.gap3y, c.drift3y, '3y'));
+  bits.push(gapDriftBit(c, '1y'));
+  bits.push(gapDriftBit(c, '3y'));
   if (isNum(c.expectancyEpisodesTo50)) bits.push(`episodes-to-50%: <b>${c.expectancyEpisodesTo50}</b> of ${c.expectancyEpisodes ?? '—'}`);
   if (isNum(c.expectancySharpe)) bits.push(`Sharpe ${c.expectancySharpe.toFixed(2)}`);
   if (isNum(c.kellyQuarter)) bits.push(`¼-Kelly ${(c.kellyQuarter * 100).toFixed(1)}%`);
@@ -3092,6 +3230,450 @@ function optExpandedRow(row) {
   </td></tr>`;
 }
 
+/* ═══ DAILY TOP-3 OPTIONS RANKING ═══════════════════════════════════════════
+ *
+ * The `top3` rider on the /api/long/batch envelope — same pattern as `macro`:
+ * one KV record, read once, carried on a payload the page already fetches.
+ * Nothing here fetches, and nothing here derives a threshold: every gate,
+ * weight and anchor is read from the record's own `gates`, so a Worker-side
+ * change to the score cannot drift from what this screen claims about it.
+ *
+ * THREE ENVELOPE STATES, AND THEY ARE NOT INTERCHANGEABLE. The Worker's own
+ * readTop3() comment settles it: "An OLDER Worker omits the `top3` key
+ * entirely; this one sends `top3: null` — those are different states and the
+ * key's presence already distinguishes them."
+ *
+ *   key ABSENT          → the deployed Worker predates the rider. field-absent,
+ *                         which is honesty rule 9 and NOT "no plays today".
+ *   key present, NULL   → this Worker publishes the rider, but KV holds no
+ *                         `top3:{today PT}` record — the 1:15pm PT cron has not
+ *                         run yet today, or it refused before writing. The key
+ *                         is date-scoped, so before the cron and all weekend
+ *                         this is the EXPECTED state, not a fault.
+ *   key present, OBJECT → the record. `entries: []` inside it is a VALID
+ *                         published result: the gates ran and nothing survived.
+ *
+ * Expansion state lives in `state`, never as a class on the DOM: renderOptions()
+ * replaces this subtree with innerHTML on every row toggle and every paintAll().
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/** The PT trading day the record belongs to. `ptDate` is the key's own date and
+ *  is what the Worker named the record for; `asOf` (sweep completion) is the
+ *  fallback for a record that somehow carries no ptDate. */
+function top3RecordIso(rec) {
+  if (!rec) return null;
+  if (typeof rec.ptDate === 'string' && rec.ptDate) return rec.ptDate;
+  return isNum(rec.asOf) ? ptPartsOf(rec.asOf).iso : null;
+}
+
+/** The contract, through the SAME structureLabel() the queue cards and the
+ *  Options rows use. A top-3 entry is flat where a long row is lane-nested, so
+ *  the lane fields are shimmed back into the shape that function reads — one
+ *  label renderer on this page, never two that could drift apart. */
+function top3StructureLabel(e) {
+  return structureLabel({ L: { expiry: e.expiry, lane: e.lane }, c: e });
+}
+
+/* Direction carries a glyph AND the word: status is never conveyed by colour
+ * alone. The direction is not this screen's inference — the Worker admits
+ * CALL-type candidates only on a BUY verdict and PUT-type only on a SELL. */
+function top3Dir(e) {
+  const t = e.type === 'CALL' ? 'call' : e.type === 'PUT' ? 'put' : null;
+  if (!t) return `<span class="dim" title="${esc('the entry publishes no `type` — direction cannot be stated')}">direction n/p</span>`;
+  return `<span class="t3dir ${t}" title="${esc('candidate type ' + e.type
+    + ' — the ranking admits CALL-type candidates only on a BUY verdict and PUT-type only on a SELL (gates.directionRule)')}">${
+    t === 'call' ? '▲' : '▼'} ${esc(e.type)}</span>`;
+}
+
+/* Per-subscore display units. The record ships each component's raw input and
+ * its anchor; this map only says how to PRINT them, and every value is also
+ * carried unrounded in the title so nothing is lost to formatting. beEm's
+ * anchor is a SPAN inside an inverted term, not a threshold, so it is labelled
+ * as one rather than printed as if the component were a ratio to it. */
+const T3_SUB = {
+  probMarket:   { label: 'P(BE) · risk-neutral',  unit: 'pct' },
+  probMeasured: { label: 'min(cov 1y, cov 3y)',   unit: 'pct' },
+  sharpe:       { label: 'expectancy Sharpe',     unit: 'num' },
+  win:          { label: 'win rate',              unit: 'pct' },
+  beEm:         { label: 'BE/EM · inverted',      unit: 'x', anchorPrefix: 'span ' },
+  dollars:      { label: 'E[$] per contract',     unit: 'usd' },
+};
+const T3_ORDER = ['probMarket', 'probMeasured', 'sharpe', 'win', 'beEm', 'dollars'];
+
+function t3unit(v, unit) {
+  if (!isNum(v)) return '—';
+  if (unit === 'pct') return (v * 100).toFixed(1) + '%';
+  if (unit === 'x')   return v.toFixed(2) + '×';
+  if (unit === 'usd') return '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  return v.toFixed(2);
+}
+
+/* THE SCORE IS NEVER A BARE NUMBER. The cell prints it against the weight total
+ * the record declares, carries the six components in its title, and opens the
+ * full decomposition on click. `weightTotal` absent is its own state: the score
+ * is still the record's, but this page will not invent the denominator. */
+function top3ScoreCell(e, gates) {
+  const open = state.top3Open.includes(e.symbol);
+  const wt = isNum(gates?.weightTotal) ? gates.weightTotal : null;
+  if (!isNum(e.score)) {
+    return `<span class="t3sc dim" title="${esc('the entry publishes no `score`')}">score n/p</span>`;
+  }
+  const parts = T3_ORDER
+    .filter(k => e.subscores && e.subscores[k])
+    .map(k => `${T3_SUB[k].label} ${e.subscores[k].points} pt (w ${e.subscores[k].weight})`);
+  const tip = (wt
+    ? `score = 100 × Σ(weight × component) ÷ ${wt}. `
+    : 'the record publishes no weightTotal, so the denominator is not stated here. ')
+    + (parts.length ? parts.join(' · ') : 'the entry publishes no subscores object')
+    + '. Click to open the full decomposition.';
+  return `<span class="t3sc" onclick="event.stopPropagation();toggleTop3('${esc(e.symbol)}')"
+    title="${esc(tip)}">score <b>${e.score}</b>${wt ? ' / ' + wt : ''} ${open ? '▾' : '▸'}</span>`;
+}
+
+/* Every subscore visible with its weight — input, anchor, raw, the clipped
+ * component and the points it contributed, all verbatim from the record. The
+ * per-component note is the Worker's own and rides on the row's title. */
+function top3Breakdown(e, gates) {
+  const subs = e.subscores;
+  if (!subs || typeof subs !== 'object') {
+    return `<div class="t3break"><div class="f">This entry publishes no <code>subscores</code> object, so
+      the score cannot be decomposed here. It is left undecomposed rather than reconstructed from the other
+      fields — a rebuilt breakdown would look identical to the published one and would not be it.</div></div>`;
+  }
+  const keys = T3_ORDER.filter(k => subs[k]).concat(Object.keys(subs).filter(k => !T3_ORDER.includes(k)));
+  const rows = keys.map(k => {
+    const s = subs[k];
+    const cfg = T3_SUB[k] || { label: k, unit: 'num' };
+    return `<tr title="${esc(s.note || 'the record publishes no note for this component')}">
+      <td>${esc(cfg.label)}</td>
+      <td title="${esc('raw input ' + s.input)}">${esc(t3unit(s.input, cfg.unit))}</td>
+      <td title="${esc('anchor ' + s.anchor)}">${esc((cfg.anchorPrefix || '') + t3unit(s.anchor, cfg.unit))}</td>
+      <td>${isNum(s.raw) ? s.raw.toFixed(3) : '—'}</td>
+      <td>${isNum(s.component) ? s.component.toFixed(3) : '—'}${s.clipped
+        ? ` <span class="amb" title="${esc('raw ' + s.raw + ' fell outside [0,1] and was clipped to it — the raw value is on this row, not hidden by the clip')}">clipped</span>` : ''}</td>
+      <td>${esc(String(s.weight ?? '—'))}</td>
+      <td class="pts">${esc(String(s.points ?? '—'))}</td>
+    </tr>`;
+  }).join('');
+  const wt = isNum(gates?.weightTotal) ? gates.weightTotal : null;
+  const sum = `points <b>${esc(String(e.scorePoints ?? '—'))}</b>${wt ? ` of ${wt}` : ''} → score <b>${esc(String(e.score ?? '—'))}</b>`;
+  /* NOT SCORED, but on the record and worth naming: E[R] is deliberately not a
+   * score input, and the candidate's own truncation note says why. */
+  const er = isNum(e.expectancyMean)
+    ? `E[R] ${(e.expectancyMean * 100).toFixed(0)}%${e.upsideTruncated === true ? ' ↑ truncated' : ''} · median ${
+        isNum(e.expectancyMedian) ? (e.expectancyMedian * 100).toFixed(0) + '%' : '—'} · over ${
+        e.expectancyWindows ?? '—'} windows`
+    : 'E[R] not published on this entry';
+  return `<div class="t3break">
+    <div class="f">${esc(gates?.scoreFormula || 'the record publishes no scoreFormula string')}</div>
+    <table><thead><tr>
+      <th>component</th><th>input</th><th>anchor</th><th>raw</th><th>clipped to [0,1]</th><th>weight</th><th>points</th>
+    </tr></thead><tbody>${rows}</tbody></table>
+    <div class="f" style="margin:6px 0 0">${sum} · <span title="${esc(
+      'E[R] (expectancyMean) is on the record but is NOT a score input. Held to expiry, an uncapped long is scored only as '
+      + 'far as the largest observed move while a vertical is capped by construction, so the two are not comparable on one '
+      + 'axis — the blend carries E[$] instead. See the ? modal.')}">not scored: ${esc(er)}</span></div>
+  </div>`;
+}
+
+/* The load-bearing honesty facts, inline on every entry. P(BE)|cov goes through
+ * the SAME pcovCell() the candidate table uses (lanes B and C only here, so it
+ * always renders the long-lane reading, never Lane F's inverted one), and gap
+ * goes through the same gapDriftBit() — gap never renders without drift. */
+function top3Facts(e, gates) {
+  const bits = [];
+  bits.push(`<span>${isNum(e.breakeven)
+    ? `BE <b>${esc(fmt(e.breakeven))}</b>${isNum(e.bePct) ? ` · ${e.bePct.toFixed(1)}%` : ''}`
+    : absent('breakeven not published on this entry')}</span>`);
+  bits.push(`<span title="${esc('the breakeven distance measured in the expected move the chain is pricing')}">BE/EM ${
+    isNum(e.beEm) ? `<b>${e.beEm.toFixed(2)}×</b>` : absent('beEm not published on this entry')}</span>`);
+  bits.push(`<span style="white-space:nowrap">${pcovCell(e, e.lane)}</span>`);
+  bits.push(isNum(e.kellyQuarter)
+    ? `<span title="${esc('quarter-Kelly stake as a fraction of bankroll, from the historical window distribution — a sizing figure, not a recommendation')}">¼-Kelly <b>${(e.kellyQuarter * 100).toFixed(1)}%</b></span>`
+    : `<span class="dim" title="${esc('the entry publishes no kellyQuarter')}">¼-Kelly n/p</span>`);
+  const minEp = gates?.episodes?.minEpisodesTo50;
+  bits.push(isNum(e.expectancyEpisodesTo50)
+    ? `<span title="${esc('de-clustered market episodes supplying half the expected value, out of '
+        + (e.expectancyEpisodes ?? 'an unpublished total') + '. LOW IS THE WARNING: 1 means the expectancy rests on a single '
+        + 'market move rather than on a property of the trade.'
+        + (isNum(minEp) ? ` The gate floor is ${minEp}, and a MISSING count fails it — a missing input is not a pass.` : ''))}">episodes-to-50% <b>${
+        e.expectancyEpisodesTo50}</b> of ${e.expectancyEpisodes ?? '—'}</span>`
+    : `<span class="dim" title="${esc('the entry publishes no expectancyEpisodesTo50 — the gate treats a missing count as a failure, so an entry should not reach here without one')}">episodes-to-50% n/p</span>`);
+  bits.push(`<span>${gapDriftBit(e, '1y')}</span>`);
+  bits.push(`<span>${gapDriftBit(e, '3y')}</span>`);
+  bits.push(isNum(e.expectedDollars)
+    ? `<span title="${esc('mean P/L per contract across the historical windows, in dollars — the smallest-weighted score input, because it scales with contract price rather than with edge')}">E[$] <b>${e.expectedDollars.toFixed(0)}</b></span>`
+    : `<span class="dim" title="${esc('the entry publishes no expectedDollars')}">E[$] n/p</span>`);
+  if (e.concentrationFlag === true && e.concentrationLabel) {
+    bits.push(`<span class="conc-label" title="${esc("the record's own concentration label, verbatim")}">⚑ ${esc(e.concentrationLabel)}</span>`);
+  }
+  return bits.join('');
+}
+
+/* Provenance, per entry: the verdict that set the direction, the long row the
+ * numbers came off, and the vol basis. A reused row can be up to the Worker's
+ * own freshness window old and the record says which it was — a fact about the
+ * entry, not a footnote. */
+function top3Prov(e, gates) {
+  const bits = [];
+  const v = e.verdict;
+  if (v && v.rating) {
+    const conf = confLabel(v.confidence);
+    bits.push(`<span title="${esc('the direction gate read this stored verdict; source ' + (v.source || 'n/p')
+      + (v.era ? ' · record era ' + v.era : '') + (v.ptDate ? ' · PT day ' + v.ptDate : '')
+      + '. The ranking requires a verdict written on the SAME PT day — a stale call is not a call about today.')}">verdict <b>${esc(v.rating)}</b> · confidence ${
+      conf ? esc(conf) : '<span class="dim">n/p</span>'} · as of ${
+      isNum(v.asOf) ? esc(fmtClockPt(v.asOf)) : '<span class="dim">not published</span>'}</span>`);
+  } else {
+    bits.push(`<span class="dim" title="${esc('the entry publishes no verdict object — it should not be rankable without one')}">verdict not published on this entry</span>`);
+  }
+  if (e.rowSource) {
+    const age = isNum(e.rowAgeMs) && e.rowAgeMs > 0 ? ageString(e.rowAgeMs) : null;
+    bits.push(`<span title="${esc((gates?.reusedRowNote || 'the record reports whether the sweep refetched this row or reused a cached one')
+      + (isNum(e.rowTs) ? ` Row banked ${fmtClockPt(e.rowTs)}.` : '') + (e.rowPtDate ? ` Row PT day ${e.rowPtDate}.` : ''))}">row ${
+      esc(e.rowSource)}${age ? ` · ${esc(age)} old at the sweep` : ''}</span>`);
+  }
+  const vol = e.buyable === true ? 'vol cheap' : e.buyable === false ? 'vol not cheap' : 'no vol basis yet';
+  bits.push(`<span title="${esc((e.buyableReason || 'the entry publishes no buyableReason')
+    + (isNum(e.ivRank) ? ` · IVR ${e.ivRank}` : '') + (isNum(e.ivHvRatio) ? ` · IV/HV ${e.ivHvRatio.toFixed(2)}×` : '')
+    + '. TRI-STATE: only `false` excludes — null is still collecting and is no basis to judge, not a failure.')}">${esc(vol)}</span>`);
+  bits.push(`<span title="${esc('lane ' + (e.lane || 'n/p') + ' · ' + (gates?.laneNote || 'the record publishes no laneNote'))}">lane ${esc(e.lane || 'n/p')}</span>`);
+  return bits.join('');
+}
+
+function top3EntryHtml(e, gates) {
+  const open = state.top3Open.includes(e.symbol);
+  const debit = isNum(e.debitPerShare) ? `$${fmt(e.debitPerShare)}/sh`
+              : isNum(e.debit) ? `debit $${fmt(e.debit, 0)}`
+              : absent('neither debit nor debitPerShare published on this entry');
+  return `<div class="t3e" onclick="openOptionTicker('${esc(e.symbol)}')"
+      title="${esc(e.symbol + ' — click to open its row on this tab; the ticker link goes to the ticker page instead')}">
+    <div class="t3top">
+      <span class="t3rank" title="${esc('rank ' + (e.rank ?? '?')
+        + ' of the day. Ordered score desc, then Sharpe desc, then symbol asc — deterministic, so two runs over the same rows publish the same order. ONE slot per ticker.')}">#${esc(String(e.rank ?? '?'))}</span>
+      <a class="tk" href="#ticker/${encodeURIComponent(e.symbol)}" onclick="event.stopPropagation()"
+         title="${esc(e.symbol)} → its ticker page">${esc(e.symbol)}</a>
+      ${top3Dir(e)}
+      <b class="t3c" title="${esc(e.contract || 'the record publishes no contract string')}">${esc(top3StructureLabel(e))}</b>
+      <span class="m10">${debit}</span>
+      ${top3ScoreCell(e, gates)}
+    </div>
+    <div class="t3facts">${top3Facts(e, gates)}</div>
+    <div class="t3prov">${top3Prov(e, gates)}</div>
+    ${open ? top3Breakdown(e, gates) : ''}
+  </div>`;
+}
+
+/* The pool line: what the ranking looked at, in the record's own counts. A
+ * ranked list that does not say what it rejected is a claim without a base. */
+function top3Pool(rec) {
+  const p = rec.pool;
+  if (!p) return `<div class="t3pool">This record publishes no <code>pool</code> object, so the population
+    behind the ranking cannot be stated. The entries above are what it published.</div>`;
+  const f = p.gateFunnel || {};
+  const funnelTxt = Object.keys(f).length
+    ? Object.entries(f).map(([k, n]) => `${k} ${n}`).join(' · ')
+    : 'no gateFunnel published';
+  const nExcl = isNum(rec.excludedTotal) ? rec.excludedTotal
+              : Array.isArray(rec.excluded) ? rec.excluded.length : null;
+  const sw = rec.sweep;
+  return `<div class="t3pool">
+    <span title="${esc('pool.tickersConsidered — the sweep universe for this run')}"><b>${p.tickersConsidered ?? '—'}</b> tickers considered</span>
+    · <span title="${esc('tickersWithTodayRow ' + (p.tickersWithTodayRow ?? '—') + ' had a long row from today · tickersWithVerdict '
+      + (p.tickersWithVerdict ?? '—') + ' had a same-day verdict · tickersDirectional ' + (p.tickersDirectional ?? '—')
+      + ' were BUY or SELL · tickersQualified ' + (p.tickersQualified ?? '—') + ' produced a candidate that cleared every gate')}"><b>${
+      p.tickersDirectional ?? '—'}</b> directional · <b>${p.tickersQualified ?? '—'}</b> qualified</span>
+    · <span title="${esc('pool.candidatesInPool — right-direction Lane B/C candidates that reached the gates. Eliminated by: ' + funnelTxt)}"><b>${
+      p.candidatesGatedIn ?? '—'}</b> of <b>${p.candidatesInPool ?? '—'}</b> candidates gated in</span>
+    · <span class="toggle" onclick="toggleTop3Excl()" title="${esc("every name the ranking dropped, with the stage and the Worker's own reason")}"><b>${
+      nExcl ?? '—'}</b> excluded ${state.top3ExclOpen ? '▾' : '▸'}</span>
+    ${sw ? `<br /><span title="${esc('the sweep is strictly sequential, one awaited request at a time. '
+      + (sw.sequentialNote || '') + ' `skipped` is a name with nothing screenable (no-options / no-iv / no-expiries) — a complete '
+      + 'outcome about the ticker, deliberately not counted as a failure.')}">sweep ${sw.fetched ?? '—'} fetched · ${
+      sw.reused ?? '—'} reused · ${sw.skipped ?? '—'} nothing screenable · ${sw.failed ?? '—'} failed${
+      isNum(sw.wallMs) ? ` in ${(sw.wallMs / 1000).toFixed(1)}s` : ''}</span>` : ''}
+    ${sw?.systemicSuspected === true ? `<br /><span class="dn" title="${esc('worstConsecutiveFailures '
+      + (sw.worstConsecutiveFailures ?? '?') + ' — the Worker flags a run of consecutive failures as ONE systemic fault '
+      + '(crumb throttled, Yahoo unreachable, budget gone), not N independent ones')}">⚠ the record flags a suspected systemic sweep fault (${
+      esc(String(sw.worstConsecutiveFailures ?? '?'))} consecutive failures) — the ranking is over what remained</span>` : ''}
+    ${state.top3ExclOpen ? top3Excluded(rec) : ''}
+  </div>`;
+}
+
+function top3Excluded(rec) {
+  const x = Array.isArray(rec.excluded) ? rec.excluded : null;
+  if (!x) return `<div class="t3excl">This record publishes no <code>excluded</code> array, so the drops
+    cannot be listed — which is a different claim from there having been none.</div>`;
+  if (!x.length) return `<div class="t3excl">Nothing was dropped: every ticker the sweep produced a row for
+    reached the ranking.</div>`;
+  return `<div class="t3excl">${x.map(d => `<div><b>${esc(d.symbol || '?')}</b> · ${esc(d.stage || 'stage n/p')}${
+    isNum(d.score) ? ` · score ${d.score}` : ''} — ${esc(d.reason || 'no reason published')}</div>`).join('')}
+    ${rec.excludedTruncated === true
+      ? `<div class="amb">${esc(String(rec.excludedTotal ?? '?'))} drops in total; the record stores the first ${
+          esc(String(rec.excludedCap ?? '?'))} and says so — the rest were never written, so they cannot be listed here.</div>`
+      : ''}</div>`;
+}
+
+/** Which of the five states the rider is in. `field-absent` is a claim ABOUT
+ *  THE WORKER, so it may only be reached once the envelope actually landed: the
+ *  rider rides on /api/long/batch, and a fetch that never arrived says nothing
+ *  about what the Worker publishes. Reading a failed sweep as field-absent would
+ *  blame the Worker for our own network. */
+function top3State() {
+  if (state.errors.shared) return 'failed';
+  if (!state.longRows && !state.longMissing) return 'not-loaded';
+  if (!state.top3KeyPresent) return 'field-absent';
+  if (!state.top3) return 'no-record';
+  return 'record';
+}
+
+/** The strip. Every branch renders a state; none renders a blank. */
+function renderTop3() {
+  const el = document.getElementById('opt-top3');
+  if (!el) return;
+  renderTop3Modal();
+  const st = top3State();
+
+  /* 0. THE ENVELOPE NEVER LANDED. Our fetch, not the Worker's publishing. */
+  if (st === 'not-loaded' || st === 'failed') {
+    const e = state.errors.shared;
+    el.innerHTML = `<div class="t3"><div class="t3h"><span class="ttl">Top plays</span>
+      <span class="asof dim">· ${st === 'failed' ? 'the long batch failed' : 'waiting for the long batch'}</span></div>
+      <div class="empty-state">The daily ranking rides on the <code>/api/long/batch</code> envelope, and that
+      ${st === 'failed'
+        ? `fetch failed — <b>${esc(e.kind || 'error')}: ${esc(e.message || '')}</b>. Nothing is known about
+           today's ranking from here: this is OUR fetch failing, which is not a statement about what the
+           Worker publishes.`
+        : 'response is not in hand yet.'}</div></div>`;
+    return;
+  }
+
+  /* 1. FIELD-ABSENT. The envelope landed carrying no key, so the deployed Worker
+   * predates the rider. Not "no plays today" — nothing is known about today. */
+  if (st === 'field-absent') {
+    el.innerHTML = `<div class="t3"><div class="t3h"><span class="ttl">Top plays</span>
+      <span class="asof dim">· not published by this Worker</span></div>
+      <div class="empty-state">The long-batch envelope carried no <code>top3</code> key at all, so the
+      deployed Worker does not publish the daily ranking yet. That is field-absent: nothing is known about
+      today's ranking from here, which is a different claim from "no candidate qualified".</div></div>`;
+    return;
+  }
+  const rec = state.top3;
+
+  /* 2. KEY PRESENT, NULL. The rider exists; today's record does not. The key is
+   * date-scoped (`top3:{PT-date}`), so before the daily job runs — and all
+   * weekend — this is the expected reading. */
+  if (st === 'no-record') {
+    el.innerHTML = `<div class="t3"><div class="t3h"><span class="ttl">Top plays</span>
+      <span class="asof">· no record under the current PT date</span></div>
+      <div class="empty-state">This Worker publishes the ranking, but KV holds no <code>top3:</code> record
+      for the current PT date — the daily job has not run yet today, or it refused before writing. The key is
+      date-scoped, so this is also the expected reading outside a trading day. It is NOT "nothing qualified":
+      that state publishes a record carrying an empty <code>entries</code> array.</div></div>`;
+    return;
+  }
+
+  const gates = rec.gates || null;
+  const entries = Array.isArray(rec.entries) ? rec.entries : null;
+  const recIso = top3RecordIso(rec);
+  const todayIso = ptPartsOf(queueNow()).iso;
+  /* STALE = the record's own PT day is not the current trading day. It renders
+   * WITH its real as-of and never suppressed: an aged ranking is still a
+   * finding, and hiding it would be the blank honesty rule 2 forbids. */
+  const stale = recIso != null && recIso !== todayIso;
+
+  const head = ['<span class="ttl">Top plays</span>'];
+  head.push(isNum(rec.asOf)
+    ? `<span class="asof" title="${esc('asOf is SWEEP COMPLETION, not the KV write — the entries describe the chains as of the moment the last one was read.'
+        + (isNum(rec.ts) ? ` Written ${fmtClockPt(rec.ts)}.` : '') + ' Rendered in PT because the job is named for a PT cron time.')}">· ${
+        esc(fmtClockPt(rec.asOf))}</span>`
+    : '<span class="asof dim" title="the record publishes no asOf timestamp">· as-of not published</span>');
+  head.push(recIso
+    ? `<span class="asof" title="${esc('the PT trading day this record is keyed to')}">· PT ${esc(recIso)}</span>`
+    : '<span class="asof dim" title="the record publishes neither ptDate nor a numeric asOf, so its trading day cannot be stated">· PT day not stated</span>');
+  if (stale) {
+    head.push(`<span class="badge stale" title="${esc(`this record is keyed to PT ${recIso} and the page's shared PT clock reads ${todayIso}`
+      + (TEST_CLOCK != null ? ' (a ?clock override is active)' : '')
+      + '. It renders aged rather than suppressed — an old ranking is still a finding, and its real as-of is beside it.')}">stale · PT ${esc(recIso)}, not ${esc(todayIso)}</span>`);
+  }
+  /* `complete === false` IS THE TEST, never `!complete`: an absent field means a
+   * record from a Worker predating it, and a real ranking must not be
+   * relabelled as a failed one. */
+  if (rec.complete === false) {
+    head.push(`<span class="badge err" title="${esc(rec.incompleteReason || 'the record flags complete: false but publishes no reason')}">partial run</span>`);
+  }
+
+  let bodyHtml;
+  if (!entries) {
+    bodyHtml = `<div class="empty-state">The record carries no <code>entries</code> array (keys:
+      <code>${esc(Object.keys(rec).join(', '))}</code>). Nothing is rendered rather than an empty list — an
+      absent field and an empty list are different claims.</div>`;
+  } else if (!entries.length) {
+    bodyHtml = `<div class="empty-state">No candidate passed the gates today — that is the finding, not a
+      failure.${rec.entriesNote ? ' ' + esc(rec.entriesNote) : ''}</div>`;
+  } else {
+    bodyHtml = `<div class="t3list">${entries.map(e => top3EntryHtml(e, gates)).join('')}</div>`;
+    const max = isNum(gates?.max) ? gates.max : null;
+    if (max != null && entries.length < max) {
+      bodyHtml += `<div class="t3pool" style="margin-top:7px">Only <b>${entries.length}</b> qualified today
+        — the ranking publishes up to ${max}, and fewer than ${max} names produced a candidate that cleared
+        every gate. The empty slots are not padded.</div>`;
+    }
+  }
+
+  el.innerHTML = `<div class="t3">
+    <div class="t3h">${head.join(' ')}</div>
+    ${rec.complete === false && rec.incompleteReason
+      ? `<div class="t3pool" style="margin:0 0 8px"><span class="amb">${esc(rec.incompleteReason)}</span></div>` : ''}
+    ${bodyHtml}
+    ${top3Pool(rec)}
+  </div>`;
+}
+
+/* Expansion state in `state`, not on the DOM — renderOptions() rebuilds this
+ * subtree with innerHTML on every row toggle and on every paintAll(). */
+function toggleTop3(sym) {
+  const i = state.top3Open.indexOf(sym);
+  if (i >= 0) state.top3Open.splice(i, 1); else state.top3Open.push(sym);
+  renderTop3();
+}
+function toggleTop3Excl() { state.top3ExclOpen = !state.top3ExclOpen; renderTop3(); }
+
+/* The modal's gate section is RENDERED FROM THE RECORD, not typed into markup:
+ * the weights, anchors and floors are the Worker's and must not drift from a
+ * hand-written copy here. Same rule the liquidity floors already follow. */
+function renderTop3Modal() {
+  const el = document.getElementById('opt-modal-top3');
+  if (!el) return;
+  const g = state.top3?.gates;
+  if (!g) {
+    const why = {
+      'failed': 'the shared long batch — which the record rides on — failed to fetch, so nothing arrived to read',
+      'not-loaded': 'the shared long batch has not landed yet',
+      'field-absent': 'the deployed Worker does not publish the <code>top3</code> key at all',
+      'no-record': 'this Worker publishes the <code>top3</code> key but KV holds no record for the current PT date',
+    }[top3State()] || 'no record is in hand';
+    el.innerHTML = `<p class="m10" style="color:var(--ink-3)">The gates, weights and anchors are published on
+      the ranking record itself and are rendered from it here. No numbers are shown rather than numbers typed
+      into this page — ${why}.</p>`;
+    return;
+  }
+  const w = g.weights || {};
+  const a = g.anchors || {};
+  el.innerHTML = `<p><b>The gates, as today's record declares them.</b>
+    Lanes ${esc((g.lanes || []).join(' / ') || 'n/p')} — ${esc(g.laneNote || '')}
+    <br /><b>Direction:</b> ${esc(g.directionRule || 'n/p')}
+    <br /><b>Liquidity:</b> ${esc(g.liquidity?.rule || 'n/p')}
+    <br /><b>Vol:</b> ${esc(g.vol?.rule || 'n/p')}
+    <br /><b>Episodes:</b> ${esc(g.episodes?.rule || 'n/p')}
+    <br /><b>All inputs present:</b> ${esc(g.inputs?.rule || 'n/p')}</p>
+  <p><b>Weights</b> (total ${esc(String(g.weightTotal ?? 'n/p'))}): ${
+    Object.keys(w).length ? Object.entries(w).map(([k, v]) => `${esc(k)} ${esc(String(v))}`).join(' · ') : 'not published'}.
+    <b>Anchors:</b> ${Object.keys(a).length ? Object.entries(a).map(([k, v]) => `${esc(k)} ${esc(String(v))}`).join(' · ') : 'not published'}.
+    <br /><code>${esc(g.scoreFormula || 'no scoreFormula published')}</code>
+    <br /><b>Tie-break:</b> ${esc(g.tieBreak || 'n/p')} <b>Slots:</b> ${esc(g.slotRule || 'n/p')}</p>`;
+}
+
 function renderOptions() {
   const body = document.getElementById('opt-body');
   if (!body) return;
@@ -3112,6 +3694,8 @@ function renderOptions() {
       : `<div class="opt-macro-line"><span class="stance absent">macro not published</span>
          <span class="m10">the long-batch envelope carried no macro object — an older Worker, not "macro unavailable"</span></div>`;
   }
+
+  renderTop3();
 
   const toolbar = document.getElementById('opt-toolbar');
   if (toolbar) {
@@ -4443,6 +5027,13 @@ const state = {
   // shared — watchlist + options
   stocks: null, meta: null, fetchedAt: null, analysisLoading: false,
   longRows: null, longMissing: null, longMeta: null, macro: null,
+  /* The daily top-3 ranking rider. `top3KeyPresent` is captured SEPARATELY from
+   * the value because the Worker distinguishes an absent key (an older Worker)
+   * from `top3: null` (this Worker, no record under today's PT date), and the
+   * value alone cannot tell them apart. */
+  top3: null, top3KeyPresent: false,
+  top3Open: [],          // entries showing their score decomposition
+  top3ExclOpen: false,   // the exclusions list
   asked: [], notReturned: [],
   // Today-only payloads
   snapshot: null, snapMeta: null, snapFetchedAt: null,
@@ -4639,6 +5230,13 @@ function loadShared(reason) {
        * the regime line renders as its own named state rather than as
        * "macro unavailable" (a verdict the Worker itself can publish). */
       state.macro = lb.macro || null;
+      /* THE DAILY TOP-3 RANKING rides here too. Presence and value are captured
+       * separately: an ABSENT key is an older Worker (field-absent), `null` is
+       * this Worker reporting that KV holds no `top3:{today PT}` record, and a
+       * record with `entries: []` is the gates having run and nothing surviving.
+       * Three different claims; the strip renders each as its own state. */
+      state.top3KeyPresent = Object.prototype.hasOwnProperty.call(lb, 'top3');
+      state.top3 = lb.top3 || null;
       /* The Worker's own freshness horizon and gate constants — read from the
        * payload so the stale badge and the liquidity floors cannot drift from
        * the server's definitions. */
@@ -4649,6 +5247,11 @@ function loadShared(reason) {
         reason, tickers.length, Object.keys(stocks).length, JSON.stringify(state.notReturned),
         analysisLoading, state.longRows.length, state.longMissing.length,
         state.macro ? state.macro.state : 'ABSENT');
+      console.log('[shared] (%s) top3 key %s · record %s · entries %s · PT %s',
+        reason, state.top3KeyPresent ? 'present' : 'ABSENT',
+        state.top3 ? 'yes' : 'null',
+        state.top3 ? (Array.isArray(state.top3.entries) ? state.top3.entries.length : 'not-an-array') : 'n/a',
+        state.top3 ? (top3RecordIso(state.top3) || 'not-stated') : 'n/a');
       sharedDone = true;
       if (optUi.pendingDeepLink) {
         const sub = optUi.pendingDeepLink;

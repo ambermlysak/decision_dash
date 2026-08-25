@@ -276,6 +276,53 @@ least once:
   Deep-linking straight to `#ticker/NVDA` rendered a watchlist name as
   off-watchlist, with its levels and session tag missing, because only
   `#today`/`#names`/`#options` triggered `loadShared()`.
+- **`/api/long/batch` carries a `top3` RIDER — the daily top-3 options ranking**
+  (phase 11), the same envelope pattern as `macro`. **THREE ENVELOPE STATES AND
+  THEY ARE NOT INTERCHANGEABLE**, which the Worker's own `readTop3()` comment
+  states outright: an **absent key** is a Worker predating the rider
+  (field-absent); **`top3: null`** is this Worker reporting that KV holds no
+  `top3:{PT-date}` record; a **record carrying `entries: []`** is the gates
+  having run with nothing surviving — a valid published result. The value alone
+  cannot separate the first two, so the frontend captures
+  `state.top3KeyPresent` (a `hasOwnProperty` on the envelope) **beside**
+  `state.top3`. A fourth state is ours, not the Worker's: the rider rides on
+  that envelope, so **a long batch that failed to fetch is not field-absent** and
+  must never be rendered as a claim about what the Worker publishes.
+  `top3State()` returns exactly one of `failed` · `not-loaded` · `field-absent` ·
+  `no-record` · `record`.
+- **The `top3:` key is DATE-SCOPED and written by a 1:15pm PT cron.** `readTop3()`
+  reads `top3:{ptDate()}` only, so yesterday's record is never served: before the
+  job fires, and all weekend, `top3: null` is the EXPECTED reading rather than a
+  fault. Retention is 36h (it outlives the day it names), and a re-run rewrites
+  the key whole. A partial run still writes but does not stamp its dedup key
+  (`complete: false` + `incompleteReason`); **`complete === false` is the test,
+  never `!complete`.**
+- **The score is a weighted composite over FIXED anchors, and it is
+  decomposable.** Six components (`probMarket` · `probMeasured` · `sharpe` ·
+  `win` · `beEm` · `dollars`), each clipped to [0,1], each shipping its raw
+  input, its anchor, the clipped component, its weight and the points it
+  contributed. **No score may render as a bare number** — the strip prints it
+  against the record's own `weightTotal` and expands into the full table.
+  `beEm` is INVERTED and its `anchor` is a **span**, not a threshold, so it is
+  labelled as one; printing it as a divisor would assert arithmetic the record
+  does not do. **Every weight, anchor, floor and rule string on this surface —
+  including the ? modal's gate section — is rendered FROM `top3.gates`**, never
+  typed into markup, for the same reason `state.longGates` is.
+- **`E[$]` is in the blend and `E[R]` is deliberately not.** The candidate's own
+  `upsideTruncatedReason` is the argument: an uncapped long is scored only as far
+  as the largest observed move while "capped structures are not truncated this
+  way", and the ranking mixes lane B (uncapped) with lane C (capped). E[R] still
+  renders in the breakdown, explicitly labelled *not scored*.
+- **A missing score input EXCLUDES the candidate; it never scores zero.** Same
+  for the concentration gate — a missing `expectancyEpisodesTo50` FAILS it. The
+  strip renders each entry's `episodes-to-50%`, `¼-Kelly`, `P(BE) | cov 1y/3y`
+  and `gap` **with `drift` adjacent** (through the same `pcovCell()` and
+  `gapDriftBit()` the candidate table uses — one renderer, so the two surfaces
+  cannot drift apart).
+- **A `top3` entry is FLAT where a long row is lane-nested.** `expiry`/`dte` live
+  on the lane entry in `/api/long/:ticker` and are carried down onto the entry
+  here, so `structureLabel()` is reached through a shim (`top3StructureLabel()`)
+  that rebuilds the `{L, c}` shape rather than a second label renderer.
 - **`/api/radar` is banked once per PT date** (`ttlSeconds` ~36h, `cached: true`,
   `ptDate`). Render its banked time; do not refetch on a tab switch — a discovery
   list that changed every time you looked at it would not be the day's list. The
@@ -354,6 +401,19 @@ least once:
   `core` / `fillPool` / `fills` alongside `selected` and `cut` so the split is
   checkable. **An empty queue renders a stated finding naming what it looked
   at**, never a blank and never a padded slot: a quiet day is the answer.
+- **The top-3 rider is ONE INFORMATIONAL LINE, not a card and not a tier**
+  (phase 11). It renders below the cards, takes part in NO selection arithmetic,
+  and says so on its face. The reason is the tier-aware cap: tiers 1–4 are
+  clock-driven and a deadline is a fact of the calendar, so a *ranking* must
+  never be able to cost one a slot. `buildQueue()` computes `top3Line` beside the
+  tiers — so the line stays a pure function of the shared store plus the clock
+  and prints in `dumpQueueTable()` — but `selected`/`core`/`fills` never see it.
+  It renders **only** for entries whose record is keyed to the CURRENT trading
+  day: an aged ranking belongs on the Options strip with its as-of, not in a
+  queue line that would read as today's news. Absent, null, stale and failed
+  records render nothing here, because the strip is where every one of those
+  states is named and a queue line reporting the absence of an informational
+  rider is noise, not a finding.
 - **Queue expansion state lives in `state`, NEVER as a class on the DOM.**
   `renderQueue()` rebuilds its whole subtree with `innerHTML` on the 30-second
   staleness cycle and on every `renderToday()`. Measured 2026-08-20: after
@@ -493,7 +553,8 @@ Status is never conveyed by color alone.
 | 8 | **Session-brief stack** — all slots published for the current trading day, stacked with per-slot as-of; per-slot bank against the Worker's whole-payload rewrite | `504d1bb` |
 | 9 | **Ticker verdict auto-fetch + refresh button in every branch; two record shapes normalised; WCAG AA ink palette** | `ecc8086` |
 | fix | **Names column shift** — phase 7's `trendCell` shadowed phase 1's; renamed to `divTrendCell`. Names lost its Trend `<td>`, spilling 39 spans above the table and shifting every later column left | `b5d7f7b` |
-| 10 | **Queue amendments** — HOLDs excluded on verdict grounds, tier-aware cap (1–4 uncapped, tier-5 fills to 6), tier-5 ordered by \|recRank\| with structure as a tiebreak, clickable cut chips expanding through `queueCard()`, expansion state moved into `state` so the 30-second re-render preserves it | this commit |
+| 10 | **Queue amendments** — HOLDs excluded on verdict grounds, tier-aware cap (1–4 uncapped, tier-5 fills to 6), tier-5 ordered by \|recRank\| with structure as a tiebreak, clickable cut chips expanding through `queueCard()`, expansion state moved into `state` so the 30-second re-render preserves it | `4c48c4d`… |
+| 11 | **Daily top-3 options ranking** — the `top3` rider stored beside `macro`, the Top plays strip above the Options table (decomposable score, P(BE)\|cov, ¼-Kelly, episodes-to-50%, gap+drift, pool counts, exclusions), one informational queue line, a modal section rendered from `gates`, and `window.DD_BUILD` | this commit |
 
 Doc-sync commits: `557329e` (phase-1 payload facts), `e626a64` (phase-5 payload
 facts).
@@ -544,7 +605,20 @@ These are stated, not fixed. Each is a real limit of the built surfaces.
    nothing client-side can recover it. The real fix is making the Worker merge
    rather than replace, which is a trading_dash task. The stack degrades
    correctly (the slot reads `missing`, not blank), but it degrades.
-8. **`?clock=` cannot exercise the bank's WRITE path** (phase 8), by design — a
+8. **The top-3 strip has never been rendered against a LIVE published record**
+   (phase 11). The `top3:{PT-date}` key is written by a 1:15pm PT cron and the
+   work was done that morning, so the live envelope carried `top3: null`
+   throughout — which is exactly the *no-record* state, and that state WAS
+   verified live. The three-entry, fewer-than-three, zero-entry and stale states
+   were verified against a record built by running the Worker's own
+   `top3Subscores` / `top3GateCandidate` / `top3Entry` / `top3GatesDeclared`
+   over the live `/api/long/batch` rows and the live `analysis:` verdicts — real
+   numbers through the real ranking code, but not a record the Worker itself
+   wrote and served. **First load after a 1:15pm PT run is the check that closes
+   this**, and the fields to confirm are the ones the fixture had to supply
+   rather than read: `sweep.*`, `rowSource`/`rowAgeMs`, and `asOf` as sweep
+   completion.
+9. **`?clock=` cannot exercise the bank's WRITE path** (phase 8), by design — a
    test clock that could write would be able to corrupt real state. The write
    path is therefore verified on the real clock with recorded payloads, and the
    read/reset path with the test clock. Nothing verifies the two together.

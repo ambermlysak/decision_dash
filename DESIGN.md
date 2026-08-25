@@ -73,6 +73,21 @@ Default sort: **attention** — triggered > within 3% of level > earnings ≤7d 
 - **Legend → a “?” modal.** All of it. The screen keeps zero words of methodology above the data.
 - **Collapsed row = a verdict, not a coordinate line**: ticker · vol state chip (cheap/rich/collecting) · **best candidate across all six lanes** (structure + strike + expiry) · its E[R] · BE/EM · cov vs P(BE) · next catalyst. One line answers "is there a trade here."
 - **Expand → lanes, each with a one-line lane verdict** ("Lane E: gated — no catalyst inside expiry" / "Lane A: refuses coverage at this horizon — see why"), then the candidate table cut to 8 decision columns: contract · debit · breakeven (% move) · BE/EM · P(BE) | cov · E[R] · liquidity health (one dot summarizing spread/OI) · read. The other ~11 columns (extr%, lev, carry, θ, vega, E[$], gap, drift, Sharpe, ¼-Kelly, episodes…) live one level deeper, per candidate.
+> **AS BUILT — and one thing this document did not anticipate.** The Worker now
+> publishes a **daily top-3 ranking** of its own (`top3:{PT-date}`, a 1:15pm PT
+> cron, riding on the `/api/long/batch` envelope beside `macro`), and phase 11
+> renders it as a **Top plays strip above the table**. It is the closest thing on
+> the platform to the "here are the 3 things worth acting on" the diagnosis
+> section opens by saying nothing ever says — except that it says it about
+> *option expressions*, gated hard, with its own base named beside it: the strip
+> renders the pool counts and every exclusion with the Worker's reason intact.
+> The score is a weighted composite over fixed anchors and **never renders as a
+> bare number** — it decomposes into its six subscores with their weights, which
+> is the same rule that killed the patterns card's "confidence 87%". Zero
+> qualifying names is a published finding, not an empty module. It feeds Today
+> as ONE informational line that takes no card slot, because the queue's tiers
+> 1–4 are clock-driven and a ranking must never evict a deadline.
+
 - Load-state honesty stays; stale/refusal states stay — refusals render as findings, exactly as your rules require, just at lane level once instead of 19 columns wide.
 
 ### 4. TICKER PAGE (index.html: 14 cards → hero + plan + 4 groups)
