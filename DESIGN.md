@@ -100,6 +100,42 @@ Default sort: **attention** — triggered > within 3% of level > earnings ≤7d 
   - *Record* — recommendation history + calibration **with base rate beside every rate** (15; closes the known outstanding item)
 - Catalysts move into the hero; the earnings-analysis panel stays button-triggered inside it.
 
+  > **AS BUILT — the Earnings block (button-only), phase 12.** For four phases
+  > the panel existed only as a button: the renderer knew `headline` / `summary`,
+  > the payload carries neither at top level, and every response fell through to
+  > `JSON.stringify(e).slice(0, 240)` — 240 characters of raw JSON under the
+  > Earnings line. The block that replaced it has four parts, and the whole
+  > payload shape is recorded in CLAUDE.md so it never has to be rediscovered by
+  > spending a Claude call.
+  >
+  > 1. **Header** — the report date with `facts.dateSource` beside it. Yahoo's
+  >    price-gap fallback is the only non-published date and it is tagged
+  >    `inferred`, carrying the Worker's own sentence on hover. This payload has
+  >    **no BMO/AMC field and no `isEstimate` flag at all**, so it renders
+  >    *timing not published* rather than borrowing `reaction.timing`, which
+  >    answers a different question (which session *traded* the print).
+  > 2. **Facts** — `history[]` as a compact table, newest first, sorted on the
+  >    quarter rather than on array order; the Worker ships four. Beneath it the
+  >    base rate, **beats N of M**, where M counts only quarters carrying *both*
+  >    an actual and an estimate, labelled *computed here* and deliberately a
+  >    count rather than a percentage — four draws do not make a rate. Then the
+  >    measured price reaction, forward consensus, revisions, profile and
+  >    reported revenue (which carries no consensus anywhere and is therefore
+  >    labelled *reported, unscored*: it can never be a beat or a miss).
+  > 3. **Model read** — `headline`, `scorecard`, `highlights`, `callCommentary`,
+  >    `priceAction`, `watchNext`, each rendered as the handler returns it and
+  >    never paraphrased or re-scored. An analysis field this renderer predates
+  >    is **named**, not dumped and not dropped.
+  > 4. **Provenance** — source · cache hit/miss/facts-only · `_meta.asOf` (which
+  >    is the report *date*, not a fetch time) · when it was generated · when the
+  >    Worker built it · and *model n/p*, because no field on this endpoint names
+  >    the model. An absent `_meta` renders as itself.
+  >
+  > Every field is guarded: absent renders `n/p` **with the field named**, never
+  > blank and never a JSON dump. The button-only rule is unchanged — nothing here
+  > runs on load, verified at 0 `/api/earnings` requests on a cold ticker-page
+  > load, and the button stays disabled while busy.
+
 ## Cut list (removed outright)
 
 | Cut | Why |

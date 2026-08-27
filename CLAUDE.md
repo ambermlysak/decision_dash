@@ -193,6 +193,71 @@ least once:
   spending again), never on an unknown state (a network or 5xx failure on the
   store read renders the error and spends nothing), and no auto-retry after a
   failure — the button is the retry path.
+- **`GET /api/earnings/:ticker` — the full response shape, recorded so nobody
+  rediscovers it by spending.** Read out of trading_dash's
+  `handleEarningsAnalysis` / `gatherEarningsFacts`; confirmed on the wire
+  against NVDA 2026-08-27 (`cached: true`, no call spent).
+  - **top level:** `ticker` · `facts{}` · `analysis{}|null` · `ts` · `_meta{}`.
+    Plus `cached: true` **only on a KV hit** — the flag is ABSENT on a fresh
+    generation, so cache state is `=== true` vs field-absent and **never a
+    truthiness test**. Plus `error` (a string) with `analysis: null` when the
+    symbol has neither a report date nor any EPS history. Plus `factsOnly: true`
+    under `?facts=1`.
+  - **`facts`:** `ticker` · `company` · `reportDate` · `dateSource` ·
+    `history[]{quarter, epsActual, epsEstimate, surprisePct}` ·
+    `revenue[]{quarter, revenue, earnings}` ·
+    `nextQuarter{epsEstimate, revenueEstimate, epsRevisedUp, epsRevisedDown, growthPct}` ·
+    `currentQuarter{epsEstimate, growthPct}` ·
+    `profile{marketCap, trailingPE, forwardPE, profitMargin, revenueGrowth, targetMean, currentPrice}` ·
+    `reaction{}|null` · `news[]` · `newsStatus` · `newsWindow{}|null` · `newsSource|null`.
+  - **`reaction`:** `reportDate` · `reactionDate` · `timing` · `isPartial` ·
+    `priorClose` · `reactionClose` · `openGapPct` · `day1Pct` · `day5Pct` ·
+    `sinceReportPct` · `volumeVsAvg` · `sessionsSince`.
+  - **`analysis`:** `quarter` · `verdict` (BEAT|MISS|MIXED) · `headline` ·
+    `scorecard[]{metric, actual, estimate, result}` · `highlights[]` ·
+    `callCommentary[]{theme, detail, source}` · `priceAction` · `watchNext[]`.
+  - **`_meta`:** `source` (`'Yahoo + Claude synthesis'`) · `ok` · `delayed` ·
+    `note` · `asOf` · `ttlSeconds` (43200) · `fetchedAt`. **NO `model` field
+    anywhere** — the model name is not published and must not be inferred from
+    `source`.
+- **`/api/earnings` gotchas, all of which the block names on its face.**
+  `_meta.asOf` is `facts.reportDate` — a **calendar date for the report, not a
+  fetch time**; `_meta.fetchedAt` is the fetch time, and **on a cache hit it is
+  the ORIGINAL generation**, banked in KV with the rest of the object, not this
+  request. `facts.history` is capped at **FOUR** quarters (`.slice(-4)`) and
+  ships **oldest-first**. There is **no session (BMO/AMC) field and no
+  `isEstimate` flag** on this payload at all: `reaction.timing` answers a
+  different question (which session *traded* the print) and must not be
+  substituted for one. `dateSource` is one of `Yahoo earnings call date` ·
+  `Yahoo earnings calendar` · a price-gap fallback whose own string starts
+  `inferred from…` (this is the only estimate signal, and it is what the
+  `inferred` tag renders from) · `null`. The freshness window is **12h**
+  (`EARNINGS_TTL`) while the KV `expirationTtl` is **48h**, so a record can be
+  in KV and still regenerate — **"not expired" and "still a cache hit" are
+  different questions**, as with `analysis:`. Reported revenue carries **no
+  consensus anywhere**, so no revenue quarter can ever be scored a beat or a
+  miss, and the Worker rewrites any scorecard entry with a missing estimate to
+  `result: n/a` before it ships.
+- **`?facts=1` is the SPEND-FREE probe, and it sits BEHIND the cache check.**
+  On a cached ticker it returns the whole banked payload (`cached: true`,
+  analysis included); on an uncached one it gathers the upstream facts and
+  returns `analysis: null, factsOnly: true` **without reaching the model**. Use
+  it to establish cache state before clicking anything — that is how NVDA was
+  confirmed a hit and LLY confirmed a miss without spending. It also means
+  `factsOnly` is a THIRD cache state: it carries no `cached` flag yet spends
+  nothing, so reporting a bare missing `cached` as "this spent a call" would
+  assert a charge that never happened.
+- **`/api/earnings` 403s without an `Origin` header.** A curl with only
+  `x-dash-key` returns `{"error":"Forbidden"}` and 21 bytes. Send
+  `-H "Origin: https://ambermlysak.github.io"`. A 403 here is the allowlist, not
+  a bad key — and it is easy to misread as the record being missing.
+- **`facts.revenue` quarters are FISCAL labels (`3Q2025`, `1Q2026`), not ISO
+  dates, and do NOT sort lexicographically.** Sorting them as strings put
+  `4Q2025` and `3Q2025` ahead of `1Q2026`, so the newest quarter rendered last
+  while the model's own prose walked the same series forward in time — two
+  orderings of one series on one screen. Parse `NQYYYY`; where a label does not
+  parse, render payload order and **say so** rather than imposing an order the
+  page cannot back. Caught by reading the painted DOM, not the JSON.
 - **`POST /api/ai/synthesis/:ticker` works for OFF-WATCHLIST tickers** and writes
   `analysis:{TICKER}`. Measured 2026-08-19 on COST (404 before, 200 after,
   ~20s). It returns `{ticker, type, analysis:{…}, ts, _meta}` — the record is
@@ -500,6 +565,24 @@ least once:
   `<td>` count per row against the `<th>` count** when a table renderer changes;
   `renderNames()` now verifies at 6/6 across 39 rows.
 
+- **A badge hand-written in markup is a badge free to lie** (phase 12).
+  `#build-tag` in the nav read `verdict-p11-1` and **nothing in the page ever
+  wrote to it** — the visible build stamp and `window.DD_BUILD` were two
+  independent strings, and the visible one is exactly what a "is the browser
+  running the bundle I just pushed?" check reads. It is now rendered from
+  `DD_BUILD`, same as every other badge here: from the source of truth, never
+  typed beside it.
+- **The string tests cannot see the DOM, and one of these bugs only exists
+  there** (phase 12). The earnings block passed 53 string assertions with a
+  revenue row ordered `4Q2025 · 3Q2025 · 1Q2026` — wrong, and contradicting the
+  model's own chronological prose three inches above it. Nothing in a
+  substring test could catch that; reading the **painted** `innerText` did.
+  Verification for a render change ends in a real HTML parser (headless Chrome
+  over CDP works with no install: `chrome --headless=new
+  --remote-debugging-port=9222`), where `<td>`-per-row against `<th>`, orphaned
+  cells, foster-parenting, computed opacity and `scrollWidth` overflow are all
+  answerable and none of them are answerable from a string.
+
 ## Design system
 
 Same tokens as trading_dash. CSS custom properties in `:root`; never hardcode a
@@ -555,6 +638,7 @@ Status is never conveyed by color alone.
 | fix | **Names column shift** — phase 7's `trendCell` shadowed phase 1's; renamed to `divTrendCell`. Names lost its Trend `<td>`, spilling 39 spans above the table and shifting every later column left | `b5d7f7b` |
 | 10 | **Queue amendments** — HOLDs excluded on verdict grounds, tier-aware cap (1–4 uncapped, tier-5 fills to 6), tier-5 ordered by \|recRank\| with structure as a tiebreak, clickable cut chips expanding through `queueCard()`, expansion state moved into `state` so the 30-second re-render preserves it | `4c48c4d`… |
 | 11 | **Daily top-3 options ranking** — the `top3` rider stored beside `macro`, the Top plays strip above the Options table (decomposable score, P(BE)\|cov, ¼-Kelly, episodes-to-50%, gap+drift, pool counts, exclusions), one informational queue line, a modal section rendered from `gates`, and `window.DD_BUILD` | this commit |
+| 12 | **Ticker Earnings block** — `/api/earnings` rendered in four parts (header + facts + model read + provenance) in place of a `JSON.stringify(...).slice(0,240)` fallthrough that was the only branch that ever ran; the payload shape recorded in this file so it is never rediscovered by spending; `#build-tag` wired to `DD_BUILD` | this commit |
 
 Doc-sync commits: `557329e` (phase-1 payload facts), `e626a64` (phase-5 payload
 facts).

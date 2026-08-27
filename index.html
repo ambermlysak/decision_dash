@@ -473,6 +473,45 @@ tr.cdeep > td { background: var(--bg-1); font-size: 10.5px; color: var(--ink-2);
   min-width: 84px; letter-spacing: 0.06em; text-transform: uppercase;
 }
 .vline .v { font-size: 12px; color: var(--ink-1); flex: 1; }
+/* ── ticker · earnings block (button-only; renderEarningsBlock) ─────────────
+   Scoped under .tkearn so nothing here can reach another surface. Note the
+   block deliberately does NOT reuse .m11 — that class carries
+   `white-space: nowrap`, which is what made the old JSON fallthrough run off
+   the right edge of the hero instead of wrapping. */
+.tkearn { margin-top: 9px; border-top: 1px solid var(--line-soft); padding-top: 9px; }
+.tkearn .eh { display: flex; gap: 9px; align-items: baseline; flex-wrap: wrap; margin-bottom: 3px; }
+.tkearn .eq { font-family: var(--serif); font-size: 14px; color: var(--ink-0); }
+.tkearn .ev { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.07em; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--ink-1); }
+.tkearn .ev.beat { color: var(--bull); border-color: rgba(35,209,139,0.45); }
+.tkearn .ev.miss { color: var(--bear); border-color: rgba(242,95,92,0.45); }
+.tkearn .ev.mixed { color: var(--amber); border-color: rgba(244,183,64,0.45); }
+.tkearn .ewhen { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); }
+.tkearn .ehead { font-size: 12.5px; color: var(--ink-0); line-height: 1.55; margin: 4px 0 8px; }
+.tkearn .esec { margin-top: 10px; }
+.tkearn .est { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 4px; }
+.tkearn .ebody { font-size: 12px; color: var(--ink-1); line-height: 1.6; }
+.tkearn ul.eb { margin: 0; padding-left: 16px; font-size: 12px; color: var(--ink-1); line-height: 1.65; }
+.tkearn .ehist { overflow-x: auto; }
+.tkearn .ehist table { border-collapse: collapse; font-family: var(--mono); font-size: 10px; }
+.tkearn .ehist th { text-align: left; color: var(--ink-3); font-weight: 400; padding: 2px 14px 4px 0; white-space: nowrap; }
+.tkearn .ehist td { color: var(--ink-1); padding: 3px 14px 3px 0; white-space: nowrap; border-top: 1px solid var(--line-soft); }
+.tkearn .erate { font-family: var(--mono); font-size: 10px; color: var(--ink-2); margin-top: 5px; line-height: 1.7; }
+.tkearn .erate b { color: var(--ink-0); font-weight: 600; }
+.tkearn .ecell { display: flex; gap: 15px; flex-wrap: wrap; font-family: var(--mono); font-size: 10px; color: var(--ink-2); }
+.tkearn .ecell b { color: var(--ink-0); font-weight: 600; }
+.tkearn .equote { border-left: 2px solid var(--line); padding: 2px 0 2px 9px; margin-bottom: 7px; }
+.tkearn .equote .th { font-family: var(--mono); font-size: 9.5px; color: var(--ink-2); letter-spacing: 0.05em; }
+.tkearn .equote .dt { font-size: 12px; color: var(--ink-1); line-height: 1.55; }
+.tkearn .equote .sr { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); }
+.tkearn .escore { display: flex; gap: 8px; flex-wrap: wrap; }
+.tkearn .escell { border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; min-width: 92px; }
+.tkearn .escell.beat { border-color: rgba(35,209,139,0.4); }
+.tkearn .escell.miss { border-color: rgba(242,95,92,0.4); }
+.tkearn .escell .mt { font-family: var(--mono); font-size: 9px; color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase; }
+.tkearn .escell .ac { font-family: var(--mono); font-size: 13px; color: var(--ink-0); }
+.tkearn .escell .es { font-family: var(--mono); font-size: 9px; color: var(--ink-3); }
+.tkearn .eprov { margin-top: 10px; border-top: 1px solid var(--line-soft); padding-top: 6px; font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); line-height: 1.75; }
+.tkearn .erefuse { font-size: 12px; color: var(--ink-2); line-height: 1.6; border-left: 2px solid var(--amber); padding-left: 9px; }
 .btn {
   font-family: var(--mono); font-size: 10.5px; color: var(--ink-1);
   background: var(--bg-2); border: 1px solid var(--line); border-radius: 6px;
@@ -701,7 +740,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
            onkeydown="if(event.key==='Enter'){const v=this.value.trim().toUpperCase(); if(/^[A-Z][A-Z.\-]{0,9}$/.test(v)){location.hash='#ticker/'+v; this.value='';}}" />
     <span id="clock"></span>
     <a href="./probe.html" title="the CORS canary — proves the Worker round-trip independently of this app">probe</a>
-    <span id="build-tag">verdict-p11-1</span>
+    <span id="build-tag" title="rendered from DD_BUILD; if this is empty the script block did not run">—</span>
   </div>
 </header>
 
@@ -887,8 +926,18 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
  * different questions. `window.DD_BUILD` answers the second from the console:
  * curl can confirm the bytes on the wire, only the page itself can confirm the
  * bundle actually executing. Bumped by hand with each shipped phase. */
-const DD_BUILD = 'phase-11-top3-strip';
+const DD_BUILD = 'phase-12-earnings-block';
 window.DD_BUILD = DD_BUILD;
+/* The VISIBLE build stamp is rendered from DD_BUILD, never typed into markup.
+ * It was hardcoded as `verdict-p11-1` and nothing ever wrote to it, so the
+ * badge in the nav and the id in the console were two independent strings free
+ * to disagree — and the badge is exactly what a "is the browser running the
+ * bundle I just pushed?" check reads. Same rule as every other badge here:
+ * rendered from the source of truth, not hand-written beside it. */
+{
+  const el = document.getElementById('build-tag');
+  if (el) el.textContent = DD_BUILD;
+}
 
 const API_BASE = 'https://stock-research-worker.ambermlysak.workers.dev/api';
 
@@ -4275,10 +4324,408 @@ function heroExpress(sym) {
       tk.busy.earnings ? 'analysing…' : 'Analyze earnings (spends)'}</button>
     ${tk.errors.earnings ? `<span class="dn m10"> ${esc(tk.errors.earnings.message)}</span>` : ''}</span></div>`);
   if (tk.data.earnings) {
-    const e = tk.data.earnings;
-    out.push(`<div class="m11" style="margin-top:8px;line-height:1.6">${esc(e.headline || e.summary || JSON.stringify(e).slice(0, 240))}</div>`);
+    out.push(renderEarningsBlock(tk.data.earnings, sym));
   }
   return out.join('');
+}
+
+/* ── ticker · earnings block ────────────────────────────────────────────────
+ * Renders GET /api/earnings/:ticker. Shape, read out of trading_dash's
+ * `handleEarningsAnalysis` / `gatherEarningsFacts` rather than discovered by
+ * spending a Claude call on a cache miss (the field list is in CLAUDE.md):
+ *
+ *   top level  ticker · facts{} · analysis{}|null · ts · _meta{}
+ *              + `cached: true` ONLY on a KV hit — absent on a fresh
+ *                generation, so cache state is `=== true` vs field-absent,
+ *                never a truthiness test
+ *              + `error` (string) with `analysis: null` when the symbol has
+ *                neither a report date nor any EPS history
+ *              + `factsOnly: true` under ?facts=1, which this page never sends
+ *   facts      ticker · company · reportDate · dateSource · history[] ·
+ *              revenue[] · nextQuarter{} · currentQuarter{} · profile{} ·
+ *              reaction{}|null · news[] · newsStatus · newsWindow{}|null ·
+ *              newsSource|null
+ *   analysis   quarter · verdict · headline · scorecard[] · highlights[] ·
+ *              callCommentary[] · priceAction · watchNext[]
+ *   _meta      source · ok · delayed · note · asOf · ttlSeconds · fetchedAt
+ *
+ * Two shape facts this renderer is built around:
+ *   - `facts.history` is capped at FOUR quarters by the Worker (`.slice(-4)`)
+ *     and sorted OLDEST-FIRST. We sort on `quarter` ourselves rather than
+ *     trusting array order — the same lesson `/api/short`'s newest-first
+ *     `periods` taught, where reading the order instead of the date inverted a
+ *     direction word.
+ *   - `_meta.asOf` is `facts.reportDate` — a CALENDAR DATE for the report, not
+ *     a fetch time. `_meta.fetchedAt` is the fetch time, and on a cache hit it
+ *     is the time of the ORIGINAL generation (the whole payload is banked in
+ *     KV), not of this request. Labelling either as the other would be one
+ *     quantity under another's label.
+ *
+ * There is NO session (BMO/AMC) field and NO isEstimate flag anywhere on this
+ * payload, so both render as named absences rather than being inferred from
+ * `reaction.timing` — which answers a different question (which session traded
+ * the print), not when the company reported. */
+
+const EARN_NO_COMMENTARY = {
+  'no-archive':     'no news archive is configured on the Worker, so coverage from that date could not be retrieved — recoverable for a fresh report, gone for an older one',
+  'no-report-date': 'the report date could not be established, so no coverage window could be searched',
+  'none-found':     'no coverage was published in the searched window',
+};
+
+/* A signed percent that keeps null and 0 apart: `(null * 1).toFixed(1)` is
+ * "0.0", a fabricated measurement. */
+function earnPct(v, why) {
+  if (!isNum(v)) return absent(why || 'not published on this payload', 'n/p');
+  return `<span class="${v > 0 ? 'up' : v < 0 ? 'dn' : ''}">${v > 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+}
+/* A LEVEL expressed in percent — a profit margin is not a change, so it takes
+ * neither a sign nor a direction color. Rendering it through earnPct() would
+ * paint "+63.0%" in bull green for a margin that did not move. */
+function earnLevelPct(v, why) {
+  if (!isNum(v)) return absent(why || 'not published on this payload', 'n/p');
+  return `<b>${v.toFixed(1)}%</b>`;
+}
+function earnNum(v, d, why) {
+  if (!isNum(v)) return absent(why || 'not published on this payload', 'n/p');
+  return `<b>${esc(fmt(v, d == null ? 2 : d))}</b>`;
+}
+
+/* Header: which report this is, and where the date came from. `dateSource` is
+ * the Worker's own string; the only one that is not a published date is the
+ * price-gap fallback, which says so in its own text — we label it `inferred`
+ * beside the date with the same `.tag est` treatment estimateTag() uses, and
+ * carry the Worker's full sentence on hover rather than paraphrasing it. */
+function tkEarnHead(f, a) {
+  const bits = [];
+  const q = a && typeof a.quarter === 'string' && a.quarter.trim() ? a.quarter.trim() : null;
+  bits.push(q
+    ? `<span class="eq">${esc(q)}</span>`
+    : `<span class="eq dim" title="${esc('the model published no quarter label')}">quarter n/p</span>`);
+
+  const v = a && typeof a.verdict === 'string' ? a.verdict.trim() : '';
+  if (v) {
+    const cls = /beat/i.test(v) ? 'beat' : /miss/i.test(v) ? 'miss' : /mixed/i.test(v) ? 'mixed' : '';
+    bits.push(`<span class="ev ${cls}" title="${esc("the model's own one-word call on the print")}">${esc(v)}</span>`);
+  } else if (a) {
+    bits.push(`<span class="ev dim" title="${esc('the model published no verdict field')}">verdict n/p</span>`);
+  }
+
+  const src = typeof f?.dateSource === 'string' && f.dateSource.trim() ? f.dateSource.trim() : null;
+  const inferred = src != null && /inferred/i.test(src);
+  bits.push(f?.reportDate
+    ? `<span class="ewhen" title="${esc('facts.reportDate — the most recent PAST report this analysis covers, not the next scheduled one')}">reported ${esc(f.reportDate)}</span>`
+      + (inferred ? ` <span class="tag est" title="${esc(src)}">inferred</span>` : '')
+    : `<span class="ewhen dim" title="${esc("facts.reportDate is null — neither Yahoo's call date nor its calendar carried a past date, and the price-gap fallback found no usable gap")}">report date n/p</span>`);
+  bits.push(src
+    ? `<span class="ewhen" title="${esc('facts.dateSource, verbatim')}">via ${esc(src)}</span>`
+    : `<span class="ewhen dim" title="${esc('facts.dateSource is null')}">date source n/p</span>`);
+
+  /* No BMO/AMC anywhere on this payload — say that, do not infer it from
+   * reaction.timing, which names the session that TRADED the print. */
+  bits.push(`<span class="ewhen dim" title="${esc('the /api/earnings payload carries no earnings session field of any kind. reaction.timing names the session that traded the print, which is a different fact and is rendered under Price reaction. The watchlist row is where a BMO/AMC classification lives.')}">timing not published</span>`);
+
+  return `<div class="eh">${bits.join('')}</div>`;
+}
+
+/* history[] as a compact table, newest first, capped at 8 (the Worker ships at
+ * most 4 today — the cap is ours and would hold if that changed). Beneath it
+ * the beat count: N of M SCORED quarters, where M counts only rows carrying
+ * both an actual and an estimate. Counting a quarter with no estimate into the
+ * denominator would invent a comparison the payload does not contain. It is
+ * printed as a count and never as a percentage — four samples is not a rate. */
+function tkEarnHistory(f) {
+  const raw = Array.isArray(f?.history) ? f.history : null;
+  if (!raw) {
+    return `<div class="esec"><div class="est">EPS history</div>
+      <div class="ebody dim">facts.history is not an array on this payload — nothing is rendered rather than an empty table, because an absent field and an empty history are different claims.</div></div>`;
+  }
+  if (!raw.length) {
+    return `<div class="esec"><div class="est">EPS history</div>
+      <div class="ebody dim">facts.history is empty — Yahoo published no past EPS quarters for this symbol.</div></div>`;
+  }
+  /* Sort on the date, never on array order. */
+  const rows = raw.slice().sort((x, y) => String(y.quarter || '').localeCompare(String(x.quarter || ''))).slice(0, 8);
+
+  const body = rows.map(h => {
+    const beat = isNum(h.epsActual) && isNum(h.epsEstimate) ? h.epsActual > h.epsEstimate : null;
+    return `<tr>
+      <td>${h.quarter ? esc(h.quarter) : absent('this row carries no quarter label', 'n/p')}</td>
+      <td>${earnNum(h.epsEstimate, 2, 'this row carries no epsEstimate — Yahoo published no consensus for the quarter')}</td>
+      <td class="${beat === true ? 'up' : beat === false ? 'dn' : ''}">${earnNum(h.epsActual, 2, 'this row carries no epsActual')}</td>
+      <td>${earnPct(h.surprisePct, 'this row carries no surprisePct')}</td>
+    </tr>`;
+  }).join('');
+
+  const scored = rows.filter(h => isNum(h.epsActual) && isNum(h.epsEstimate));
+  const beats  = scored.filter(h => h.epsActual > h.epsEstimate).length;
+  const rate = scored.length
+    ? `beats <b>${beats}</b> of <b>${scored.length}</b> ${scored.length === 1 ? 'quarter' : 'quarters'}
+       <span title="${esc('Counted in this page from facts.history — the Worker publishes no beat rate. The denominator counts only quarters carrying BOTH an epsActual and an epsEstimate: '
+         + scored.length + ' of the ' + rows.length + ' row(s) shown. It is deliberately a count and not a percentage — the Worker caps this history at four quarters, and four draws do not make a rate.')}">computed here</span>`
+    : `<span class="dim" title="${esc('no quarter in facts.history carries both an epsActual and an epsEstimate, so there is nothing to score a beat against')}">beat count n/p — no quarter carries both an actual and an estimate</span>`;
+
+  return `<div class="esec"><div class="est">EPS history · newest first</div>
+    <div class="ehist"><table><thead><tr>
+      <th>quarter</th><th>est</th><th>actual</th><th>surprise</th>
+    </tr></thead><tbody>${body}</tbody></table></div>
+    <div class="erate">${rate}${rows.length < raw.length ? ` · showing ${rows.length} of ${raw.length}` : ''}</div>
+  </div>`;
+}
+
+/* The measured price reaction — the Worker computes it from daily bars, so it
+ * is a fact rather than a model read. `isPartial` is load-bearing: a report
+ * that landed today is still trading, and its volume is not comparable to a
+ * completed session. */
+function tkEarnReaction(f) {
+  const rx = f?.reaction;
+  if (!rx) {
+    return `<div class="esec"><div class="est">Price reaction</div>
+      <div class="ebody dim">facts.reaction is null — the Worker could not measure a reaction, which happens when no usable report date was established or no daily bar sits on it.</div></div>`;
+  }
+  const cells = [
+    ['gap', earnPct(rx.openGapPct, 'the reaction carries no openGapPct — the bar published no open'), 'open vs the prior close'],
+    ['session', earnPct(rx.day1Pct, 'the reaction carries no day1Pct'), 'close-to-close on the session that traded the print'],
+    ['5 sessions', earnPct(rx.day5Pct, 'fewer than five sessions have completed since the print'), 'five sessions on vs the pre-print close'],
+    ['since', earnPct(rx.sinceReportPct, 'the reaction carries no sinceReportPct'), 'latest close vs the pre-print close'],
+    ['volume', isNum(rx.volumeVsAvg) ? `<b>${rx.volumeVsAvg.toFixed(1)}×</b>` : absent(rx.isPartial === true
+        ? 'the reaction session is still in progress, so its volume is not comparable to completed sessions and the Worker withholds the ratio'
+        : 'the reaction carries no volumeVsAvg', 'n/p'), 'vs the prior 30-session average'],
+  ].map(([k, v, why]) => `<span title="${esc(why)}">${esc(k)} ${v}</span>`).join('');
+
+  const note = [];
+  note.push(rx.reactionDate
+    ? `measured on ${esc(rx.reactionDate)}${rx.timing ? ` — the ${esc(rx.timing)}` : ''}`
+    : 'the reaction publishes no reactionDate');
+  note.push(isNum(rx.priorClose) ? `against the $${esc(fmt(rx.priorClose))} close before the print` : 'the reaction publishes no priorClose');
+  if (isNum(rx.sessionsSince)) note.push(`${rx.sessionsSince} session${rx.sessionsSince === 1 ? '' : 's'} on`);
+  if (rx.isPartial === true) note.push('that session is still in progress — the move is live and incomplete');
+
+  return `<div class="esec"><div class="est">Price reaction · computed by the Worker from daily bars</div>
+    <div class="ecell">${cells}</div>
+    <div class="erate">${note.join(' · ')}</div></div>`;
+}
+
+/* `facts.revenue` labels quarters `3Q2025` / `1Q2026` — a FISCAL label, not an
+ * ISO date, and unlike `facts.history` it does not sort lexicographically.
+ * Sorting these as strings put 4Q2025 and 3Q2025 ahead of 1Q2026, so the newest
+ * quarter rendered last while the model's own prose above it walked the same
+ * series forward in time: two orderings of one series on one screen. Parse the
+ * label; if it does not parse, DO NOT claim an order — return payload order and
+ * let the caller say so. Found by reading the painted DOM, not the JSON. */
+function earnRevenueNewestFirst(list) {
+  if (!Array.isArray(list) || !list.length) return null;
+  const key = (q) => {
+    const m = /^([1-4])Q(\d{4})$/.exec(String(q || '').trim());
+    return m ? Number(m[2]) * 10 + Number(m[1]) : null;
+  };
+  const keyed = list.map(r => ({ r, k: key(r.quarter) }));
+  if (keyed.some(x => x.k == null)) {
+    /* An unrecognised label anywhere means we cannot order the series. Render
+     * it as the payload gave it rather than imposing an order we cannot back. */
+    return Object.assign(list.slice(0, 4), { unordered: true });
+  }
+  return keyed.sort((a, b) => b.k - a.k).map(x => x.r).slice(0, 4);
+}
+
+/* Forward consensus and the profile numbers the model was given, as vline rows
+ * — these are the "other facts fields" the payload carries beyond history. */
+function tkEarnFacts(f) {
+  const nq = f?.nextQuarter || null;
+  const cq = f?.currentQuarter || null;
+  const pr = f?.profile || null;
+  const rows = [];
+
+  const revenueEst = nq && isNum(nq.revenueEstimate)
+    ? `<b>$${esc(fmt(nq.revenueEstimate / 1e9, 2))}B</b>`
+    : absent('nextQuarter.revenueEstimate is not published', 'n/p');
+  const revisions = nq && (isNum(nq.epsRevisedUp) || isNum(nq.epsRevisedDown))
+    ? `<span class="up">${isNum(nq.epsRevisedUp) ? nq.epsRevisedUp : 0}↑</span> / <span class="dn">${isNum(nq.epsRevisedDown) ? nq.epsRevisedDown : 0}↓</span>`
+    : absent('nextQuarter publishes neither epsRevisedUp nor epsRevisedDown', 'n/p');
+
+  rows.push(['Consensus', cq
+    ? `current qtr EPS ${earnNum(cq.epsEstimate, 2, 'currentQuarter.epsEstimate is not published')} · growth ${earnPct(cq.growthPct, 'currentQuarter.growthPct is not published')}`
+    : absent('facts.currentQuarter is absent from this payload', 'currentQuarter n/p')]);
+  rows.push(['Next qtr', nq
+    ? `EPS ${earnNum(nq.epsEstimate, 2, 'nextQuarter.epsEstimate is not published')} · rev ${revenueEst} · growth ${earnPct(nq.growthPct, 'nextQuarter.growthPct is not published')} · revisions 30d ${revisions}`
+    : absent('facts.nextQuarter is absent from this payload', 'nextQuarter n/p')]);
+  rows.push(['Profile', pr
+    ? `trailing P/E ${earnNum(pr.trailingPE, 1, 'profile.trailingPE is not published')} · forward P/E ${earnNum(pr.forwardPE, 1, 'profile.forwardPE is not published')}`
+      + ` · margin ${earnLevelPct(pr.profitMargin, 'profile.profitMargin is not published')} · rev growth ${earnPct(pr.revenueGrowth, 'profile.revenueGrowth is not published')}`
+      + ` · target ${isNum(pr.targetMean) ? `<b>$${esc(fmt(pr.targetMean))}</b>` : absent('profile.targetMean is not published', 'n/p')}`
+    : absent('facts.profile is absent from this payload', 'profile n/p')]);
+
+  /* Reported revenue carries no consensus anywhere on this payload, so it can
+   * never be scored a beat or a miss — the Worker's own prompt says so and its
+   * post-hoc scrubber enforces it. Print the reported figures and say why. */
+  const rev = earnRevenueNewestFirst(f?.revenue);
+  rows.push(['Revenue', rev && rev.length
+    ? rev.map(q => `<span title="${esc('facts.revenue — REPORTED only. No consensus revenue figure exists anywhere on this payload, so no quarter here can be scored a beat or a miss.')}">${
+        esc(q.quarter || 'n/p')} ${isNum(q.revenue) ? `<b>$${esc(fmt(q.revenue / 1e9, 2))}B</b>` : absent('this quarter publishes no revenue', 'n/p')}</span>`).join(' · ')
+      + ` <span class="dim" title="${esc('reported figures with no consensus to compare against'
+          + (rev.unordered ? '. The quarter labels on this payload do not match the NQYYYY shape, so they are shown in the order the payload gave them rather than in an order this page cannot justify.' : ''))}">reported, unscored${
+          rev.unordered ? ' · payload order' : ' · newest first'}</span>`
+    : absent('facts.revenue is absent or empty on this payload', 'revenue n/p')]);
+
+  return rows.map(([k, v]) => `<div class="vline"><span class="k">${esc(k)}</span><span class="v">${v}</span></div>`).join('');
+}
+
+/* The model's read, rendered as the handler returns it — the structured fields
+ * each labelled, the prose fields as prose. Nothing here is paraphrased,
+ * re-scored or summarised. */
+function tkEarnModel(e, f, a) {
+  const out = [];
+
+  if (typeof a.headline === 'string' && a.headline.trim()) {
+    out.push(`<div class="ehead">${esc(a.headline.trim())}</div>`);
+  } else {
+    out.push(`<div class="ehead dim">${esc('the model published no headline field')}</div>`);
+  }
+
+  const sc = Array.isArray(a.scorecard) ? a.scorecard : null;
+  if (sc && sc.length) {
+    out.push(`<div class="esec"><div class="est">Scorecard · the model's</div><div class="escore">${
+      sc.map(s => {
+        const res = String(s?.result ?? '').toLowerCase();
+        const cls = res === 'beat' ? 'beat' : res === 'miss' ? 'miss' : '';
+        return `<div class="escell ${cls}">
+          <div class="mt">${s?.metric ? esc(s.metric) : absent('this scorecard entry carries no metric name', 'metric n/p')}</div>
+          <div class="ac">${s?.actual != null && String(s.actual).trim() ? esc(String(s.actual)) : absent('this scorecard entry carries no actual', 'n/p')}</div>
+          <div class="es">vs ${s?.estimate != null && String(s.estimate).trim() ? esc(String(s.estimate)) : absent('this entry carries no estimate', 'n/p')} est · ${
+            res ? esc(res) : absent('this entry carries no result', 'n/p')}</div>
+        </div>`;
+      }).join('')}</div>
+      <div class="erate dim">The Worker rewrites any entry whose estimate is missing to <code>result: n/a</code> before it ships — a metric with no consensus is never scored a beat or a miss.</div></div>`);
+  } else {
+    out.push(`<div class="esec"><div class="est">Scorecard · the model's</div>
+      <div class="ebody dim">${sc ? 'the model returned an empty scorecard' : 'analysis.scorecard is not an array on this payload'}</div></div>`);
+  }
+
+  const hl = Array.isArray(a.highlights) ? a.highlights : null;
+  out.push(`<div class="esec"><div class="est">Highlights</div>${
+    hl && hl.length
+      ? `<ul class="eb">${hl.map(h => `<li>${esc(String(h))}</li>`).join('')}</ul>`
+      : `<div class="ebody dim">${hl ? 'the model returned an empty highlights list' : 'analysis.highlights is not an array on this payload'}</div>`}</div>`);
+
+  /* Commentary is grounded only in the news window the Worker searched, and the
+   * Worker drops any entry that lost its source. An empty list is therefore a
+   * finding about coverage, and facts.newsStatus names which one. */
+  const cc = Array.isArray(a.callCommentary) ? a.callCommentary : null;
+  const win = f?.newsWindow;
+  out.push(`<div class="esec"><div class="est">Commentary around the call</div>${
+    cc && cc.length
+      ? cc.map(c => `<div class="equote">
+          <div class="th">${c?.theme ? esc(String(c.theme)) : absent('this entry carries no theme label', 'theme n/p')}</div>
+          <div class="dt">${esc(String(c?.detail ?? ''))}</div>
+          <div class="sr">${c?.source ? esc(String(c.source)) : absent('this entry carries no source', 'source n/p')}</div>
+        </div>`).join('')
+      : `<div class="erefuse">No commentary published — ${esc(EARN_NO_COMMENTARY[f?.newsStatus] || (
+          f?.newsStatus ? 'the Worker reports newsStatus "' + f.newsStatus + '", which this page does not have a description for' : 'facts.newsStatus is absent from this payload'))}.
+        ${win && win.from && win.to ? `The window searched was ${esc(win.from)} → ${esc(win.to)}${f?.newsSource ? ` via ${esc(f.newsSource)}` : ''}.` : 'No news window is published on this payload.'}
+        The model is instructed to return an empty list rather than improvise, so this is a coverage finding, not a failure.</div>`}</div>`);
+
+  out.push(`<div class="esec"><div class="est">What moved the stock</div>${
+    typeof a.priceAction === 'string' && a.priceAction.trim()
+      ? `<div class="ebody">${esc(a.priceAction.trim())}</div>`
+      : `<div class="ebody dim">analysis.priceAction is not published on this payload</div>`}</div>`);
+
+  const wn = Array.isArray(a.watchNext) ? a.watchNext : null;
+  out.push(`<div class="esec"><div class="est">Watch into the next report</div>${
+    wn && wn.length
+      ? `<ul class="eb">${wn.map(w => `<li>${esc(String(w))}</li>`).join('')}</ul>`
+      : `<div class="ebody dim">${wn ? 'the model returned an empty watchNext list' : 'analysis.watchNext is not an array on this payload'}</div>`}</div>`);
+
+  /* Any field the handler grows that this renderer does not know about — named,
+   * not dumped, and not silently dropped. */
+  const KNOWN = ['quarter', 'verdict', 'headline', 'scorecard', 'highlights', 'callCommentary', 'priceAction', 'watchNext'];
+  const extra = Object.keys(a).filter(k => !KNOWN.includes(k));
+  if (extra.length) {
+    out.push(`<div class="esec"><div class="erate dim" title="${esc('the analysis block carries fields this renderer predates — they are named here rather than dumped, so a Worker change is visible without a JSON blob appearing in the hero')}">analysis carries ${extra.length} field(s) this page does not render: <code>${esc(extra.join(', '))}</code></div></div>`);
+  }
+  return out.join('');
+}
+
+/* source · cache hit/miss · as-of · model. The cache state is the load-bearing
+ * one: `cached` is set to true ONLY on a KV hit, so its ABSENCE means this
+ * response was generated now and spent a Claude call. Both are stated. */
+function tkEarnProv(e) {
+  const m = e._meta;
+  const bits = [];
+  if (!m) {
+    bits.push(`<span title="${esc('the /api/earnings payload carries no _meta object at all — every field below that would come from it is unavailable, and none of it is guessed')}">no _meta on the earnings payload</span>`);
+  } else {
+    bits.push(m.source ? `source: ${esc(m.source)}` : `<span class="dim" title="${esc('_meta publishes no source')}">source n/p</span>`);
+    if (m.ok === false) bits.push(`<span class="amb" title="${esc(m.note || '_meta.ok is false and publishes no note')}">_meta.ok false</span>`);
+    if (m.delayed === true) bits.push('source is delayed');
+    bits.push(m.asOf
+      ? `<span title="${esc('_meta.asOf on this endpoint is facts.reportDate — the CALENDAR DATE of the report, not a fetch time. The fetch time is fetchedAt, beside it.')}">as-of ${esc(m.asOf)} (report date)</span>`
+      : `<span class="dim" title="${esc('_meta.asOf is null, which on this endpoint means facts.reportDate was null')}">as-of n/p</span>`);
+    if (m.note) bits.push(`<span title="${esc('_meta.note, verbatim')}">${esc(m.note)}</span>`);
+  }
+
+  /* THREE cache states, not two. `cached` is set to true ONLY on a KV hit, so
+   * its absence normally means this request generated the analysis and spent a
+   * Claude call. The exception is a facts-only read, which also carries no
+   * `cached` flag and spends NOTHING — reporting that as a spend would assert a
+   * charge that never happened. This page never sends ?facts=1, but the state
+   * is reachable and is named rather than assumed away. */
+  const hit = e.cached === true;
+  const factsOnly = e.factsOnly === true;
+  bits.push(`<span title="${esc(hit
+    ? 'the payload carries cached: true, so the Worker served a banked KV record and NO Claude call was spent on this request. _meta.fetchedAt beside it is the time of the original generation, not of this request.'
+    : factsOnly
+    ? 'the payload carries factsOnly: true — a ?facts=1 read, which returns the gathered upstream data and never reaches the model. No Claude call was spent, and the absent cached flag here does NOT mean a generation happened.'
+    : 'the payload carries no cached flag and no factsOnly flag. The Worker sets cached ONLY when it serves from KV, so its absence means this response was generated on this request and DID spend a Claude call against the daily ceiling.')}">cache ${
+    hit ? 'HIT — no call spent' : factsOnly ? 'facts-only read — no call spent, and no generation' : 'MISS — this request generated, and spent, a Claude call'}</span>`);
+
+  const gen = isNum(e.ts) ? fmtClockPt(e.ts) : null;
+  bits.push(gen
+    ? `<span title="${esc('payload.ts — when the analysis was generated (carried through the cache unchanged)')}">generated ${esc(gen)}</span>`
+    : `<span class="dim" title="${esc('the payload publishes no numeric ts')}">generated n/p</span>`);
+  if (m && m.fetchedAt) {
+    bits.push(`<span title="${esc('_meta.fetchedAt — when the Worker built this payload. On a cache HIT this is the ORIGINAL build, banked in KV with the rest of the object, not this request.')}">built ${esc(m.fetchedAt)}</span>`);
+  }
+  bits.push(`<span title="${esc('no _meta field on this endpoint names the model. _meta.source says "Yahoo + Claude synthesis" and that is the whole of what the payload publishes about it — the model name is not guessed from it.')}">model n/p — the payload names no model</span>`);
+  if (isNum(e.__fetchedAt)) bits.push(`<span title="${esc('when THIS page received the response — ours, not the Worker’s')}">received ${esc(fmtClockPt(e.__fetchedAt))}</span>`);
+
+  return `<div class="eprov">${bits.join(' · ')}</div>`;
+}
+
+/* The whole block. Replaces the JSON.stringify fallthrough that used to render
+ * 240 characters of raw payload under the Earnings line — the payload carries
+ * no top-level `headline` or `summary`, so that fallthrough was the only branch
+ * that ever ran. */
+function renderEarningsBlock(e, sym) {
+  if (!e || typeof e !== 'object') {
+    return `<div class="tkearn"><div class="erefuse">The earnings response for ${esc(sym)} is not an object — nothing is rendered from it rather than a dump.</div></div>`;
+  }
+  const f = e.facts && typeof e.facts === 'object' ? e.facts : null;
+  const a = e.analysis && typeof e.analysis === 'object' ? e.analysis : null;
+
+  const parts = [];
+  parts.push(tkEarnHead(f, a));
+
+  /* REFUSAL. `analysis: null` with the Worker's own reason beside it — a
+   * finding, in neutral ink, never an error style and never blank. The facts
+   * still render below it, because they are real and were gathered. */
+  if (!a) {
+    const why = typeof e.error === 'string' && e.error.trim() ? e.error.trim()
+      : e.factsOnly === true ? 'the response is a ?facts=1 read, which returns the gathered data without spending a Claude call'
+      : 'the payload carries analysis: null and publishes no reason field';
+    parts.push(`<div class="esec"><div class="erefuse" title="${esc('the Worker returns analysis: null with a reason rather than a partial or invented read')}">model declined: ${esc(why)}</div></div>`);
+  }
+
+  if (!f) {
+    parts.push(`<div class="esec"><div class="ebody dim">The payload carries no <code>facts</code> object (top-level keys: <code>${
+      esc(Object.keys(e).filter(k => k !== '__fetchedAt').join(', ') || 'none')}</code>), so no figure is rendered — nothing here is inferred from the analysis text.</div></div>`);
+  } else {
+    if (a) parts.push(tkEarnModel(e, f, a));
+    parts.push(tkEarnHistory(f));
+    parts.push(tkEarnReaction(f));
+    parts.push(tkEarnFacts(f));
+  }
+
+  parts.push(tkEarnProv(e));
+  return `<div class="tkearn">${parts.join('')}</div>`;
 }
 
 /* ── evidence groups ──────────────────────────────────────────────────────── */
