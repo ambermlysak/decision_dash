@@ -926,7 +926,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
  * different questions. `window.DD_BUILD` answers the second from the console:
  * curl can confirm the bytes on the wire, only the page itself can confirm the
  * bundle actually executing. Bumped by hand with each shipped phase. */
-const DD_BUILD = 'phase-12-earnings-block';
+const DD_BUILD = 'top3-serving-window-1';
 window.DD_BUILD = DD_BUILD;
 /* The VISIBLE build stamp is rendered from DD_BUILD, never typed into markup.
  * It was hardcoded as `verdict-p11-1` and nothing ever wrote to it, so the
@@ -3294,17 +3294,46 @@ function optExpandedRow(row) {
  *
  *   key ABSENT          → the deployed Worker predates the rider. field-absent,
  *                         which is honesty rule 9 and NOT "no plays today".
- *   key present, NULL   → this Worker publishes the rider, but KV holds no
- *                         `top3:{today PT}` record — the 1:15pm PT cron has not
- *                         run yet today, or it refused before writing. The key
- *                         is date-scoped, so before the cron and all weekend
- *                         this is the EXPECTED state, not a fault.
+ *   key present, NULL   → this Worker publishes the rider, but nothing survives
+ *                         anywhere in its serving window: the daily job has not
+ *                         completed recently, or every record in range has aged
+ *                         out. NOT "no plays today", and no longer "not 1:15pm
+ *                         yet" either — see the serving window below.
  *   key present, OBJECT → the record. `entries: []` inside it is a VALID
  *                         published result: the gates ran and nothing survived.
+ *
+ * THE SERVED RECORD MAY BE A PRIOR DAY'S, AND IT SAYS SO ITSELF. `readTop3()`
+ * no longer reads `top3:{today PT}` alone: it walks back up to
+ * TOP3_SERVE_WALKBACK_DAYS calendar days and serves the newest key that still
+ * exists, with `ptDate` and `asOf` unmodified. So on a trading morning before
+ * the 1:15pm PT job — and on a Monday, and after a holiday — the ordinary
+ * reading is the PREVIOUS session's ranking, and this strip's job is to render
+ * it aged: its own PT date in the header and a `stale` badge beside it. The
+ * queue line is the other half of that rule and refuses an aged record outright
+ * (buildQueue(): `t3Iso === todayIso`), because a queue line reads as today's
+ * news where a strip carrying its own as-of does not.
  *
  * Expansion state lives in `state`, never as a class on the DOM: renderOptions()
  * replaces this subtree with innerHTML on every row toggle and every paintAll().
  * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* THE SERVING WINDOW IS THE WORKER'S, AND IT IS NOT PUBLISHED ON ANY PAYLOAD
+ * THIS PAGE FETCHES. `gates` carries every weight, anchor and floor — and it
+ * carries none of this, because it rides on a RECORD and the state that has to
+ * describe the window is the one with no record to read it from. So these two
+ * numbers are hand-carried from trading_dash's `TOP3_SERVE_WALKBACK_DAYS` (5)
+ * and `TOP3_TTL` (7d), they are named as hand-carried everywhere they render,
+ * and if the Worker moves either one this page cannot tell. That is a stated
+ * limit, not a silent one — the alternative is a null state that describes a
+ * rule the Worker stopped following, which is exactly the bug this change
+ * repairs. Publishing the window on the envelope is a trading_dash task. */
+const TOP3_WALKBACK_DAYS = 5;
+const TOP3_RETENTION_DAYS = 7;
+const TOP3_WINDOW_NOTE = `The Worker serves the newest \`top3:\` record that still exists within `
+  + `${TOP3_WALKBACK_DAYS} calendar days, and records are retained ${TOP3_RETENTION_DAYS} days. Both `
+  + `numbers are the Worker's (TOP3_SERVE_WALKBACK_DAYS, TOP3_TTL) and are NOT published on any payload `
+  + `this page fetches — they are carried here by hand, so a Worker-side change to either would not show `
+  + `up on this screen.`;
 
 /** The PT trading day the record belongs to. `ptDate` is the key's own date and
  *  is what the Worker named the record for; `asOf` (sweep completion) is the
@@ -3609,16 +3638,25 @@ function renderTop3() {
   }
   const rec = state.top3;
 
-  /* 2. KEY PRESENT, NULL. The rider exists; today's record does not. The key is
-   * date-scoped (`top3:{PT-date}`), so before the daily job runs — and all
-   * weekend — this is the expected reading. */
+  /* 2. KEY PRESENT, NULL. The rider exists; nothing survives in the serving
+   * window. This copy USED to read "no record under the current PT date … the
+   * key is date-scoped, so this is also the expected reading outside a trading
+   * day" — a description of a read path the Worker no longer has. readTop3()
+   * walks back TOP3_SERVE_WALKBACK_DAYS days, so a morning before the job and a
+   * Monday now serve the PREVIOUS session's record; null is a stronger claim
+   * than it used to be and has to say the stronger thing. */
   if (st === 'no-record') {
     el.innerHTML = `<div class="t3"><div class="t3h"><span class="ttl">Top plays</span>
-      <span class="asof">· no record under the current PT date</span></div>
+      <span class="asof" title="${esc(TOP3_WINDOW_NOTE)}">· no record in the serving window</span></div>
       <div class="empty-state">This Worker publishes the ranking, but KV holds no <code>top3:</code> record
-      for the current PT date — the daily job has not run yet today, or it refused before writing. The key is
-      date-scoped, so this is also the expected reading outside a trading day. It is NOT "nothing qualified":
-      that state publishes a record carrying an empty <code>entries</code> array.</div></div>`;
+      within the last <b>${TOP3_WALKBACK_DAYS} calendar days</b> — the daily job has not completed recently,
+      or this Worker predates the walk-back read and is answering for the current PT date alone. A record
+      still inside the ${TOP3_RETENTION_DAYS}-day retention would have been served here under its own PT
+      date, badged stale, so this is not "not 1:15pm PT yet" and not a weekend either.
+      <span class="dim" title="${esc(TOP3_WINDOW_NOTE)}">(window per the Worker's own constants, carried
+      here by hand — not published on this payload)</span>
+      It is NOT "nothing qualified": that state publishes a record carrying an empty <code>entries</code>
+      array.</div></div>`;
     return;
   }
 
@@ -3643,7 +3681,8 @@ function renderTop3() {
   if (stale) {
     head.push(`<span class="badge stale" title="${esc(`this record is keyed to PT ${recIso} and the page's shared PT clock reads ${todayIso}`
       + (TEST_CLOCK != null ? ' (a ?clock override is active)' : '')
-      + '. It renders aged rather than suppressed — an old ranking is still a finding, and its real as-of is beside it.')}">stale · PT ${esc(recIso)}, not ${esc(todayIso)}</span>`);
+      + '. It renders aged rather than suppressed — an old ranking is still a finding, and its real as-of is beside it. '
+      + TOP3_WINDOW_NOTE)}">stale · PT ${esc(recIso)}, not ${esc(todayIso)}</span>`);
   }
   /* `complete === false` IS THE TEST, never `!complete`: an absent field means a
    * record from a Worker predating it, and a real ranking must not be
@@ -3691,6 +3730,24 @@ function toggleTop3Excl() { state.top3ExclOpen = !state.top3ExclOpen; renderTop3
 /* The modal's gate section is RENDERED FROM THE RECORD, not typed into markup:
  * the weights, anchors and floors are the Worker's and must not drift from a
  * hand-written copy here. Same rule the liquidity floors already follow. */
+/* The serving window renders in BOTH modal branches and is built from the two
+ * constants rather than typed into the modal's markup — the same rule the gate
+ * numbers follow, as far as it can be followed for a window no payload
+ * publishes. One source for the numbers, and it names itself as hand-carried. */
+function top3WindowPara() {
+  return `<p><b>Which day's ranking this is.</b> The record is written by a 1:15pm PT job and keyed to its
+    own PT date. It is <b>retained ${TOP3_RETENTION_DAYS} days</b>, and the Worker serves the <b>newest
+    record still present within ${TOP3_WALKBACK_DAYS} calendar days</b> — under its own as-of, never
+    relabelled. So before the job has run on a given day, on a Monday, and after a holiday, the ordinary
+    reading here is the <i>previous</i> session's ranking: it renders with its own PT date and a
+    <b>stale</b> badge, because an aged ranking is still a finding and suppressing it would be a blank. The
+    Today-tab queue line is the opposite rule — it takes only a record keyed to the current trading day,
+    because one line under the day's cards reads as today's news.
+    <span class="dim" title="${esc(TOP3_WINDOW_NOTE)}">Both numbers are the Worker's own constants
+    (TOP3_SERVE_WALKBACK_DAYS, TOP3_TTL) and are not published on any payload this page fetches — they are
+    carried here by hand and would not follow a Worker-side change.</span></p>`;
+}
+
 function renderTop3Modal() {
   const el = document.getElementById('opt-modal-top3');
   if (!el) return;
@@ -3700,16 +3757,18 @@ function renderTop3Modal() {
       'failed': 'the shared long batch — which the record rides on — failed to fetch, so nothing arrived to read',
       'not-loaded': 'the shared long batch has not landed yet',
       'field-absent': 'the deployed Worker does not publish the <code>top3</code> key at all',
-      'no-record': 'this Worker publishes the <code>top3</code> key but KV holds no record for the current PT date',
+      'no-record': 'this Worker publishes the <code>top3</code> key but no record survives anywhere in its '
+        + `serving window — nothing within the last ${TOP3_WALKBACK_DAYS} calendar days`,
     }[top3State()] || 'no record is in hand';
-    el.innerHTML = `<p class="m10" style="color:var(--ink-3)">The gates, weights and anchors are published on
+    el.innerHTML = top3WindowPara()
+      + `<p class="m10" style="color:var(--ink-3)">The gates, weights and anchors are published on
       the ranking record itself and are rendered from it here. No numbers are shown rather than numbers typed
       into this page — ${why}.</p>`;
     return;
   }
   const w = g.weights || {};
   const a = g.anchors || {};
-  el.innerHTML = `<p><b>The gates, as today's record declares them.</b>
+  el.innerHTML = top3WindowPara() + `<p><b>The gates, as this record declares them.</b>
     Lanes ${esc((g.lanes || []).join(' / ') || 'n/p')} — ${esc(g.laneNote || '')}
     <br /><b>Direction:</b> ${esc(g.directionRule || 'n/p')}
     <br /><b>Liquidity:</b> ${esc(g.liquidity?.rule || 'n/p')}
@@ -5476,8 +5535,8 @@ const state = {
   longRows: null, longMissing: null, longMeta: null, macro: null,
   /* The daily top-3 ranking rider. `top3KeyPresent` is captured SEPARATELY from
    * the value because the Worker distinguishes an absent key (an older Worker)
-   * from `top3: null` (this Worker, no record under today's PT date), and the
-   * value alone cannot tell them apart. */
+   * from `top3: null` (this Worker, nothing surviving in its serving window),
+   * and the value alone cannot tell them apart. */
   top3: null, top3KeyPresent: false,
   top3Open: [],          // entries showing their score decomposition
   top3ExclOpen: false,   // the exclusions list
@@ -5679,7 +5738,8 @@ function loadShared(reason) {
       state.macro = lb.macro || null;
       /* THE DAILY TOP-3 RANKING rides here too. Presence and value are captured
        * separately: an ABSENT key is an older Worker (field-absent), `null` is
-       * this Worker reporting that KV holds no `top3:{today PT}` record, and a
+       * this Worker reporting that no record survives anywhere in its serving
+       * window (the newest key within TOP3_SERVE_WALKBACK_DAYS), and a
        * record with `entries: []` is the gates having run and nothing surviving.
        * Three different claims; the strip renders each as its own state. */
       state.top3KeyPresent = Object.prototype.hasOwnProperty.call(lb, 'top3');

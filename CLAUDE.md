@@ -355,13 +355,37 @@ least once:
   must never be rendered as a claim about what the Worker publishes.
   `top3State()` returns exactly one of `failed` · `not-loaded` · `field-absent` ·
   `no-record` · `record`.
-- **The `top3:` key is DATE-SCOPED and written by a 1:15pm PT cron.** `readTop3()`
-  reads `top3:{ptDate()}` only, so yesterday's record is never served: before the
-  job fires, and all weekend, `top3: null` is the EXPECTED reading rather than a
-  fault. Retention is 36h (it outlives the day it names), and a re-run rewrites
-  the key whole. A partial run still writes but does not stamp its dedup key
-  (`complete: false` + `incompleteReason`); **`complete === false` is the test,
-  never `!complete`.**
+- **The `top3:` key is written by a 1:15pm PT cron, and `readTop3()` SERVES THE
+  NEWEST SURVIVING RECORD — not today's key alone** (trading_dash `b730011`, then
+  `50bf2e5` on 2026-08-31). It reads `top3:{ptDate()}` and, on a miss, walks back
+  up to `TOP3_SERVE_WALKBACK_DAYS` (**5**) calendar days; retention is `TOP3_TTL`
+  (**7 days**, raised from 36h in the same commit). So the ordinary reading on a
+  trading morning, on a Monday, and after a holiday is the **previous session's
+  record, served unmodified under its own `ptDate` and `asOf`** — the Worker
+  attaches no `served` marker, because a second field claiming the same fact is a
+  second field that can disagree. `top3: null` therefore now means **nothing
+  survives anywhere in the serving window**, which is a stronger claim than the
+  old "not 1:15pm PT yet"; the strip's null copy says the stronger thing.
+  A re-run rewrites the key whole. A partial run still writes but does not stamp
+  its dedup key (`complete: false` + `incompleteReason`); **`complete === false`
+  is the test, never `!complete`.**
+- **The serving window is NOT PUBLISHED on any payload this page fetches.**
+  `gates` carries every weight, anchor and floor — and it rides on a *record*,
+  so the one state that has to describe the window (no record) has nothing to
+  read it from. `TOP3_WALKBACK_DAYS` / `TOP3_RETENTION_DAYS` in `index.html` are
+  therefore **hand-carried copies** of the Worker's constants, they say so
+  everywhere they render (`TOP3_WINDOW_NOTE`, on the null state, the stale badge
+  and both modal branches), and **a Worker-side change to either would not show
+  up on this screen**. Publishing the window on the envelope is a trading_dash
+  task.
+- **A NEW TTL ONLY APPLIES TO RECORDS WRITTEN AFTER THE DEPLOY** — `expirationTtl`
+  is set at `put()` time. Friday 2026-08-28's record was written under the old 36h
+  and expired ~01:15 PT Sunday, so on Monday 2026-08-31 the walk-back had nothing
+  in range to find and the live envelope served `top3: null` regardless of whether
+  `50bf2e5` was deployed. **The frontend cannot distinguish "walk-back not
+  deployed" from "deployed, everything in range aged out"** — both are `null`, and
+  the null copy names both. The first live stale render is possible only the
+  morning after the first 1:15pm PT run that writes under the 7-day TTL.
 - **The score is a weighted composite over FIXED anchors, and it is
   decomposable.** Six components (`probMarket` · `probMeasured` · `sharpe` ·
   `win` · `beEm` · `dollars`), each clipped to [0,1], each shipping its raw
@@ -572,6 +596,17 @@ least once:
   running the bundle I just pushed?" check reads. It is now rendered from
   `DD_BUILD`, same as every other badge here: from the source of truth, never
   typed beside it.
+- **COPY THAT DESCRIBES THE WORKER'S READ PATH IS A CLAIM ABOUT THE WORKER, AND
+  IT EXPIRES WHEN THE WORKER CHANGES** (2026-08-31). The top-3 null state read
+  "KV holds no `top3:` record for the current PT date … the key is date-scoped,
+  so this is also the expected reading outside a trading day" — three sentences
+  of provenance, all correct when written, all false the moment `readTop3()`
+  learned to walk back. Nothing broke and no test failed: a state string is not
+  a number and no assertion covers it. **When a Worker fact recorded in this
+  file changes, grep the rendered copy for the old fact in the same task** —
+  `date-scoped`, `for the current PT date` and `has not run yet today` were the
+  three phrases, all in one branch. The strings that explain an absence are
+  exactly the strings nothing exercises.
 - **The string tests cannot see the DOM, and one of these bugs only exists
   there** (phase 12). The earnings block passed 53 string assertions with a
   revenue row ordered `4Q2025 · 3Q2025 · 1Q2026` — wrong, and contradicting the
@@ -638,6 +673,7 @@ Status is never conveyed by color alone.
 | fix | **Names column shift** — phase 7's `trendCell` shadowed phase 1's; renamed to `divTrendCell`. Names lost its Trend `<td>`, spilling 39 spans above the table and shifting every later column left | `b5d7f7b` |
 | 10 | **Queue amendments** — HOLDs excluded on verdict grounds, tier-aware cap (1–4 uncapped, tier-5 fills to 6), tier-5 ordered by \|recRank\| with structure as a tiebreak, clickable cut chips expanding through `queueCard()`, expansion state moved into `state` so the 30-second re-render preserves it | `4c48c4d`… |
 | 11 | **Daily top-3 options ranking** — the `top3` rider stored beside `macro`, the Top plays strip above the Options table (decomposable score, P(BE)\|cov, ¼-Kelly, episodes-to-50%, gap+drift, pool counts, exclusions), one informational queue line, a modal section rendered from `gates`, and `window.DD_BUILD` | this commit |
+| 13 | **Top-3 serving window** — the Worker now walks back 5 calendar days over 7-day retention, so `top3: null` stopped meaning "no record under today's PT date"; the null copy, the modal's serving-window paragraph and the state comments now state the claim the Worker actually makes, and the stale render was re-checked against fixtures on both clocks | this commit |
 | 12 | **Ticker Earnings block** — `/api/earnings` rendered in four parts (header + facts + model read + provenance) in place of a `JSON.stringify(...).slice(0,240)` fallthrough that was the only branch that ever ran; the payload shape recorded in this file so it is never rediscovered by spending; `#build-tag` wired to `DD_BUILD` | this commit |
 
 Doc-sync commits: `557329e` (phase-1 payload facts), `e626a64` (phase-5 payload
@@ -701,7 +737,14 @@ These are stated, not fixed. Each is a real limit of the built surfaces.
    wrote and served. **First load after a 1:15pm PT run is the check that closes
    this**, and the fields to confirm are the ones the fixture had to supply
    rather than read: `sweep.*`, `rowSource`/`rowAgeMs`, and `asOf` as sweep
-   completion.
+   completion. **Still open on 2026-08-31**, and now with a second half: the
+   *stale* render has also never been exercised against a live record. Measured
+   that morning at 08:29 PT — key present, `top3: null`, `top3State()` =
+   `no-record` — so the strip never reached the record branch at all. That is
+   expected arithmetic rather than a fault (see the write-time TTL fact above),
+   and it means the live stale check needs the morning after the first 1:15pm PT
+   run under the 7-day TTL. The stale path is verified only against fixtures,
+   on both the real clock and `?clock=`.
 9. **`?clock=` cannot exercise the bank's WRITE path** (phase 8), by design — a
    test clock that could write would be able to corrupt real state. The write
    path is therefore verified on the real clock with recorded payloads, and the

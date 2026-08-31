@@ -87,6 +87,18 @@ Default sort: **attention** — triggered > within 3% of level > earnings ≤7d 
 > qualifying names is a published finding, not an empty module. It feeds Today
 > as ONE informational line that takes no card slot, because the queue's tiers
 > 1–4 are clock-driven and a ranking must never evict a deadline.
+>
+> **The record is banked at 1:15pm PT and is served for days after** (Worker,
+> 2026-08-31): retained 7 days, and the newest one still present within 5
+> calendar days is served under its own as-of. So on a trading morning, on a
+> Monday and after a holiday, the strip's ordinary content is the *previous*
+> session's ranking — rendered with its own PT date and a **stale** badge, never
+> relabelled as today's and never suppressed, because an aged ranking is still a
+> finding. The Today queue line takes the opposite rule and refuses anything but
+> the current trading day's record: a strip carries its as-of beside it, while
+> one line under the day's cards would read as today's news. `top3: null`
+> correspondingly stopped meaning "not 1:15pm PT yet" and now means nothing
+> survives anywhere in that window — the strip says the stronger thing.
 
 - Load-state honesty stays; stale/refusal states stay — refusals render as findings, exactly as your rules require, just at lane level once instead of 19 columns wide.
 
