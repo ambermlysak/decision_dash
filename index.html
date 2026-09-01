@@ -209,6 +209,14 @@ h2.sec .right { margin-left: auto; text-transform: none; letter-spacing: 0.03em;
 .qact.pt { background: var(--bg-2); color: var(--violet); border: 1px solid rgba(180,142,173,0.45); }
 .qcard.pt .tag { font-size: 9px; letter-spacing: 0.06em; padding: 1px 5px; border-radius: 3px;
   border: 1px solid var(--line); color: var(--ink-2); }
+/* A record at a schema this page does not read. Neutral, not alarming — nothing
+ * is wrong with the record, this reader simply cannot interpret it. Its src
+ * block is always visible: there is nothing to expand, and the provenance IS the
+ * content. Dimmed with an ink tier, NEVER with opacity — the ink tiers are all
+ * AA against bg-0..3 and opacity composites away that guarantee. */
+.qcard.pt.gate { border-left-color: var(--ink-3); }
+.qcard.pt.gate .qcall { color: var(--ink-2); }
+.qcard.pt.gate .qsrc { display: block; }
 .qcard.pt .tag.bmo { color: var(--cyan);  border-color: rgba(94,197,234,0.4); }
 .qcard.pt .tag.amc { color: var(--violet); border-color: rgba(180,142,173,0.45); }
 .qcard.pt .tag.unk,
@@ -951,7 +959,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
  * different questions. `window.DD_BUILD` answers the second from the console:
  * curl can confirm the bytes on the wire, only the page itself can confirm the
  * bundle actually executing. Bumped by hand with each shipped phase. */
-const DD_BUILD = 'print-vs-tape-1';
+const DD_BUILD = 'ptschema2-cal-1';
 window.DD_BUILD = DD_BUILD;
 /* The VISIBLE build stamp is rendered from DD_BUILD, never typed into markup.
  * It was hardcoded as `verdict-p11-1` and nothing ever wrote to it, so the
@@ -1826,7 +1834,14 @@ function fmtClockPt(ms) {
  * timestamped market-close report. */
 function briefSlotStates(d) {
   const now = ptPartsOf(queueNow());
-  const weekend = now.dow === 0 || now.dow === 6;
+  /* NOT A SESSION = the Worker's cron gate would have skipped the day. That gate
+   * is `tradingDayStatus`, which skips weekends AND NYSE full-day closures — so
+   * once the calendar is loaded a holiday reads `no-session` here too, rather
+   * than reporting the 06:00 briefing as missing on a day it was never going to
+   * run. Falls back to the weekend-only rule when the calendar is unavailable,
+   * which the queue footnote and phase line name. */
+  const dayStatus = tradingDayStatusIso(now.iso);
+  const weekend = !dayStatus.open;
   const bank = briefStoreRead(now.iso);
   let banked = false;
 
@@ -1861,7 +1876,10 @@ function briefSlotStates(d) {
     /* The date reported must be the date of the record SHOWN, not of whatever
      * the payload happened to carry for this slot. */
     const shownIso = show && isNum(show.ts) && show.ts > 0 ? ptPartsOf(show.ts).iso : tsIso;
-    return { ...s, ...r, ...(show || {}), st, tsIso: shownIso, nowIso: now.iso };
+    return { ...s, ...r, ...(show || {}), st, tsIso: shownIso, nowIso: now.iso,
+             /* Carried so the no-session copy can say WHICH closure it is —
+              * "a weekend" and "an NYSE holiday" are different facts. */
+             dayReason: dayStatus.reason, daySource: dayStatus.source };
   });
 
   if (banked) briefStoreWrite(now.iso, bank);
@@ -1932,9 +1950,10 @@ function briefProv(s) {
 function briefNoneCard(slots) {
   const other = slots.filter(s => s.st === 'other-day');
   const nowIso = slots[0]?.nowIso || '—';
-  const weekend = slots.some(s => s.st === 'no-session');
-  const why = weekend
-    ? `PT date <b>${esc(nowIso)}</b> is a weekend by this page's weekday rule — the briefing jobs do not run.`
+  const ns = slots.find(s => s.st === 'no-session');
+  const why = ns
+    ? `PT date <b>${esc(nowIso)}</b> is ${esc(ns.dayReason === 'nyse-holiday' ? 'an NYSE full-day closure'
+        : 'a weekend')} — the briefing jobs gate on the same rule and do not run.`
     : `No ${esc(nowIso)} record has been written yet.`;
   const held = other.length
     ? ` The <code>/daily</code> payload still carries the ${other.map(s =>
@@ -1973,7 +1992,8 @@ function briefTimeline(slots) {
         return mk(s.cron, `${s.label} — generating`, 'pend', `the Worker reports ${s.key}Loading`);
       case 'no-session':
         return mk(s.cron, `${s.label} — no session`, 'pend',
-          `${s.nowIso} is a weekend by the page’s weekday rule (no holiday calendar client-side)`);
+          `${s.nowIso} is ${s.dayReason === 'nyse-holiday' ? 'an NYSE full-day closure' : 'a weekend'}`
+          + (s.daySource === 'calendar' ? ' per GET /api/calendar/holidays' : ''));
       case 'pending':
         return mk(s.cron, `${s.label} — pending`, 'pend', `not yet ${s.cron} PT`);
       default:
@@ -2440,26 +2460,107 @@ const isWeekdayIso = iso => {
   const dow = new Date(iso + 'T00:00:00Z').getUTCDay();
   return dow >= 1 && dow <= 5;
 };
-/* KNOWN GAP: weekdays only. This frontend has no NYSE holiday calendar, so a
- * market holiday reads as a trading day here — the phase line says so. The
- * holiday table lives in the Worker (`NYSE_HOLIDAYS`) and is not published on
- * any endpoint this page fetches. */
-function nextTradingDayIso(iso) {
-  let d = isoAddDays(iso, 1);
-  while (!isWeekdayIso(d)) d = isoAddDays(d, 1);
-  return d;
+
+/* ── THE NYSE CALENDAR ──────────────────────────────────────────────────────
+ * `GET /api/calendar/holidays` publishes the Worker's own `NYSE_HOLIDAY_TABLE`
+ * — the same Set its cron gate reads — with `through` (the runway) and, for the
+ * asked date, `prevTradingDay` / `nextTradingDay` computed server-side.
+ *
+ * IT REPLACES THE WEEKDAY ARITHMETIC THAT WAS KNOWN GAP 1. A walk to the
+ * previous WEEKDAY is right four days in five and silently wrong on the fifth:
+ * over Labor Day 2026-09-07 the session before Tuesday 2026-09-08 is FRIDAY
+ * 2026-09-04, and a weekday walk lands on the Monday the exchange was shut.
+ * Downstream that reads as "nothing reported", which is indistinguishable from
+ * a real quiet day.
+ *
+ * THE FALLBACK IS THE OLD BEHAVIOUR AND IT SAYS SO. When the fetch fails, or
+ * when the asked date is past the table's runway (`calendarStale` — every
+ * weekday beyond it reads as open, holidays included), these walkers fall back
+ * to the weekday rule and `calendarSource()` reports which rule answered. The
+ * queue footnote and the phase line render that, so "holidays modelled" and
+ * "holidays assumed away" are never the same sentence.
+ *
+ * ONE COPY OF THE CALENDAR, deliberately: everything on this page walks trading
+ * days through these two functions, so the table can never be applied in one
+ * place and not another. That is the Worker's own rule for the same reason. */
+
+/** The holiday dates as a Set, or null when this page holds no usable table. */
+function calendarHolidaySet() {
+  const h = state.calendar?.env?.holidays;
+  if (!Array.isArray(h)) return null;
+  const s = new Set();
+  for (const e of h) if (e && typeof e.date === 'string') s.add(e.date);
+  return s;
 }
-function prevTradingDayIso(iso) {
-  let d = isoAddDays(iso, -1);
-  while (!isWeekdayIso(d)) d = isoAddDays(d, -1);
-  return d;
+
+/** Which rule the walkers are using, and why. Rendered, not assumed. */
+function calendarSource() {
+  const st = state.calendar;
+  if (!st) {
+    return { ok: false, rule: 'weekday',
+      reason: 'the NYSE calendar has not been fetched yet — prior/next trading day is a weekday walk' };
+  }
+  if (st.err) {
+    return { ok: false, rule: 'weekday',
+      reason: `holiday calendar unavailable (${st.err.kind || 'error'}: ${st.err.message}) — prior trading day `
+        + 'assumed by weekday' };
+  }
+  const set = calendarHolidaySet();
+  if (!set) {
+    return { ok: false, rule: 'weekday',
+      reason: 'GET /api/calendar/holidays returned no holidays array — prior trading day assumed by weekday' };
+  }
+  return { ok: true, rule: 'calendar', reason: null,
+    n: set.size, through: st.env.through ?? null };
 }
+
+/** Is this ISO date a session the NYSE held? The `source` is part of the answer:
+ *  past the table's runway every weekday reads as open, holidays included, and
+ *  that is a weekday answer wearing a calendar's clothes. */
+function tradingDayStatusIso(iso) {
+  /* A WEEKEND IS UNAMBIGUOUS UNDER BOTH RULES, so its source is neither the
+   * calendar nor the fallback: no holiday table can change the answer, and a
+   * "read by weekday, so a holiday might be missed" caveat beside a Saturday
+   * would be a caveat about a reading that has no such doubt. */
+  if (!isWeekdayIso(iso)) return { open: false, reason: 'weekend', source: 'weekend' };
+  const src = calendarSource();
+  if (!src.ok) return { open: true, reason: 'weekday', source: 'weekday', why: src.reason };
+  const through = state.calendar.env.through;
+  if (typeof through === 'string' && iso > through) {
+    return { open: true, reason: 'weekday', source: 'calendar-stale',
+      why: `${iso} is past the calendar's runway (${through}); every weekday beyond it reads as open, `
+        + 'holidays included' };
+  }
+  if (calendarHolidaySet().has(iso)) return { open: false, reason: 'nyse-holiday', source: 'calendar' };
+  return { open: true, reason: 'weekday', source: 'calendar' };
+}
+
+/** Walk one trading day. Capped at 10 calendar days — the longest closure this
+ *  calendar holds is four — and returns the weekday answer rather than null if
+ *  the walk ever runs away, because a null date here would propagate into a KV
+ *  key and read as "no record". */
+function walkTradingDayIso(iso, step) {
+  let d = isoAddDays(iso, step);
+  for (let i = 0; i < 10; i++) {
+    if (tradingDayStatusIso(d).open) return d;
+    d = isoAddDays(d, step);
+  }
+  let w = isoAddDays(iso, step);
+  while (!isWeekdayIso(w)) w = isoAddDays(w, step);
+  return w;
+}
+function nextTradingDayIso(iso) { return walkTradingDayIso(iso, 1); }
+function prevTradingDayIso(iso) { return walkTradingDayIso(iso, -1); }
 const dowLabel = iso => new Date(iso + 'T00:00:00Z')
   .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 
-/** Session phase from PT wall-clock. Weekends are post-close regardless of hour. */
+/** Session phase from PT wall-clock. A day the exchange did not hold — a
+ *  weekend, and now an NYSE full-day closure — is post-close regardless of hour.
+ *  Thanksgiving 2026-11-26 read `intraday` before the calendar was fetched here;
+ *  it reads `post-close` once it is, and falls back to reading as a weekday when
+ *  the calendar is unavailable, which the phase line names. */
 function sessionPhase(pt) {
-  if (pt.dow === 0 || pt.dow === 6) return 'post-close';
+  if (!tradingDayStatusIso(pt.iso).open) return 'post-close';
   if (pt.minutes < PT_MORNING_END) return 'morning';
   if (pt.minutes < PT_CLOSE) return 'intraday';
   return 'post-close';
@@ -2635,13 +2736,26 @@ function buildQueue() {
    * tier 1–4 card, which is the same tier-aware rule phase 10 established. A
    * demoted card (its open passed) sits in the Rest group and is outside the cap
    * arithmetic entirely — it is no longer competing for a pre-open slot. */
-  const ptRows = [], ptRest = [];
+  const ptRows = [], ptRest = [], ptGate = [];
   const ptDayStates = (state.printTape?.dates || printTapeDates(ms)).map(d => ({
     date: d, st: printTapeDayState(state.printTape?.days?.[d]),
   }));
   for (const rec of printTapeRecords()) {
-    if (rec.divergent !== true) continue;
     const win = printTapeWindow(rec, pt);
+    /* THE SCHEMA GATE COMES BEFORE THE DIVERGENCE TEST. `rec.divergent` is a
+     * field this page would be reading out of a record whose field layout it
+     * does not know; an off-schema record therefore never answers a question
+     * here, it only reports that it could not be read. It is kept out of
+     * `ptRows`/`ptRest` and out of the cap arithmetic entirely — whether it
+     * would have been actionable is exactly what cannot be said, so it must not
+     * cost a real card its slot. The window filter uses only `reportDate` and
+     * `session`, the two fields that key the record and that no schema bump has
+     * moved, so an aged one still drops. */
+    if (!ptSchemaOk(rec)) {
+      if (win.state !== 'dropped') ptGate.push({ rec, win, sym: rec.ticker, best: null, gate: true });
+      continue;
+    }
+    if (rec.divergent !== true) continue;
     if (win.state === 'dropped' || win.state === 'undated') continue;
     const lr = longBySym[rec.ticker];
     const row = { rec, win, sym: rec.ticker, best: lr ? bestCandidate(lr) : null };
@@ -2649,7 +2763,7 @@ function buildQueue() {
   }
   const ptOrder = (a, b) => String(a.rec.reportDate).localeCompare(String(b.rec.reportDate))
     || String(a.sym).localeCompare(String(b.sym));
-  ptRows.sort(ptOrder); ptRest.sort(ptOrder);
+  ptRows.sort(ptOrder); ptRest.sort(ptOrder); ptGate.sort(ptOrder);
 
   const candidates = scored.filter(r => r.tier != null);
   const core     = candidates.filter(r => r.tier <= 4);
@@ -2659,7 +2773,7 @@ function buildQueue() {
   return {
     ms, pt, phase, todayIso, nextIso, scored, candidates,
     core, fillPool, fills, selected, top3Line,
-    ptRows, ptRest, ptDayStates,
+    ptRows, ptRest, ptGate, ptDayStates,
     cut: fillPool.slice(fills.length),
   };
 }
@@ -2676,21 +2790,38 @@ function dumpQueueTable() {
   console.table(rows);
   /* The print-tape rows print as their own table — a separate row family, so a
    * separate table rather than columns of nulls hanging off the scored one. */
+  const cs = calendarSource();
+  console.log('[queue] calendar: %s · today %s · prev %s · next %s',
+    cs.ok ? `NYSE table, ${cs.n} closures through ${cs.through}` : `WEEKDAY FALLBACK — ${cs.reason}`,
+    q.todayIso, prevTradingDayIso(q.todayIso), q.nextIso);
   console.log('[queue] print vs tape: %s', printTapeNote(q));
   console.table(q.ptDayStates.map(d => ({ date: d.date, state: d.st.state, reason: d.st.reason })));
+  /* The tape's numbers are PER WINDOW and the table prints them that way — a
+   * `tapePct` column would have to pick one window to be about, which is the
+   * hoisted copy the record deliberately does not carry. */
   console.table([...q.ptRows, ...q.ptRest].map(r => ({
     sym: r.sym, reportDate: r.rec.reportDate, session: r.rec.session, divergent: r.rec.divergent,
     window: r.win.state, openIso: r.win.openIso, group: r.win.state === 'reacting' ? 'Rest' : 'queue',
     epsSurprisePct: r.rec.print?.epsSurprisePct ?? null, revSurprisePct: r.rec.print?.revSurprisePct ?? null,
-    tapePct: r.rec.tape?.changePct ?? null, impliedPct: r.rec.implied?.movePct ?? null,
+    consensus: r.rec.print?.consensusSource ?? 'field-absent',
+    usedWindow: r.rec.tape?.usedWindow ?? null,
+    prePct: ptWindowRead(r.rec.tape?.pre) ? r.rec.tape.pre.changePct : (r.rec.tape?.pre?.status ?? 'absent'),
+    postPct: ptWindowRead(r.rec.tape?.post) ? r.rec.tape.post.changePct : (r.rec.tape?.post?.status ?? 'absent'),
+    impliedPct: r.rec.implied?.movePct ?? null,
     guidance: r.rec.guidance?.class ?? (r.rec.guidance?.status ?? 'null'), struct: Boolean(r.best),
   })));
+  if (q.ptGate.length) {
+    console.log('[queue] print-tape records NOT READ (schema ≠ %d):', PT_SCHEMA);
+    console.table(q.ptGate.map(r => ({ sym: r.sym, reportDate: r.rec.reportDate, schema: r.rec.schema,
+      session: r.rec.session, pass: r.rec.pass, window: r.win.state })));
+  }
   console.log('[queue] top-3 line: %s', q.top3Line
     ? `${q.top3Line.best.symbol} ${top3StructureLabel(q.top3Line.best)} score ${q.top3Line.best.score} `
       + `(${q.top3Line.n} entries, PT ${q.top3Line.iso}) — informational, occupies no card slot`
     : 'none (no top-3 entries for the current trading day)');
   return { phase: q.phase, todayIso: q.todayIso, nextIso: q.nextIso, rows, top3Line: q.top3Line,
-           printTape: { dayStates: q.ptDayStates, queue: q.ptRows, rest: q.ptRest } };
+           calendar: cs, printTapeDates: printTapeDates(q.ms),
+           printTape: { dayStates: q.ptDayStates, queue: q.ptRows, rest: q.ptRest, notRead: q.ptGate } };
 }
 
 /* ── rendering ───────────────────────────────────────────────────────────── */
@@ -2829,13 +2960,20 @@ function renderQueue() {
   head.innerHTML = `${TEST_CLOCK != null
       ? `<span class="testclock" title="${esc('?clock override active — the queue clock is frozen at ' + new Date(TEST_CLOCK).toISOString() + '. Staleness badges stay on the real clock.')}">⏱ TEST CLOCK</span> `
       : ''}<span class="phasechip">${esc(q.phase)}</span>
-    <span class="phasewhy" title="${esc('Derived from PT wall-clock: before 06:30 = morning, 06:30–13:00 = intraday, after 13:00 or a weekend = post-close. NYSE holidays are NOT modelled on this page — a market holiday reads as a weekday. The holiday table lives in the Worker and is not published on any endpoint fetched here.')}">
-      ${esc(PHASE_TEXT[q.phase])} · PT ${esc(dowLabel(q.todayIso))} ${String(Math.floor(q.pt.minutes / 60)).padStart(2, '0')}:${String(q.pt.minutes % 60).padStart(2, '0')} · holidays not modelled</span>`;
+    <span class="phasewhy" title="${esc('Derived from PT wall-clock: before 06:30 = morning, 06:30–13:00 = intraday, '
+      + 'after 13:00 = post-close. A day the exchange did not hold — a weekend, or an NYSE full-day closure — is '
+      + 'post-close regardless of hour. ' + (calendarSource().ok
+        ? 'Closures come from GET /api/calendar/holidays, the Worker\'s own table.'
+        : 'THE CALENDAR IS UNAVAILABLE, so a market holiday reads as an ordinary weekday here: '
+          + calendarSource().reason))}">
+      ${esc(PHASE_TEXT[q.phase])} · PT ${esc(dowLabel(q.todayIso))} ${String(Math.floor(q.pt.minutes / 60)).padStart(2, '0')}:${String(q.pt.minutes % 60).padStart(2, '0')} · ${
+      calendarSource().ok ? 'NYSE calendar' : '<span class="amb">holidays not modelled</span>'}</span>`;
 
   count.textContent = `· ${q.core.length} tier 1–4 (uncapped)`
     + (q.ptRows.length ? ` + ${q.ptRows.length} print-vs-tape` : '')
     + ` + ${q.fills.length} of ${q.fillPool.length} conviction fill${q.fillPool.length === 1 ? '' : 's'}`
-    + (q.ptRest.length ? ` · ${q.ptRest.length} in Rest` : '');
+    + (q.ptRest.length ? ` · ${q.ptRest.length} in Rest` : '')
+    + (q.ptGate.length ? ` · ${q.ptGate.length} not read (schema)` : '');
 
   /* An empty queue is a FINDING, not a gap to pad (amended 2026-08-20). The
    * former behaviour let a HOLD fill the slot; nothing does now, so the quiet
@@ -2865,9 +3003,20 @@ function renderQueue() {
         closes at 13:00 PT, then drop</span></div><div class="queue">${q.ptRest.map(printTapeCard).join('')}</div>`
     : '';
 
+  /* RECORDS THIS PAGE CANNOT READ. Their own group, outside the cap and outside
+   * the Rest group: they are not demoted cards, they are records whose schema
+   * this reader does not know. Dropping them would render identically to nobody
+   * reporting. */
+  const gate = q.ptGate.length
+    ? `<div class="qgrp">Not read <span class="why">— print-vs-tape records at a schema this page does not read
+        (${PT_SCHEMA}); nothing on them is rendered as a measurement</span></div>
+       <div class="queue">${q.ptGate.map(printTapeCard).join('')}</div>`
+    : '';
+
   el.innerHTML = printTapeBanner(q)
     + body
     + rest
+    + gate
     + queueTop3Line(q)
     + (q.cut.length ? `<div class="qcut${state.queueCutOpen ? ' open' : ''}" id="qcut">
         <span class="toggle" onclick="toggleQueueCut()" title="${esc(
@@ -2887,7 +3036,16 @@ function renderQueue() {
    * Printing them under one label would be one quantity under another's. */
   const holds    = q.scored.filter(r => r.tier == null && r.recRank === 0);
   const noRecord = q.scored.filter(r => r.tier == null && r.recRank == null);
-  note.innerHTML = `next trading day from ${esc(q.todayIso)} is <b>${esc(dowLabel(q.nextIso))}</b> (weekday rule — holidays not modelled) · `
+  /* WHICH CALENDAR ANSWERED. "Holidays modelled" and "holidays assumed away" are
+   * different derivations and must never render as the same sentence. */
+  const cs = calendarSource();
+  note.innerHTML = `next trading day from ${esc(q.todayIso)} is <b>${esc(dowLabel(q.nextIso))}</b> (${
+      cs.ok
+        ? `<span title="${esc('GET /api/calendar/holidays — the Worker\'s own NYSE_HOLIDAY_TABLE, the same Set '
+            + 'its cron gate reads. Past the runway every weekday reads as open, which the walk reports as a '
+            + 'stale-calendar answer rather than a modelled one.')}">NYSE calendar · ${cs.n} closures through ${
+            esc(String(cs.through))}</span>`
+        : `<span class="amb" title="${esc(cs.reason)}">${esc(cs.reason)}</span>`}) · `
     + `tiers 1–4 (deadline-today → reaction-day → at/through level → within ${AT_LEVEL_PCT}%) render uncapped; `
     + `tier-5 conviction fills top the queue up to ${QUEUE_CAP} cards total`
     + (holds.length ? ` · ${holds.length} HOLD${holds.length === 1 ? '' : 's'} not actionable, so unranked (${holds.map(r => esc(r.sym)).join(', ')})` : '')
@@ -2951,13 +3109,43 @@ function row_cut_tip(r) {
 
 const PT_OPEN = 6 * 60 + 30;
 
+/* THE SCHEMA THIS PAGE READS, and it is STRICT EQUALITY — the same rule the
+ * Worker applies to its own KV reads. Schema 2 moved the tape's numbers: a
+ * schema-1 record carries `changePct` at the TOP of the `tape` block, a schema-2
+ * reader looks for it inside a window. So a schema-1 record read by this code
+ * finds `tape.changePct` undefined and `tape.pre`/`tape.post` absent — which
+ * would render as "tape n/p" beside a print that did have a reaction. That is a
+ * misread, not a gap, so it is gated: an off-schema record renders as the stated
+ * fact that this page cannot read it, with the record's own ts, and never as
+ * numbers.
+ *
+ * IT IS DEFENCE IN DEPTH, NOT THE ONLY GUARD. The Worker's endpoint applies the
+ * same strict equality one layer up — an off-schema DAY INDEX reads as absent
+ * (`ran: false`) and an off-schema RECORD lands in `meta.unreadable[]` — so a
+ * record normally cannot reach this gate at all. Measured 2026-09-01 after the
+ * schema-2 deploy: every date from 08-28 to 09-02 answered `ran: false`, because
+ * the day indices were written under schema 1. The gate is here for the case the
+ * endpoint's own guard does not cover: a FUTURE schema this page predates. */
+const PT_SCHEMA = 2;
+const ptSchemaOk = rec => rec != null && rec.schema === PT_SCHEMA;
+/** The schema clause, one string, used by the card, the vline and the footnote so
+ *  the three cannot describe the same record differently. */
+function ptSchemaWhy(rec) {
+  const n = rec?.schema;
+  return `record schema ${n === undefined ? 'absent' : JSON.stringify(n)} — this page reads schema ${PT_SCHEMA}`;
+}
+
 /** The ET calendar date of an instant, off the queue's clock. The Worker keys
  *  these records by ET report date; the queue thinks in PT. Both are needed. */
 const etIsoOf = ms => etDateOf(new Date(ms).toISOString());
 
-/** The two dates the queue reads. Weekday rule only — the same known gap the
- *  phase line names, costing at most one extra KV assembly that answers
- *  `ran: false`. */
+/** The two dates the queue reads: today, and the prior TRADING day — through the
+ *  NYSE calendar, not a weekday walk. Over Labor Day 2026-09-07 the session
+ *  before Tuesday 2026-09-08 is FRIDAY 2026-09-04: a weekday walk asks for the
+ *  Monday the exchange was shut, gets `ran: false`, and Friday's AMC prints are
+ *  unreachable from Tuesday's page even though the records are still inside the
+ *  Worker's 7-day retention. `calendarSource()` names which rule answered, and
+ *  the queue footnote renders it. */
 function printTapeDates(ms) {
   const today = etIsoOf(ms ?? queueNow());
   return today ? [today, prevTradingDayIso(today)] : [];
@@ -3006,14 +3194,30 @@ function printTapeDayState(day) {
       reason: bad.map(p => `${p.pass}: ${p.scanReason || 'no reason published'}`).join(' · ') };
   }
   if (m.ran !== true) {
-    return { state: 'did-not-run', reason: m.ranReason || 'meta.ran is not true and no reason was published' };
+    /* THE WORKER'S OWN `ranReason` NAMES TWO CAUSES AND THERE ARE THREE. Its
+     * text is "the job did not run that day, or the day is older than
+     * PRINTTAPE_TTL"; the third is a day index written under an EARLIER SCHEMA,
+     * which reads as absent under the endpoint's strict equality. Measured
+     * 2026-09-01 after the schema-2 deploy: 08-28, 08-31, 09-01 and 09-02 all
+     * answered `ran: false` with real schema-1 indices sitting in KV. The
+     * Worker's string is rendered verbatim and the third cause is added here
+     * rather than substituted for it — we cannot tell which one applies. */
+    return { state: 'did-not-run',
+      reason: (m.ranReason || 'meta.ran is not true and no reason was published')
+        + `. A third cause the Worker's reason does not name: a day index written under a schema other than `
+        + `${PT_SCHEMA} reads as absent under the endpoint's strict equality.` };
   }
+  const unreadable = m.unreadable || [];
   if (!(day.env.records || []).length) {
     const np = (m.passes || []).length, ne = (m.eligible || []).length;
-    return { state: 'none-reported',
-      reason: `${np} pass${np === 1 ? '' : 'es'} ran and ${ne} watchlist name${ne === 1 ? '' : 's'} reported` };
+    return { state: 'none-reported', unreadable,
+      reason: `${np} pass${np === 1 ? '' : 'es'} ran and ${ne} watchlist name${ne === 1 ? '' : 's'} reported`
+        + (unreadable.length
+            ? ` · ${unreadable.length} record${unreadable.length === 1 ? '' : 's'} the Worker could not read: `
+              + unreadable.map(u => `${u.ticker} (${u.reason})`).join(', ')
+            : '') };
   }
-  return { state: 'records', reason: null };
+  return { state: 'records', reason: null, unreadable };
 }
 
 /** Every record the store holds across the fetched dates, newest report first,
@@ -3104,7 +3308,215 @@ function ptRefusal(blk, what) {
 const ptAbsent = (what, why) =>
   `<span class="dim" title="${esc(why)}">${esc(what)} not published by this Worker</span>`;
 
+/* ── THE TAPE IS A PAIR OF WINDOWS (schema 2) ───────────────────────────────
+ * An AMC print is traded TWICE in extended hours — the post-market of its report
+ * day and the pre-market of the NEXT trading day — and both are measured against
+ * the same regular close, so they are directly comparable. The record carries
+ * both side by side, each independently a reading or a `{status, reason}`
+ * refusal, with `usedWindow` naming the one the verdict read (the freshest by
+ * `quoteTime`, re-derived after every merge).
+ *
+ * NOTHING IS HOISTED, HERE OR THERE. The Worker deliberately publishes no
+ * top-level `changePct`, because a duplicated number beside the window it came
+ * from is a second field that can disagree with the first — so this renderer
+ * reads `tape[w]` and never a copy.
+ *
+ * BOTH READINGS RENDER WHEN BOTH EXIST, each with its own PT quote time, and the
+ * one the verdict used is NAMED IN WORDS rather than only styled: "(verdict on
+ * pre)". A reader who cannot see the ink tiers still gets the fact. Order is
+ * CHRONOLOGICAL by quoteTime — for an AMC print that puts the report evening's
+ * post ahead of the next morning's pre, which is the order they happened in and
+ * not an order this page imposes.
+ *
+ * ONE READING, THE OTHER'S REASON ON HOVER: a refused window is not dropped, it
+ * becomes the hover on the reading that survived, because "we looked at the
+ * pre-market and Yahoo had nothing" and "there was no pre-market to look at" are
+ * both findings about a number this card is not showing. */
+const PT_WINDOWS = ['pre', 'post'];
+const PT_WINDOW_LABEL = { pre: 'pre-market', post: 'post-market' };
+const PT_CAVEAT = 'Extended-hours prints are thin and often not where the stock opens.';
+
+/** A window sub-block is a READING when it carries no `status`. The presence of
+ *  `status` is the refusal test everywhere in this record; absence of the whole
+ *  key is a different fact (a Worker that does not publish the pair). */
+const ptWindowRead = w => w != null && !w.status && isNum(w.changePct);
+
+/** One window's number: `post −14.56% @ 21:30 PT`. `used` renders in full ink
+ *  with the verdict clause; the other renders dim. */
+function ptWindowBit(t, w, used) {
+  const r = t[w];
+  const qt = fmtClockPt(Date.parse(r.quoteTime));
+  const tip = `${PT_WINDOW_LABEL[w]} reading. ${PT_CAVEAT} Change is against `
+    + `${r.referenceCloseField || 'the reference close'}`
+    + (isNum(r.referenceClose) ? ` = ${fmt(r.referenceClose)}` : '') + '. '
+    + (r.source || '')
+    + (used ? ' THIS is the window the divergence verdict read (tape.usedWindow) — the freshest by quoteTime.'
+            : ' The verdict did NOT read this window; it read the fresher one.');
+  return `<span class="${used ? '' : 'dim'}" title="${esc(tip)}">${esc(w)} <b class="${
+    used && r.changePct > 0 ? 'up' : used && r.changePct < 0 ? 'dn' : ''}">${
+    r.changePct > 0 ? '+' : ''}${r.changePct.toFixed(2)}%</b>${
+    isNum(r.price) ? ` @ <b>${esc(fmt(r.price))}</b>` : ''}${
+    qt ? ` <span class="dim">${esc(qt)}</span>` : ' <span class="dim">quote time n/p</span>'}</span>`;
+}
+
+/** The tape portion of the card's line 2, as one span. Returns the block-level
+ *  refusal, the pair, or the named absence of the pair. */
+function ptTapeBit(t) {
+  if (t.status) return ptRefusal(t, 'tape');
+
+  const hasPair = PT_WINDOWS.some(w => w in t);
+  if (!hasPair) {
+    /* NEITHER WINDOW IS PUBLISHED. Under schema 2 that cannot happen, and the
+     * schema gate means it cannot reach here; if it ever does, it is named and
+     * NOT filled in from a top-level `changePct` a schema-1 record would carry.
+     * Reading that field here is exactly the misread the gate exists to stop. */
+    return ptAbsent('tape windows', 'the tape block carries neither a pre nor a post window — a schema-1 '
+      + 'record puts changePct at the top of this block instead, and this page does not read it from there');
+  }
+
+  const read = PT_WINDOWS.filter(w => ptWindowRead(t[w]));
+  const used = typeof t.usedWindow === 'string' ? t.usedWindow : null;
+
+  if (!read.length) {
+    /* Both refused, without the block itself being a refusal. Name both reasons
+     * — a tape with nothing readable in it is two findings, not a blank. */
+    return `<span class="dim" title="${esc(PT_WINDOWS.map(w => `${w}: ${t[w]?.status || 'absent'} — `
+      + (t[w]?.reason || 'no reason published')).join(' · '))}">tape: no readable window — ${
+      esc(PT_WINDOWS.map(w => `${w} ${t[w]?.status || 'absent'}`).join(', '))}</span>`;
+  }
+
+  read.sort((a, b) => String(t[a].quoteTime).localeCompare(String(t[b].quoteTime)));
+  const bits = read.map(w => ptWindowBit(t, w, w === used));
+
+  /* THE OTHER WINDOW'S REASON, on hover, when only one reading survived. */
+  const missing = PT_WINDOWS.filter(w => !ptWindowRead(t[w]));
+  const missTip = missing.map(w => `${PT_WINDOW_LABEL[w]}: ${t[w]?.status || 'not published'} — `
+    + (t[w]?.reason || 'no reason published')).join(' · ');
+
+  const verdictBit = used && read.length > 1
+    ? ` <span class="dim" title="${esc('tape.usedWindow — the Worker re-derives this after every merge as the '
+        + 'freshest reading by quoteTime, and the divergence test reads that window and no other.')
+      }">(verdict on ${esc(used)})</span>`
+    : used && read.includes(used) ? ''
+    : ` <span class="amb" title="${esc('The record names no usable window for the verdict, or names one this '
+        + 'reader could not read — so which reading the divergence test used is not established here.')
+      }">(verdict window ${esc(used || 'not published')})</span>`;
+
+  return `<span title="${esc(PT_CAVEAT + (missing.length ? ' · ' + missTip : ''))}">tape: ${
+    bits.join(' <span class="dim">·</span> ')}${verdictBit}${
+    missing.length ? ` <span class="dim">· ${esc(missing.join(' & '))} not read</span>` : ''}</span>`;
+}
+
+/* ── CONSENSUS PROVENANCE (schema 2) ────────────────────────────────────────
+ * `print.consensusSource` answers where THIS record's estimate figures came
+ * from; `print.consensusBankedTs` answers whether a bank was taken at all. Two
+ * different questions, and the footer asks both.
+ *
+ * `live-pass` CARRIES A CAVEAT THAT IS NOT DECORATION. Yahoo's `earningsTrend.0q`
+ * names the quarter about to be reported and rolls forward once the actual is
+ * ingested — measured by the Worker on 2026-09-01 at 48 minutes for MDB — and
+ * the reported quarter's REVENUE consensus survives the roll in no module at
+ * all. So a refusal on a live-pass record may be the roll rather than a number
+ * Yahoo never published, and those are different facts about the same blank. */
+/** The tape's provenance footer line — PER WINDOW, because the two windows have
+ *  their own sources, quote times and market states, and one line describing
+ *  "the tape" would have to pick one of them to be about.
+ *
+ *  VOLUME IS A REFUSAL, NOT AN OMISSION, and it renders as the finding it is:
+ *  Yahoo publishes no extended-hours volume field anywhere, and the one feed
+ *  that resembles one cannot be separated from the closing auction. There is no
+ *  volume LINE on the card because there is no honest number to put on one. The
+ *  reason rides on each window, so it is printed once, from whichever window
+ *  carries it. */
+function ptTapeProvenance(t) {
+  if (t.status) return `tape: ${esc(t.status)} — ${esc(t.reason || 'no reason published')}`;
+  const parts = PT_WINDOWS.map(w => {
+    const r = t[w];
+    if (r == null) return `${w}: not published by this Worker`;
+    if (r.status) return `${w}: ${esc(r.status)} — ${esc(r.reason || 'no reason published')}`;
+    return `${w}: ${esc(r.source || 'source not published')} · quote ${
+      esc(fmtClockPt(Date.parse(r.quoteTime)) || r.quoteTime || 'n/p')}`
+      + (r.marketState ? ` · marketState ${esc(r.marketState)}` : '')
+      + (isNum(r.referenceClose)
+          ? ` · vs ${esc(r.referenceCloseField || 'reference close')} ${esc(fmt(r.referenceClose))}` : '');
+  });
+  const vol = PT_WINDOWS.map(w => t[w]).find(r => r && r.volumeStatus);
+  return `tape (${esc(Array.isArray(t.sessionWindows) ? t.sessionWindows.join(' + ') + ' attempted'
+      : 'windows attempted not published')}, verdict on ${esc(t.usedWindow || 'no window')}) — ${parts.join(' · ')}`
+    + (vol ? ` · volume ${esc(vol.volumeStatus)}: ${esc(vol.volumeReason || 'no reason published')}` : '');
+}
+
+function ptConsensusBit(rec) {
+  /* BOTH FIELDS ARE ON THE RECORD, NOT ON `print` — read out of the Worker's own
+   * `printTapeMeasure` return, where they sit beside `schema`/`ticker`/`pass`.
+   * Reading them off `print` renders "not published by this Worker" on a record
+   * that publishes them, which is a false claim about the Worker and not merely
+   * a missing line. Caught on the painted card, not in the JSON. */
+  const src = rec?.consensusSource;
+  if (src == null) {
+    return `<span class="dim" title="${esc('consensusSource is a record-level schema-2 field. Its absence means a '
+      + 'record written before that, not a consensus of unknown origin.')}">consensus provenance not published by this Worker</span>`;
+  }
+  if (src === 'pre-banked') {
+    const ts = rec.consensusBankedTs;
+    const pt = ts ? (fmtClockPt(Date.parse(ts)) || String(ts)) : null;
+    return `<span title="${esc('The consensus was banked by the pre-bank pass a whole trading session BEFORE the '
+      + 'report, while earningsTrend.0q still named the quarter about to be reported. This is the reading that '
+      + 'survives Yahoo rolling the quarter forward after the print.')}">consensus <b>pre-banked</b> ${
+      pt ? esc(pt) : `<span class="dim" title="${esc('consensusSource says pre-banked but no consensusBankedTs '
+        + 'rode with it — the bank time is not established')}">(bank time not published)</span>`}</span>`;
+  }
+  if (src === 'live-pass') {
+    return `<span title="${esc('The figures in this record were read by the measuring pass itself, not banked '
+      + 'ahead of the report.')}">consensus <b>read at pass time</b></span> <span class="dim" title="${
+      esc('Measured by the Worker 2026-09-01: MDB\'s earningsTrend.0q named 2026-07-31 at 20:42 UTC and '
+      + '2026-10-31 at 21:30 UTC — 48 minutes. The reported quarter\'s revenue consensus survives that roll in '
+      + 'no Yahoo module.')}">— Yahoo rolls the quarter within an hour of the print, so a refusal here may be
+      the roll, not a missing number</span>`;
+  }
+  return `<span class="dim" title="${esc('consensusSource carried a value this page does not know how to read. '
+    + 'It is printed rather than mapped to one of the two known values.')}">consensus source <b>${esc(String(src))}</b>
+    — not one of pre-banked / live-pass</span>`;
+}
+
 /* ── the card ────────────────────────────────────────────────────────────── */
+
+/** THE GATE CARD — what an off-schema record renders as. It states the schema it
+ *  found, the schema this page reads, and the record's own ts, and it renders NO
+ *  measurement of any kind: not the tape, not the print, not the verdict.
+ *
+ *  IT IS A CARD RATHER THAN A DROP, deliberately. A record we cannot read is a
+ *  finding about a name that reported, and dropping it would render identically
+ *  to a day nobody reported — the same collapse `did-not-run` vs `none-reported`
+ *  exists to prevent. It is also NOT in the cap arithmetic: whether it would
+ *  have been actionable is exactly what this page cannot say, so it must not
+ *  cost a real card its slot.
+ *
+ *  ONLY THE STRUCTURAL FIELDS ARE READ — ticker, reportDate, session, pass, ts.
+ *  Those key the record and are what the schema bump did not touch; every field
+ *  the bump moved stays unread. */
+function printTapeGateCard(rec, win) {
+  const ts = isNum(rec?.ts) ? fmtClockPt(rec.ts) : null;
+  return `<div class="qcard pt gate">
+    <div class="qtop">
+      <a class="qtick" href="#ticker/${encodeURIComponent(rec?.ticker || '')}" onclick="event.stopPropagation()"
+         title="${esc((rec?.ticker || 'this name') + ' → its ticker page')}">${esc(rec?.ticker || 'n/p')}</a>
+      <span class="qact pt">PRINT vs TAPE</span>
+      <span class="qcall">${esc(ptSchemaWhy(rec))}</span>
+      <span class="qstate dim" title="${esc('Strict equality on the schema field, the same rule the Worker '
+        + 'applies to its own KV reads. Schema 2 moved the tape\'s numbers inside a per-window sub-block; a '
+        + 'reader built for one schema finds the other\'s fields absent and would render a real reaction as '
+        + '"n/p". Nothing on this card is read from the record beyond the fields that key it.')}">NOT READ</span>
+    </div>
+    <div class="qsub"><span class="dim">No number on this record is rendered — the fields this page reads moved
+      between schemas, so reading them here would be a misread rather than a gap.</span></div>
+    <div class="qsrc">record: printtape:${esc(rec?.ticker || 'n/p')}:${esc(rec?.reportDate || 'n/p')} · schema ${
+      esc(rec?.schema === undefined ? 'absent' : String(rec.schema))} (this page reads ${PT_SCHEMA}) · session ${
+      esc(String(rec?.session ?? 'field-absent'))} · pass ${esc(String(rec?.pass ?? 'n/p'))} · written ${
+      esc(ts || 'ts not published')}<br />window: ${esc(win?.openIso || 'undated')} regular open 06:30 PT · ${
+      esc(win?.state || 'n/p')}</div>
+  </div>`;
+}
 
 /** The state chip. THE CLOCK WINS: a demoted card says the open has passed
  *  whatever guidance found, because that is a fact of the calendar and guidance
@@ -3131,6 +3543,10 @@ function printTapeChip(rec, win) {
  *  still expand through `queueCard()` and nothing here duplicates it. */
 function printTapeCard(row) {
   const rec = row.rec, win = row.win;
+  /* THE SCHEMA GATE IS THE FIRST THING, before a single field is read. Reading
+   * an off-schema record's numbers and then deciding not to render them would
+   * already have been the misread. */
+  if (!ptSchemaOk(rec)) return printTapeGateCard(rec, win);
   const p = rec.print || {}, t = rec.tape || {}, im = rec.implied || {};
   const chip = printTapeChip(rec, win);
   const sessTag = sessionTag({
@@ -3157,20 +3573,8 @@ function printTapeCard(row) {
       : ptAbsent('quarter', 'the print block carries no quarter field'));
   }
 
-  /* ── line 2 · the tape against the implied move ── */
-  const l2 = [];
-  const CAVEAT = 'Extended-hours prints are thin and often not where the stock opens.';
-  if (t.status) {
-    l2.push(ptRefusal(t, 'tape'));
-  } else {
-    const w = t.window === 'pre' ? 'pre-market' : t.window === 'post' ? 'post-market' : 'extended-hours';
-    const qt = fmtClockPt(Date.parse(t.quoteTime));
-    l2.push(`<span title="${esc(CAVEAT + ' Change is against ' + (t.referenceCloseField || 'the reference close')
-      + (isNum(t.referenceClose) ? ' = ' + fmt(t.referenceClose) : '') + '. ' + (t.source || ''))}">tape: ${esc(w)} <b class="${
-      isNum(t.changePct) ? (t.changePct > 0 ? 'up' : t.changePct < 0 ? 'dn' : '') : ''}">${
-      isNum(t.changePct) ? (t.changePct > 0 ? '+' : '') + t.changePct.toFixed(1) + '%' : 'n/p'}</b> @ <b>${
-      esc(fmt(t.price) ?? 'n/p')}</b>${qt ? ` <span class="dim">${esc(qt)}</span>` : ''}</span>`);
-  }
+  /* ── line 2 · the tape (a PAIR of windows) against the implied move ── */
+  const l2 = [ptTapeBit(t)];
   if (im.status) {
     const why = String(im.reason || 'no reason published');
     l2.push(`<span class="dim" title="${esc(why)}">implied not computed — ${esc(why.slice(0, 80))}${
@@ -3260,16 +3664,11 @@ function printTapeCard(row) {
             ? ` · cross-check: Yahoo's own EPS surprise ${p.epsSurpriseYahoo.toFixed(2)}%, ${
                 p.epsSurpriseAgrees === true ? 'agrees with' : p.epsSurpriseAgrees === false ? 'DISAGREES with' : 'not comparable with'} ours`
             : ''),
-    t.status ? `tape: ${esc(t.status)} — ${esc(t.reason || 'no reason published')}`
-      : `tape: ${esc(t.source || 'source not published')} · quote ${
-          esc(fmtClockPt(Date.parse(t.quoteTime)) || t.quoteTime || 'n/p')}`
-        + (t.marketState ? ` · marketState ${esc(t.marketState)}` : '')
-        /* VOLUME IS A REFUSAL, NOT AN OMISSION, and it renders as the finding it
-         * is rather than as a missing line: Yahoo publishes no extended-hours
-         * volume field anywhere, and the one feed that resembles one cannot be
-         * separated from the closing auction. There is no volume LINE on the
-         * card because there is no honest number to put on one. */
-        + (t.volumeStatus ? ` · volume ${esc(t.volumeStatus)}: ${esc(t.volumeReason || 'no reason published')}` : ''),
+    /* WHERE THE CONSENSUS CAME FROM, which is a different question from which
+     * fields the merge carried. `carriedFrom*` above is per-field merge
+     * provenance; this is the record's own statement about its estimate half. */
+    ptConsensusBit(rec),
+    ptTapeProvenance(t),
     im.status ? `implied: ${esc(im.status)} — ${esc(im.reason || 'no reason published')}`
       : `implied: ${esc(im.source || 'source not published')} · as of ${
           esc(im.asOf ? (fmtClockPt(Date.parse(im.asOf)) || im.asOf) : 'not published')}`,
@@ -3330,19 +3729,87 @@ function printTapeBanner(q) {
     <span class="note">${bad.map(d => esc(d.st.reason)).join(' · ')}</span></div>`;
 }
 
+/* ── CARRY-OVER: WHERE YESTERDAY'S AMC NAMES WENT ───────────────────────────
+ * The Worker's 05:30 and 06:15 PT BMO passes re-measure the PRIOR session's AMC
+ * reporters, because both AMC passes sit inside the ninety minutes after the
+ * print and Yahoo's actuals lag it by hours — measured on MDB 2026-09-01, an EPS
+ * beat of 18.09% against a post-market down 14.56%, refused because the revenue
+ * actual was not published yet. Without the carry-over every AMC card would miss
+ * the open the same way.
+ *
+ * SO AN EMPTY CARRY-OVER HAS TO SAY WHY. `carryOver.screened: []` is published
+ * identically whether the prior day's index held no AMC names or was missing
+ * outright — the Worker logs the difference to its console and publishes no
+ * field for it. What this page CAN do is read the prior date's own envelope,
+ * which it already fetches for exactly this reason, and name what that says.
+ * That is a derivation from two payloads and it says so; it is not a field the
+ * Worker publishes, and where neither payload answers, the line says the status
+ * is not published rather than guessing. */
+function printTapeCarryNote(q) {
+  const today = q.ptDayStates[0], prev = q.ptDayStates[1];
+  const env = today && state.printTape?.days?.[today.date]?.env;
+  if (!env?.meta) return 'carry-over: not loaded';
+
+  const passes = env.meta.passes || [];
+  /* FIELD-ABSENT vs PUBLISHED-NULL. The endpoint maps `carryOver: p.carryOver ?? null`,
+   * so on this Worker the key is always present and `null` means "this pass
+   * carried none" (an AMC pass, or a BMO pass with no prior date). A pass object
+   * with no such key at all is an OLDER Worker, which is a different fact. */
+  const withKey = passes.filter(p => Object.prototype.hasOwnProperty.call(p, 'carryOver'));
+  if (!passes.length) return 'carry-over: no pass ran today, so none was attempted';
+  if (!withKey.length) {
+    return 'carry-over status not published by this Worker — no pass carries a carryOver block '
+      + '(a Worker predating the prior-session carry-over)';
+  }
+  const co = withKey.map(p => p.carryOver).filter(Boolean);
+  if (!co.length) {
+    return `carry-over: no pass today published one (${withKey.length} pass${
+      withKey.length === 1 ? ' carries' : 'es carry'} a null carryOver — only the morning BMO passes carry the `
+      + 'prior session forward)';
+  }
+
+  const scr = [...new Set(co.flatMap(c => c.screened || []))];
+  const meas = [...new Set(co.flatMap(c => c.measured || []))];
+  const skip = co.flatMap(c => c.skipped || []);
+  const dates = [...new Set(co.map(c => c.date).filter(Boolean))];
+
+  if (scr.length) {
+    return `carry-over from ${dates.join(', ') || 'the prior session'}: ${scr.length} screened, ${
+      meas.length} re-measured${skip.length ? `, ${skip.length} already answered` : ''}`;
+  }
+
+  /* NOTHING SCREENED. Name the cause from the prior date's own envelope rather
+   * than letting yesterday's AMC names silently vanish. */
+  const prevState = prev?.st?.state;
+  const reason =
+      prevState === 'did-not-run'   ? `no day index for ${prev.date} — the pass wrote none, the date aged past `
+                                      + `retention, or its index is at another schema`
+    : prevState === 'scan-failed'   ? `the ${prev.date} eligibility scan failed, so that day's index names no one`
+    : prevState === 'route-absent'  ? `this page could not read ${prev.date}: the endpoint 404s`
+    : prevState === 'failed'        ? `this page could not read ${prev.date}: ${prev.st.reason}`
+    : prevState === 'not-loaded'    ? `${prev.date} has not been fetched yet`
+    : prevState                      ? `${prev.date} ran and its index lists no AMC or unknown-session name`
+    : 'the prior session was not fetched, so the cause is not established here';
+  return `no carry-over: ${reason}`;
+}
+
 /** One clause for the queue footnote, naming the print-tape state on EVERY
  *  path. A state nothing renders is a state nobody can check. */
 function printTapeNote(q) {
   const parts = q.ptDayStates.map(d => {
     if (d.st.state !== 'records') return `${d.date}: ${d.st.state}`;
     const recs = state.printTape.days[d.date].env.records || [];
+    const off = recs.filter(r => !ptSchemaOk(r)).length;
     return `${d.date}: ${recs.length} record${recs.length === 1 ? '' : 's'}, ${
-      recs.filter(r => r.divergent === true).length} divergent`;
+      recs.filter(r => ptSchemaOk(r) && r.divergent === true).length} divergent`
+      + (off ? `, ${off} at another schema` : '');
   });
   return `print vs tape — ${parts.join(' · ')}`
     + (q.ptRows.length || q.ptRest.length
         ? ` · ${q.ptRows.length} card${q.ptRows.length === 1 ? '' : 's'} pre-open, ${q.ptRest.length} past the open`
-        : '');
+        : '')
+    + (q.ptGate.length ? ` · ${q.ptGate.length} not read (schema ≠ ${PT_SCHEMA})` : '')
+    + ` · ${printTapeCarryNote(q)}`;
 }
 
 /* ── the ticker hero's "Print vs tape" line ───────────────────────────────
@@ -3365,8 +3832,23 @@ function printTapeNote(q) {
 function printTapeVline(sym) {
   const rec = printTapeRecordFor(sym);
   if (!rec) return '';
-  const p = rec.print || {}, t = rec.tape || {}, im = rec.implied || {};
   const win = printTapeWindow(rec, ptPartsOf(queueNow()));
+
+  /* THE SCHEMA GATE, before any field is read — same rule as the card. The line
+   * still renders, because a record we cannot read is a finding about a name
+   * that reported; it renders the gate and no measurement. */
+  if (!ptSchemaOk(rec)) {
+    return `<div class="vline"><span class="k">Print vs tape</span><span class="v"><b class="dim">not read</b>
+      <span class="dim" title="${esc('Strict equality on the schema field. Schema 2 moved the tape\'s numbers '
+        + 'inside a per-window sub-block, so a reader built for another schema finds them absent and would '
+        + 'render a real reaction as "n/p" — a misread, not a gap.')}">— ${esc(ptSchemaWhy(rec))}</span>
+      <br /><span class="m10 dim">printtape:${esc(rec.ticker)}:${esc(rec.reportDate)} · session ${
+        esc(String(rec.session ?? 'field-absent'))} · pass ${esc(String(rec.pass ?? 'n/p'))} · written ${
+        esc(isNum(rec.ts) ? fmtClockPt(rec.ts) : 'ts not published')} · window ${esc(win.openIso || 'undated')}
+        open 06:30 PT (${esc(win.state)})</span></span></div>`;
+  }
+
+  const p = rec.print || {}, t = rec.tape || {}, im = rec.implied || {};
 
   const nums = [];
   if (p.status) {
@@ -3377,15 +3859,9 @@ function printTapeVline(sym) {
     nums.push(p.revenue?.status ? ptRefusal(p.revenue, 'revenue')
       : `Rev <b>${esc(fmtRev(p.revActual) ?? 'n/p')}</b> vs <b>${esc(fmtRev(p.revEst) ?? 'n/p')}</b> ${ptSurprise(p.revSurprisePct)}`);
   }
-  if (t.status) {
-    nums.push(ptRefusal(t, 'tape'));
-  } else {
-    const w = t.window === 'pre' ? 'pre' : t.window === 'post' ? 'post' : 'ext';
-    nums.push(`<span title="${esc('Extended-hours prints are thin and often not where the stock opens. '
-      + (t.source || ''))}">tape ${esc(w)} <b class="${isNum(t.changePct) ? (t.changePct > 0 ? 'up' : t.changePct < 0 ? 'dn' : '') : ''}">${
-      isNum(t.changePct) ? (t.changePct > 0 ? '+' : '') + t.changePct.toFixed(1) + '%' : 'n/p'}</b> @ <b>${
-      esc(fmt(t.price) ?? 'n/p')}</b> <span class="dim">${esc(fmtClockPt(Date.parse(t.quoteTime)) || 'quote time n/p')}</span></span>`);
-  }
+  /* BOTH TAPE READINGS, through the SAME renderer the card uses — one renderer,
+   * so the hero and the queue card cannot describe one record's tape two ways. */
+  nums.push(ptTapeBit(t));
   if (!im.status && isNum(im.movePct)) {
     nums.push(`<span title="${esc('NOT an earnings-isolated move. ' + (im.basis || ''))}">vs implied <b>±${im.movePct.toFixed(1)}%</b></span>`);
   } else if (im.status) {
@@ -3412,7 +3888,7 @@ function printTapeVline(sym) {
 
   return `<div class="vline"><span class="k">Print vs tape</span><span class="v">${head}
     <br /><span class="m10">${nums.join(' · ')}</span>
-    <br /><span class="m10">${gTxt} · base rate <b>${esc(rec.baseRate?.status || 'n/p')}</b>${
+    <br /><span class="m10">${ptConsensusBit(rec)} · ${gTxt} · base rate <b>${esc(rec.baseRate?.status || 'n/p')}</b>${
       rec.baseRate?.status ? ' <span class="dim">(' + esc(rec.baseRate.reason || 'no reason published') + ' · confidence Low)</span>' : ''}</span>
     <br /><span class="m10 dim" title="${esc('The record is keyed to its ET report date; the action window is the '
       + 'next regular open, because options do not trade extended hours.')}">printtape:${esc(rec.ticker)}:${esc(rec.reportDate)} · session ${
@@ -6161,6 +6637,13 @@ const state = {
   /* PRINT vs TAPE. `days` is keyed by the ET date each envelope was fetched
    * FOR, so a per-date failure names its own date rather than blanking both.
    * Two dates are always asked for — see the module comment. */
+  /* The NYSE calendar. Fetched ONCE PER PAGE LOAD, not once per sweep: the
+   * table changes about once a year and the endpoint is a pure computation over
+   * a hardcoded list, so re-reading it on every focus re-read would be a request
+   * that cannot return a different answer. A FAILURE is not cached — only a
+   * success is — so one blip does not strand the page on the weekday rule for
+   * the whole session. */
+  calendar: null,        // { env|null, err|null, fetchedAt }
   printTape: null,       // { dates:[iso,iso], days:{iso:{env|null, err|null}}, fetchedAt }
   printTapeOpenSyms: [], // print-tape cards showing their provenance line
   errors: {},   // per-module failure, so one dead endpoint cannot blank the tab
@@ -6368,6 +6851,32 @@ function loadShared(reason) {
        * additive and a 404 from a Worker predating it must not take the
        * watchlist down with it. Each date's failure is banked against that date
        * so the state line can name which one failed. */
+      /* THE NYSE CALENDAR FIRST, because `printTapeDates()` reads it. Once per
+       * page load and only on a success — see the note on `state.calendar`. It
+       * is fetched inside the shared sweep rather than beside it precisely so
+       * this ordering is structural: a date list built before the calendar
+       * arrived would be a weekday walk that no later fetch could correct. */
+      if (!state.calendar || state.calendar.err) {
+        try { state.calendar = { env: await apiFetch('/calendar/holidays'), err: null, fetchedAt: Date.now() }; }
+        catch (e) { state.calendar = { env: null, err: e, fetchedAt: Date.now() }; }
+        const cs = calendarSource();
+        console.log('[shared] (%s) NYSE calendar: %s', reason, cs.ok
+          ? `${cs.n} closures through ${cs.through} · asked ${state.calendar.env.date} → prev `
+            + `${state.calendar.env.prevTradingDay} · next ${state.calendar.env.nextTradingDay}`
+          : cs.reason);
+        /* CROSS-CHECK OUR WALK AGAINST THE WORKER'S OWN, on the one date the
+         * envelope answers for. Two implementations of the same walk is how they
+         * drift; this is the assertion that would catch it. */
+        if (cs.ok && state.calendar.env.date) {
+          const d = state.calendar.env.date;
+          const mine = { prev: prevTradingDayIso(d), next: nextTradingDayIso(d) };
+          const theirs = { prev: state.calendar.env.prevTradingDay, next: state.calendar.env.nextTradingDay };
+          const agree = mine.prev === theirs.prev && mine.next === theirs.next;
+          console.log('[shared] calendar walk cross-check %s · ours prev %s next %s · Worker prev %s next %s',
+            agree ? 'AGREES' : '!! DISAGREES !!', mine.prev, mine.next, theirs.prev, theirs.next);
+        }
+      }
+
       {
         const dates = printTapeDates();
         const days = {};

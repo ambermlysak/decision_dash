@@ -92,6 +92,39 @@ Time-aware — same surface, reordered by session phase:
   > a beat-and-fade needs a logged history of these records resolving forward and
   > the feature only runs forward from its first deploy, so there is no rate to
   > put beside the finding and none is invented.
+  >
+  > **AMENDED 2026-09-01 — schema 2, and the schema is now a gate.** The Worker
+  > bumped `PRINTTAPE_SCHEMA` to 2 and moved the tape's numbers: `tape` is a PAIR
+  > of windows, `pre` and `post`, each independently a reading or a refusal, with
+  > `usedWindow` naming the one the verdict read. An AMC print is traded twice in
+  > extended hours — that evening's post-market and the next morning's pre-market
+  > — and the second is the one that matters, because Yahoo needs overnight to
+  > publish the actual the print half is compared against. **Both readings render
+  > when both exist**, in the order they happened, each with its own quote time in
+  > PT, and the used one is named in words (*"verdict on pre"*) rather than only
+  > styled. Nothing is hoisted: the card reads `tape[w]` and never a copy, for the
+  > same reason the record carries no top-level `changePct` — a duplicated number
+  > beside the window it came from is a second field that can disagree with the
+  > first.
+  >
+  > That move is exactly why **a record at another schema now renders as a stated
+  > fact and never as numbers.** A schema-1 record read by a schema-2 reader finds
+  > `tape.pre`/`tape.post` absent and would render a real 14% reaction as *"tape
+  > n/p"* — a misread, not a gap. So the gate comes before any field is read, the
+  > card says *"record schema N — this page reads schema 2"* with the record's own
+  > ts, and it sits in its own **Not read** group outside the cap: whether it
+  > would have been actionable is precisely what cannot be said, so it must not
+  > cost a real card its slot. Dropping it was the wrong answer for the same
+  > reason `did-not-run` and `none-reported` are kept apart.
+  >
+  > The record also gained **`consensusSource`** (`pre-banked` | `live-pass`) and
+  > **`consensusBankedTs`**, and the footer asks both questions. A `live-pass`
+  > record carries a caveat that is not decoration: Yahoo's `earningsTrend.0q`
+  > rolls forward once the actual is ingested — measured by the Worker at 48
+  > minutes on MDB — and the reported quarter's revenue consensus survives that
+  > roll in no module at all, so **a refusal on a live-pass record may be the roll
+  > rather than a number Yahoo never published.** Those are different facts about
+  > the same blank.
 
 - **Levels watch**: watchlist names within ~3% of their key level (the Worker already computes levelPct — this is just a filter).
 - **Session brief**: the day's narrative record, 6:00 briefing → 11:30 pulse → 1:15 close. Three sentences visible per brief, detail expands. This replaces three separate narrative blocks (brief + pre-market + stance prose) and the entire Midday tab. **Revised in phase 8 — this originally read "ONE narrative card that updates through the day", and as built the card never updated: it rendered the 6:00 brief and nothing else, with the other two slots reduced to existence ticks on the timeline. "Updates" was the wrong model anyway. The 11:30 pulse does not supersede the 6:00 plan, it is the day's second reading of it, and at 2pm you want to see what you were told at 6am beside what you were told at 11:30. So: every slot published for the current trading day renders, stacked in session order, each with its own as-of; a slot that has not run renders as a state on the timeline and never as content. The timeline stays — it is the one place a slot's state is reported.**
@@ -253,3 +286,26 @@ Nearly everything above is frontend-only: the Worker already computes verdicts, 
 > verdict is impossible by construction rather than by discipline — which is what
 > round-2 decision #4 was actually asking for. Measured: four tab switches cost
 > zero fetches.
+>
+> **A FOURTH Worker change landed 2026-09-01: `GET /api/calendar/holidays`, and
+> it closed the oldest gap on this page.** Everything time-aware here — the
+> session phase, the earnings deadline tiers, the print-tape date pair, the
+> session brief's no-session state — walks trading days, and until now it walked
+> them by WEEKDAY. That is right four days in five and silently wrong on the
+> fifth: over Labor Day 2026-09-07 the session before Tuesday 2026-09-08 is FRIDAY
+> 2026-09-04, and a weekday walk asks for the Monday the exchange was shut, gets
+> "no record for that date", and reports it as a quiet day. The endpoint publishes
+> the Worker's own `NYSE_HOLIDAY_TABLE` — the same Set its cron gate reads — so
+> there is ONE copy of the calendar rather than two that can drift, which is the
+> reason it is a Worker endpoint and not a table typed into this file. It is
+> fetched once per page load (a pure computation over a hardcoded list cannot
+> return a different answer on a re-read) and a FAILURE is not cached, so one
+> blip does not strand the session on the weekday rule.
+>
+> **The fallback is the old behaviour and it says so on screen.** When the fetch
+> fails, or when a date is past the table's runway, the walkers fall back to the
+> weekday rule and the phase line reads *holidays not modelled* in amber while
+> the queue footnote names the failure verbatim. "Holidays modelled" and
+> "holidays assumed away" are different derivations and must never render as the
+> same sentence. Verified against the live Worker on 8 dates spanning the
+> holiday, the weekend and the runway: 0 disagreements.
