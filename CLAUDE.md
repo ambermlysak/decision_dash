@@ -64,7 +64,11 @@ silently; flag if a task conflicts.
    ticker · action · trigger · structure · invalidation · one-clause why · source
    + as-of. Assembled **client-side from payloads the page already fetches**
    (analysis records, long batch, econ calendar, movers). A server-side
-   `/api/queue` is a later trading_dash task if warranted.
+   `/api/queue` is a later trading_dash task if warranted. **One card kind is
+   not assembled client-side: `print-tape`**, which renders a banked
+   `/api/printtape` record — the Worker measures the print against the tape and
+   publishes the verdict, and the page renders THAT with its as-ofs rather than
+   re-deriving it.
 3. **One verdict store.** One ticker = one verdict record per trading day
    (`analysis:{TICKER}`). Every surface renders THAT record with its as-of. The
    ticker page revalidates and writes back to the same key; Names re-reads on tab
@@ -419,6 +423,73 @@ least once:
   `ok`/`reason`), `funnel{}`, `gates{}` and `considered`; each is its own named
   state and `complete: false` renders the candidates that DID clear alongside the
   named down source.
+- **`GET /api/printtape?date=` — PRINT vs TAPE, the earnings-divergence records**
+  (trading_dash `02aac87`). KV assembly only: zero fetches, zero writes, nothing
+  recomputed. `requireSecret` (`x-dash-key`), **not `aiGuard`** — it cannot spend,
+  and debiting the Claude ceiling for a read would let a page poll exhaust the
+  crons' budget. `date` defaults to **`etToday()`**, and every key is ET-dated
+  (`printtape:{TICKER}:{ET-DATE}`), retained `PRINTTAPE_TTL` = **7d**. Written by
+  four crons outside the branch chain: 05:30 / 06:15 PT for BMO names, 13:30 /
+  14:30 PT for AMC names.
+  - **Envelope:** `records[]` · `meta{date, asOf, ran, ranReason, eligible[],
+    measured[], skipped[], unreadable[], passes[], divergencePct, schema}` ·
+    `_meta`. **THERE IS NO `meta.scanOk`.** `scanOk` / `scanReason` are published
+    **per pass** inside `meta.passes[]`, because the BMO and AMC passes succeed
+    and fail independently and one top-level flag would have to pick one of them
+    to describe. Do not synthesise one. `scanOk === false` IS THE TEST — absent
+    means a Worker that does not publish it.
+  - **`meta.ran === false` and `records: []` are DIFFERENT FACTS.** `ran: false`
+    is "no pass wrote a day index" (a weekend, an NYSE holiday, or a date past the
+    TTL); `ran: true` with an empty `records` is the job having run and found that
+    nobody on the watchlist reported — the ~95% answer, and a measurement. The
+    endpoint comment says this outright and the frontend keeps them apart.
+  - **Record:** `schema` · `ticker` · `reportDate` · `session` (`bmo`|`amc`|
+    `unknown`) · `earningsTs` · `earningsIsEstimate` · `pass` · `ts` · `print` ·
+    `tape` · `implied` · `divergent` · `refusalReason` · `divergenceTest` ·
+    `guidance` · `baseRate` · `passes[]`, plus `carriedForward` **only after a
+    merge** (field-absent on a single-pass record, never `null` there).
+  - **`divergent` IS THREE-VALUED AND `null` IS A REFUSAL, NOT A "NO".** It fires
+    on exactly one direction — EPS beat AND revenue beat AND `changePct <= -3.0`.
+    An unknown session, an unpublished actual or a missing consensus means the
+    question could not be asked; `refusalReason` always says which.
+  - **The print's numbers are FLAT; `print.eps` and `print.revenue` are the
+    REFUSAL sub-objects.** Measurements live at `epsActual` / `epsEst` /
+    `epsSurprisePct` / `revActual` / `revEst` / `revSurprisePct`; an `eps` or
+    `revenue` KEY appears only when that half refused, and the two halves refuse
+    INDEPENDENTLY. A whole-block refusal is `print.status`.
+  - **An actual and a consensus are only ever compared WITHIN ONE QUARTER**
+    (`print.quarter`, string equality on the period-end). This is the bug the
+    whole record exists to avoid: taking the newest of each would have printed
+    PANW at a confident 13% miss that never happened.
+  - **TWO PASSES BECAUSE YAHOO'S ACTUALS LAG AND ITS CONSENSUS EXPIRES.** Pass 1
+    banks the consensus while `earningsTrend.0q` still names the reported quarter;
+    pass 2 catches the actual, by which time the quarter's REVENUE consensus
+    exists in no module at all. So a single line of numbers can have **two read
+    times behind it** — `print.carriedFromTs` / `carriedFromPass` /
+    `carriedFields` — and the provenance footer says *"consensus banked <time>,
+    actual <time>"* rather than one as-of.
+  - **`tape.volume` IS REFUSED UNCONDITIONALLY AND THE REFUSAL IS THE
+    MEASUREMENT.** Yahoo publishes no extended-hours volume field anywhere, and
+    the v8 1m `includePrePost` feed cannot be separated from the closing auction
+    (measured: pre-market 0 on every bar for 5 of 5 names; 4 of 5 carried the
+    whole post-window figure on the single session-boundary bar). `volumeStatus`
+    + `volumeReason` ride on every tape block. **There is no volume line on the
+    card** because there is no honest number to put on one — the reason renders
+    in the provenance footer instead.
+  - **`implied` IS NOT AN EARNINGS-ISOLATED MOVE.** It is the long row's
+    front-expiry ATM-IV move over that expiry's whole DTE, and labelling it "the
+    implied earnings move" would be the HV-as-IV failure again. `basis` says so in
+    words and `straddlesReport` says whether the expiry is even on the far side of
+    the print.
+  - **`guidance` is `null` on a non-divergent record — not asked, never
+    speculatively.** One Claude call per ticker per report, only on
+    `divergent === true`. Its `source` is the earnings **news window**, not the
+    release: there is no 8-K or press-release feed wired to this Worker, and
+    `class: 'not-found'` is the honest answer when the window carried nothing.
+    `PRINTTAPE_GUIDANCE_CLASSES` = `raised | held | cut | not-found`.
+  - **`baseRate` is always `{status:'not-measured'}`** — scoring "how often does a
+    beat-and-fade recover" needs a logged history of these records resolving
+    forward and none exists; the feature only runs forward from its first deploy.
 - **`/api/watchlist/save` and `/api/income/save` REPLACE the whole list.** Every
   mutation must re-read the server copy at click time and edit that — never a
   locally-held snapshot, which silently drops anything changed elsewhere since the
@@ -503,6 +574,59 @@ least once:
   records render nothing here, because the strip is where every one of those
   states is named and a queue line reporting the absence of an informational
   rider is noise, not a finding.
+- **The `print-tape` card kind is a SEPARATE ROW FAMILY, not a tier** (phase 14).
+  `buildQueue()` returns `ptRows` / `ptRest` / `ptDayStates` beside the tiers, and
+  the rows are deliberately kept OUT of `scored`: `scored` is one row per
+  watchlist symbol keyed by symbol, and it is what `dumpQueueTable()` prints and
+  what the HOLD / no-record footnote counts, while a print-tape record is keyed by
+  ticker AND report date. Folding them in would put two rows under one symbol and
+  corrupt both. The queue stays a pure function of the shared store plus the
+  clock — `printTapeCard()` reads nothing `buildQueue()` did not already resolve.
+  - **ONLY `divergent === true` CARDS.** `false` is a real answer and `null` is a
+    refusal; both render on the ticker page, where the question was asked about
+    that one name. Neither is an action, so neither takes a card.
+  - **PLACEMENT: above the tier-3 level cards, below the clock-driven tiers 1–2.**
+    A print the tape sold is a live setup, but an earnings deadline is a fact of
+    the calendar and outranks it.
+  - **THE CAP STAYS TIER-AWARE.** These cards displace conviction FILLS
+    (`QUEUE_CAP - core.length - ptRows.length`) and can never displace a tier 1–4
+    card. Demoted cards sit in the **Rest** group, outside the cap arithmetic
+    entirely — they are no longer competing for a pre-open slot.
+  - **THE ACTION WINDOW IS THE NEXT REGULAR OPEN (06:30 PT), because options do
+    not trade extended hours.** BMO → the report day's own open; AMC (and
+    `unknown`) → the next session's. `printTapeWindow()` returns `prep` →
+    `reacting` (the Rest group, chip *open passed — reaction in progress*) →
+    `dropped` at that session's 13:00 PT close. Verified at every boundary on
+    `?clock=`: 06:29 PT prep / 06:31 PT Rest / 12:59 PT Rest / 13:01 PT gone.
+    **The chip's clock state outranks guidance** — a demoted card says the open
+    passed whatever guidance found, because that is a fact of the calendar and
+    guidance is a reading.
+  - **TWO DATES ARE FETCHED PER LOAD AND THE SECOND IS NOT A NICETY.** A record is
+    keyed to its ET REPORT date but its card lives on the NEXT open, so an AMC
+    print on D is banked under D while its card renders on D+1 — by which point a
+    single-date fetch is asking for D+1 and the record is not in that answer.
+    `printTapeDates()` returns `[etToday, prevTradingDay]` and the union is what
+    the queue reads. Measured: exactly 2 `/printtape` requests per load, still 2
+    after repeated re-renders. **No polling** — it rides `loadShared()`, so it
+    refetches only when the sweep does.
+  - **`?clock=` REACHES THIS FETCH, DELIBERATELY.** Everywhere else the test clock
+    moves a derivation and never a payload. This endpoint is DATE-ADDRESSED — the
+    date is the record's identity, not a staleness property — so a frozen queue
+    clock asking for the live date would run one day's window logic over another
+    day's records. Every as-of still comes from the record's own timestamps on the
+    real clock.
+  - **EPS RENDERS AT THE PRECISION THE SURPRISE WAS COMPUTED AT** (`fmtEps`, up to
+    5dp, trailing zeros trimmed). Found live on PANW: `fmt(v, 2)` rendered the
+    0.97745 consensus as 0.98, against which the Worker's own +4.35% does not
+    reconcile — 1.02/0.98 is +4.08%. Two numbers contradicting each other on one
+    line, and the kind of thing only a rendered screen shows.
+  - **A failed eligibility scan renders an AMBER LINE ABOVE THE CARDS, never an
+    empty group.** `scanOk === false` means NO name was checked, which is a
+    failure and not a quiet day. Every other day-state (`did-not-run` ·
+    `none-reported` · `route-absent` (HTTP 404, an older Worker) · `failed` ·
+    `not-loaded` · `records`) is named in the **queue footnote on every path**,
+    including the ones that render no card and no banner — a state nothing renders
+    is a state nobody can check.
 - **Queue expansion state lives in `state`, NEVER as a class on the DOM.**
   `renderQueue()` rebuilds its whole subtree with `innerHTML` on the 30-second
   staleness cycle and on every `renderToday()`. Measured 2026-08-20: after
@@ -674,6 +798,7 @@ Status is never conveyed by color alone.
 | 10 | **Queue amendments** — HOLDs excluded on verdict grounds, tier-aware cap (1–4 uncapped, tier-5 fills to 6), tier-5 ordered by \|recRank\| with structure as a tiebreak, clickable cut chips expanding through `queueCard()`, expansion state moved into `state` so the 30-second re-render preserves it | `4c48c4d`… |
 | 11 | **Daily top-3 options ranking** — the `top3` rider stored beside `macro`, the Top plays strip above the Options table (decomposable score, P(BE)\|cov, ¼-Kelly, episodes-to-50%, gap+drift, pool counts, exclusions), one informational queue line, a modal section rendered from `gates`, and `window.DD_BUILD` | this commit |
 | 13 | **Top-3 serving window** — the Worker now walks back 5 calendar days over 7-day retention, so `top3: null` stopped meaning "no record under today's PT date"; the null copy, the modal's serving-window paragraph and the state comments now state the claim the Worker actually makes, and the stale render was re-checked against fixtures on both clocks | this commit |
+| 14 | **Print vs tape** — `GET /api/printtape?date=` in the shared sweep (two ET dates, no polling); a `print-tape` card kind above the level cards for every `divergent: true` record inside its pre-open window, demoting to a **Rest** group once the open passes; a *Print vs tape* hero vline under Catalyst rendering all three answers; the scan-failure banner and a day-state clause on the queue footnote | this commit |
 | 12 | **Ticker Earnings block** — `/api/earnings` rendered in four parts (header + facts + model read + provenance) in place of a `JSON.stringify(...).slice(0,240)` fallthrough that was the only branch that ever ran; the payload shape recorded in this file so it is never rediscovered by spending; `#build-tag` wired to `DD_BUILD` | this commit |
 
 Doc-sync commits: `557329e` (phase-1 payload facts), `e626a64` (phase-5 payload
@@ -745,7 +870,35 @@ These are stated, not fixed. Each is a real limit of the built surfaces.
    and it means the live stale check needs the morning after the first 1:15pm PT
    run under the 7-day TTL. The stale path is verified only against fixtures,
    on both the real clock and `?clock=`.
-9. **`?clock=` cannot exercise the bank's WRITE path** (phase 8), by design — a
+9. **The print-tape card has never rendered from a LIVE `divergent: true` record**
+   (phase 14). Live records DO exist and were rendered — `printtape:{PANW,DELL,
+   MDB}:2026-09-01`, written by the 14:30 PT AMC pass and read on the wire at
+   14:38 PT — but **all three are `divergent: null`**, so only the REFUSED state
+   was exercised live (on the queue, which correctly cards none of them, and on
+   the ticker hero, which renders the Worker's own `refusalReason`). All three
+   refused for the same documented reason: Yahoo had not yet published the
+   revenue actual or the revenue consensus for the reported quarter. MDB's own
+   numbers show what is being missed — EPS beat 18.09%, tape −14.56% — a
+   beat-and-fade the Worker declines to call because the revenue half is absent,
+   which is correct and is also why a divergent record is rare. **The
+   `divergent: true`, `divergent: false` and `scanOk: false` renders are verified
+   against FIXTURES ONLY** (`scratchpad/fixtures.js`, built field-for-field from
+   the Worker's own record shape, every envelope labelled FIXTURE in the
+   provenance footer through the ordinary `_meta.source` path — there is no
+   fixture code path in `index.html`). The check that closes this is the first
+   load after a pass that writes a `divergent: true` record; the fields to
+   confirm are the ones the fixture had to supply rather than read:
+   `guidance.class` / `quote` / `source` on a real Claude classification, and
+   `print.carriedFromTs` on a real two-pass merge.
+10. **The two-date fetch inherits the NYSE-holiday gap** (phase 14).
+   `printTapeDates()` uses `prevTradingDayIso()`, a weekday rule, so after a
+   Monday holiday the prior *trading* day is Friday while this page asks for
+   Monday — which answers `ran: false` and costs one wasted KV assembly, not a
+   wrong render. An AMC print on the Friday before a Monday holiday would
+   therefore be unreachable from Tuesday's page even though the record is still
+   inside its 7d retention. Same root cause as known gap 1; same fix (publishing
+   `NYSE_HOLIDAYS` on an endpoint this page fetches is a trading_dash task).
+11. **`?clock=` cannot exercise the bank's WRITE path** (phase 8), by design — a
    test clock that could write would be able to corrupt real state. The write
    path is therefore verified on the real clock with recorded payloads, and the
    read/reset path with the test clock. Nothing verifies the two together.

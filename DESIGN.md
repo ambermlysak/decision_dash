@@ -56,6 +56,43 @@ Time-aware — same surface, reordered by session phase:
 
 - **Regime line** (one line, always on top): stance chip (MIXED etc.), VIX + term direction, 10Y, SPY trend, days to next FOMC/CPI. This compresses the current stance card + macro chip + half the index strip.
 - **Action queue** (the centerpiece, tiers 1–4 uncapped, ≤6 cards total): ranked list assembled from the existing verdict streams. Each card = ticker · action verb · trigger level · structure to use · invalidation · why (one clause) · source + as-of. Morning = the plan; intraday = triggered / approaching / invalidated; post-close = what resolved + tomorrow's queue. **Amended 2026-08-20 — this originally read "≤6 cards" flat, with a HOLD permitted to fill a slot. Two things were wrong with that. (a) The cap was tier-blind, so an arithmetic limit could evict a real earnings deadline in favour of a conviction fill — a deadline is a fact of the clock and must not lose a slot to a ranking. Tiers 1–4 (deadline-today · reaction-day · at/through level · within 3%) therefore render uncapped; tier-5 conviction fills only top the queue up to 6 total, and when tiers 1–4 already number ≥6, zero fills render. (b) HOLDs are no longer queue candidates on verdict grounds. A HOLD is a verdict, not an action, and the queue is a list of actions. The trigger was measured on 2026-08-20: AAPL (HOLD, recRank 0) held the sixth card while NVDA (BUY, 73), MU (74) and TSM (72) sat in the cut list — AAPL won because it was the only name with a loaded Options row, so queue membership was decided by a cache state rather than by a verdict. Tiers 1–2 are clock-driven rather than verdict-driven and still card a HOLD-rated name that reports earnings; tiers 3–5 exclude HOLDs outright. An empty queue on a quiet day is now honest information and renders as a stated finding, not a gap to pad.**
+  > **AS BUILT — the `print-tape` card, phase 14, and it is the one card kind
+  > this document did not anticipate.** The Worker now banks an
+  > earnings-divergence record per watchlist name per report day
+  > (`printtape:{TICKER}:{ET-DATE}`, four crons around the two print windows) and
+  > publishes it at `GET /api/printtape?date=`. It fires on exactly ONE
+  > direction — EPS beat AND revenue beat AND the tape sold it by ≥3% — which is
+  > the narrowest thing on the platform and the reason it earns a card: it is a
+  > *disagreement between two sources about the same event*, which is precisely
+  > what the queue is for.
+  >
+  > Three decisions here are worth keeping. **First, the card never says buy
+  > now.** Options do not trade extended hours, so the action window is the next
+  > REGULAR OPEN (06:30 PT) and the chip reads *prep for open*; once that open
+  > passes the card demotes to a **Rest** group reading *open passed — reaction
+  > in progress* and drops at that session's close. A card that said "buy" against
+  > a post-market price would be recommending a trade that cannot be placed.
+  > **Second, `divergent` is three-valued and the third value is a refusal.** An
+  > unknown session or an unpublished actual means the question could not be
+  > asked, and `false` would claim it was; only `true` cards, while `false` and
+  > `null` render on the ticker page with the Worker's own reason. **Third,
+  > guidance is the anti-narrative check.** A beat the tape sold with a stated
+  > guidance CUT is not an opportunity, it is a correctly-priced guide — so the
+  > chip turns amber and reads *explained — guidance*, and a `not-found` says
+  > *"no guidance found in <source> — divergence unexplained"* rather than the
+  > word this feature would otherwise be tempted into. The source is named every
+  > time because it is the earnings NEWS WINDOW, not the release: no 8-K feed is
+  > wired to this Worker, and that limit belongs on the card's face.
+  >
+  > Two absences are deliberate and stated on screen. There is **no volume
+  > line** — Yahoo publishes no extended-hours volume field and the one feed that
+  > resembles it cannot be separated from the closing auction, so the refusal and
+  > its measurement render in the provenance footer instead of a fabricated
+  > number. And the **base rate is `not-measured`** with confidence *Low*: scoring
+  > a beat-and-fade needs a logged history of these records resolving forward and
+  > the feature only runs forward from its first deploy, so there is no rate to
+  > put beside the finding and none is invented.
+
 - **Levels watch**: watchlist names within ~3% of their key level (the Worker already computes levelPct — this is just a filter).
 - **Session brief**: the day's narrative record, 6:00 briefing → 11:30 pulse → 1:15 close. Three sentences visible per brief, detail expands. This replaces three separate narrative blocks (brief + pre-market + stance prose) and the entire Midday tab. **Revised in phase 8 — this originally read "ONE narrative card that updates through the day", and as built the card never updated: it rendered the 6:00 brief and nothing else, with the other two slots reduced to existence ticks on the timeline. "Updates" was the wrong model anyway. The 11:30 pulse does not supersede the 6:00 plan, it is the day's second reading of it, and at 2pm you want to see what you were told at 6am beside what you were told at 11:30. So: every slot published for the current trading day renders, stacked in session order, each with its own as-of; a slot that has not run renders as a state on the timeline and never as content. The timeline stays — it is the one place a slot's state is reported.**
 - **Calendar**: next 5 events that touch your names (FOMC, CPI/PCE, your earnings). Not a card per event — a strip.

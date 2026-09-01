@@ -204,6 +204,31 @@ h2.sec .right { margin-left: auto; text-transform: none; letter-spacing: 0.03em;
 .qcut .list .c:hover { border-color: var(--cyan); color: var(--cyan); }
 .qcut .list .qcard.cutcard { flex: 0 0 100%; margin: 2px 0; }
 
+/* ── print vs tape ── */
+.qcard.pt { border-left-color: var(--violet); }
+.qact.pt { background: var(--bg-2); color: var(--violet); border: 1px solid rgba(180,142,173,0.45); }
+.qcard.pt .tag { font-size: 9px; letter-spacing: 0.06em; padding: 1px 5px; border-radius: 3px;
+  border: 1px solid var(--line); color: var(--ink-2); }
+.qcard.pt .tag.bmo { color: var(--cyan);  border-color: rgba(94,197,234,0.4); }
+.qcard.pt .tag.amc { color: var(--violet); border-color: rgba(180,142,173,0.45); }
+.qcard.pt .tag.unk,
+.qcard.pt .tag.est { color: var(--ink-3); border-style: dashed; font-style: italic; }
+/* A FAILED ELIGIBILITY SCAN IS A FAILURE STATE, NOT A QUIET DAY. Amber, above
+ * the cards, never an empty group. */
+.ptbanner {
+  background: var(--amber-soft); border: 1px solid rgba(244,183,64,0.4);
+  border-radius: 8px; padding: 9px 12px; margin-bottom: 8px;
+  font-family: var(--mono); font-size: 11px; color: var(--amber); line-height: 1.7;
+}
+.ptbanner .note { color: var(--ink-2); font-size: 10px; display: block; margin-top: 3px; }
+/* The "Rest" group: cards whose action window (the regular open) has passed. */
+.qgrp {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+  color: var(--ink-3); text-transform: uppercase; margin: 10px 0 6px;
+  border-top: 1px solid var(--line-soft); padding-top: 8px;
+}
+.qgrp .why { text-transform: none; letter-spacing: 0; font-style: italic; }
+
 /* ── chip strips (levels / movers / calendar / sectors) ── */
 .strip { display: flex; gap: 7px; flex-wrap: wrap; }
 .strip.col { flex-direction: column; }
@@ -926,7 +951,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
  * different questions. `window.DD_BUILD` answers the second from the console:
  * curl can confirm the bytes on the wire, only the page itself can confirm the
  * bundle actually executing. Bumped by hand with each shipped phase. */
-const DD_BUILD = 'top3-serving-window-1';
+const DD_BUILD = 'print-vs-tape-1';
 window.DD_BUILD = DD_BUILD;
 /* The VISIBLE build stamp is rendered from DD_BUILD, never typed into markup.
  * It was hardcoded as `verdict-p11-1` and nothing ever wrote to it, so the
@@ -2590,14 +2615,51 @@ function buildQueue() {
     ? { rec: t3, best: t3Entries[0], iso: t3Iso, n: t3Entries.length }
     : null;
 
+  /* ── PRINT vs TAPE ROWS — a SEPARATE ROW FAMILY, not a tier ──────────────
+   * These are kept out of `scored` deliberately. `scored` is one row per
+   * WATCHLIST NAME keyed by symbol, and it is what `dumpQueueTable()` prints and
+   * what the HOLD / no-record footnote counts; a print-tape record is keyed by
+   * ticker AND report date, so folding it in would put two rows under one symbol
+   * and silently corrupt both. It stays a pure function of the shared store plus
+   * the clock, exactly as the rest of this function is.
+   *
+   * ONLY `divergent === true` CARDS. `false` is a real answer and `null` is a
+   * refusal; both belong on the ticker page, where the question was asked about
+   * that one name. Neither is an action, so neither takes a card.
+   *
+   * PLACEMENT: above the tier-3 "at/through level" cards and below the
+   * clock-driven tiers 1–2. A print that the tape sold is a live setup, but an
+   * earnings DEADLINE is a fact of the calendar and outranks it.
+   *
+   * THE CAP: these cards displace conviction FILLS and can never displace a
+   * tier 1–4 card, which is the same tier-aware rule phase 10 established. A
+   * demoted card (its open passed) sits in the Rest group and is outside the cap
+   * arithmetic entirely — it is no longer competing for a pre-open slot. */
+  const ptRows = [], ptRest = [];
+  const ptDayStates = (state.printTape?.dates || printTapeDates(ms)).map(d => ({
+    date: d, st: printTapeDayState(state.printTape?.days?.[d]),
+  }));
+  for (const rec of printTapeRecords()) {
+    if (rec.divergent !== true) continue;
+    const win = printTapeWindow(rec, pt);
+    if (win.state === 'dropped' || win.state === 'undated') continue;
+    const lr = longBySym[rec.ticker];
+    const row = { rec, win, sym: rec.ticker, best: lr ? bestCandidate(lr) : null };
+    (win.state === 'reacting' ? ptRest : ptRows).push(row);
+  }
+  const ptOrder = (a, b) => String(a.rec.reportDate).localeCompare(String(b.rec.reportDate))
+    || String(a.sym).localeCompare(String(b.sym));
+  ptRows.sort(ptOrder); ptRest.sort(ptOrder);
+
   const candidates = scored.filter(r => r.tier != null);
   const core     = candidates.filter(r => r.tier <= 4);
   const fillPool = candidates.filter(r => r.tier === 5);
-  const fills    = fillPool.slice(0, Math.max(0, QUEUE_CAP - core.length));
+  const fills    = fillPool.slice(0, Math.max(0, QUEUE_CAP - core.length - ptRows.length));
   const selected = core.concat(fills);
   return {
     ms, pt, phase, todayIso, nextIso, scored, candidates,
     core, fillPool, fills, selected, top3Line,
+    ptRows, ptRest, ptDayStates,
     cut: fillPool.slice(fills.length),
   };
 }
@@ -2612,11 +2674,23 @@ function dumpQueueTable() {
     selected: q.selected.includes(r), why: r.why,
   }));
   console.table(rows);
+  /* The print-tape rows print as their own table — a separate row family, so a
+   * separate table rather than columns of nulls hanging off the scored one. */
+  console.log('[queue] print vs tape: %s', printTapeNote(q));
+  console.table(q.ptDayStates.map(d => ({ date: d.date, state: d.st.state, reason: d.st.reason })));
+  console.table([...q.ptRows, ...q.ptRest].map(r => ({
+    sym: r.sym, reportDate: r.rec.reportDate, session: r.rec.session, divergent: r.rec.divergent,
+    window: r.win.state, openIso: r.win.openIso, group: r.win.state === 'reacting' ? 'Rest' : 'queue',
+    epsSurprisePct: r.rec.print?.epsSurprisePct ?? null, revSurprisePct: r.rec.print?.revSurprisePct ?? null,
+    tapePct: r.rec.tape?.changePct ?? null, impliedPct: r.rec.implied?.movePct ?? null,
+    guidance: r.rec.guidance?.class ?? (r.rec.guidance?.status ?? 'null'), struct: Boolean(r.best),
+  })));
   console.log('[queue] top-3 line: %s', q.top3Line
     ? `${q.top3Line.best.symbol} ${top3StructureLabel(q.top3Line.best)} score ${q.top3Line.best.score} `
       + `(${q.top3Line.n} entries, PT ${q.top3Line.iso}) — informational, occupies no card slot`
     : 'none (no top-3 entries for the current trading day)');
-  return { phase: q.phase, todayIso: q.todayIso, nextIso: q.nextIso, rows, top3Line: q.top3Line };
+  return { phase: q.phase, todayIso: q.todayIso, nextIso: q.nextIso, rows, top3Line: q.top3Line,
+           printTape: { dayStates: q.ptDayStates, queue: q.ptRows, rest: q.ptRest } };
 }
 
 /* ── rendering ───────────────────────────────────────────────────────────── */
@@ -2758,20 +2832,42 @@ function renderQueue() {
     <span class="phasewhy" title="${esc('Derived from PT wall-clock: before 06:30 = morning, 06:30–13:00 = intraday, after 13:00 or a weekend = post-close. NYSE holidays are NOT modelled on this page — a market holiday reads as a weekday. The holiday table lives in the Worker and is not published on any endpoint fetched here.')}">
       ${esc(PHASE_TEXT[q.phase])} · PT ${esc(dowLabel(q.todayIso))} ${String(Math.floor(q.pt.minutes / 60)).padStart(2, '0')}:${String(q.pt.minutes % 60).padStart(2, '0')} · holidays not modelled</span>`;
 
-  count.textContent = `· ${q.core.length} tier 1–4 (uncapped) + ${q.fills.length} of ${q.fillPool.length} conviction fill${
-    q.fillPool.length === 1 ? '' : 's'}`;
+  count.textContent = `· ${q.core.length} tier 1–4 (uncapped)`
+    + (q.ptRows.length ? ` + ${q.ptRows.length} print-vs-tape` : '')
+    + ` + ${q.fills.length} of ${q.fillPool.length} conviction fill${q.fillPool.length === 1 ? '' : 's'}`
+    + (q.ptRest.length ? ` · ${q.ptRest.length} in Rest` : '');
 
   /* An empty queue is a FINDING, not a gap to pad (amended 2026-08-20). The
    * former behaviour let a HOLD fill the slot; nothing does now, so the quiet
    * day has to say what it looked at. */
-  const body = q.selected.length
-    ? `<div class="queue">${q.selected.map(r => queueCard(r, q)).join('')}</div>`
+  /* Print-vs-tape cards sit ABOVE the tier-3 "at/through level" cards and BELOW
+   * the clock-driven tiers 1–2, so the list is one flat ordered queue rather
+   * than a card set with a second card set bolted under it. */
+  const cards = [];
+  for (const r of q.selected.filter(x => x.tier <= 2)) cards.push(queueCard(r, q));
+  for (const r of q.ptRows) cards.push(printTapeCard(r));
+  for (const r of q.selected.filter(x => x.tier > 2)) cards.push(queueCard(r, q));
+
+  const body = cards.length
+    ? `<div class="queue">${cards.join('')}</div>`
     : `<div class="empty-state">No actionable card right now: no name carries an earnings deadline today or next
-        session, none is within ${AT_LEVEL_PCT}% of its key level, and no BUY or SELL verdict is on file to fill.
+        session, none is within ${AT_LEVEL_PCT}% of its key level, no BUY or SELL verdict is on file to fill, and
+        no print-vs-tape divergence is inside its pre-open window.
         ${q.scored.length} name${q.scored.length === 1 ? '' : 's'} scored — an empty queue on a quiet day is the
         answer, not a missing module.</div>`;
 
-  el.innerHTML = body
+  /* THE REST GROUP — cards whose action window (the regular open) has passed.
+   * They are demoted rather than dropped because the reaction is still running
+   * and the numbers behind it have not changed; they drop at that session's
+   * close. Outside the cap: they are no longer competing for a pre-open slot. */
+  const rest = q.ptRest.length
+    ? `<div class="qgrp">Rest <span class="why">— the regular open has passed; these hold until that session
+        closes at 13:00 PT, then drop</span></div><div class="queue">${q.ptRest.map(printTapeCard).join('')}</div>`
+    : '';
+
+  el.innerHTML = printTapeBanner(q)
+    + body
+    + rest
     + queueTop3Line(q)
     + (q.cut.length ? `<div class="qcut${state.queueCutOpen ? ' open' : ''}" id="qcut">
         <span class="toggle" onclick="toggleQueueCut()" title="${esc(
@@ -2795,7 +2891,12 @@ function renderQueue() {
     + `tiers 1–4 (deadline-today → reaction-day → at/through level → within ${AT_LEVEL_PCT}%) render uncapped; `
     + `tier-5 conviction fills top the queue up to ${QUEUE_CAP} cards total`
     + (holds.length ? ` · ${holds.length} HOLD${holds.length === 1 ? '' : 's'} not actionable, so unranked (${holds.map(r => esc(r.sym)).join(', ')})` : '')
-    + (noRecord.length ? ` · ${noRecord.length} name${noRecord.length === 1 ? '' : 's'} unranked (${noRecord.map(r => esc(r.sym)).join(', ')}: no verdict record)` : '');
+    + (noRecord.length ? ` · ${noRecord.length} name${noRecord.length === 1 ? '' : 's'} unranked (${noRecord.map(r => esc(r.sym)).join(', ')}: no verdict record)` : '')
+    /* The print-tape state is named on EVERY path, including the ones that
+     * render no card and no banner: "did not run", "nobody reported" and "the
+     * fetch failed" are three different facts and a state nothing renders is a
+     * state nobody can check. */
+    + ` · ${esc(printTapeNote(q))}`;
 }
 /* The top-3 rider's one line. It sits BELOW the cards and outside the selection
  * entirely — no tier, no slot, nothing displaced — and says so on its face.
@@ -2818,6 +2919,506 @@ function queueTop3Line(q) {
 
 function row_cut_tip(r) {
   return `tier ${r.tier} (${TIER_LABELS[r.tier]}) · ${r.why}`;
+}
+
+/* ── PRINT vs TAPE ─────────────────────────────────────────────────────────
+ * `GET /api/printtape?date=` — the Worker's banked earnings-divergence records:
+ * the PRINT (EPS/revenue actual vs consensus, within ONE named quarter) beside
+ * the TAPE (what extended hours did with it). Worker docs: trading_dash's
+ * `.claude/skills/worker-internals/SKILL.md` and the `PRINT vs TAPE` block in
+ * its `worker.js`.
+ *
+ * TWO DATES ARE FETCHED, NOT ONE, AND THE SECOND IS NOT A NICETY. A record is
+ * keyed to its ET REPORT date, but the action window is the next REGULAR OPEN —
+ * options do not trade extended hours. So an AMC print on ET date D is banked
+ * under D and its card lives on the morning of D+1, by which point a
+ * single-date fetch is asking the Worker for D+1 and the record is not in that
+ * answer. The prior trading day is therefore fetched alongside today and the
+ * union is what the queue reads. Two KV assemblies, zero upstream fetches on
+ * either — the endpoint recomputes nothing and writes nothing.
+ *
+ * `?clock=` REACHES THIS FETCH, WHICH IS A DELIBERATE EXTENSION OF ITS SCOPE.
+ * Everywhere else the test clock moves a derivation and never a payload,
+ * because our copies really are as old as they are. This endpoint is
+ * DATE-ADDRESSED: the date is the record's identity, not a staleness property,
+ * and a frozen queue clock asking for the live date would run one day's window
+ * logic over another day's records. Every as-of below still comes from the
+ * record's own timestamps, on the real clock.
+ *
+ * `PT_OPEN` is 06:30 PT = 09:30 ET, the regular-session open — the first
+ * instant a reaction to an extended-hours print can be expressed in options.
+ * It is why the chip says "prep for open" and never "buy now".                */
+
+const PT_OPEN = 6 * 60 + 30;
+
+/** The ET calendar date of an instant, off the queue's clock. The Worker keys
+ *  these records by ET report date; the queue thinks in PT. Both are needed. */
+const etIsoOf = ms => etDateOf(new Date(ms).toISOString());
+
+/** The two dates the queue reads. Weekday rule only — the same known gap the
+ *  phase line names, costing at most one extra KV assembly that answers
+ *  `ran: false`. */
+function printTapeDates(ms) {
+  const today = etIsoOf(ms ?? queueNow());
+  return today ? [today, prevTradingDayIso(today)] : [];
+}
+
+/* ── the states, one per fetched date ──────────────────────────────────────
+ * `not-loaded`    — the shared sweep has not reached it yet.
+ * `route-absent`  — HTTP 404: a deployed Worker predating the endpoint. The
+ *                   frontend is always newer than the Worker for a while
+ *                   (honesty rule 9), so this is its own named state and is
+ *                   never rendered as "nobody reported".
+ * `failed`        — the fetch threw or returned another non-2xx. NOT a claim
+ *                   about what the Worker publishes; we simply do not know.
+ * `scan-failed`   — a pass ran and its eligibility scan could not, so NO name
+ *                   was checked. `scanOk === false` IS THE TEST: absent means a
+ *                   Worker that does not publish the flag, and a real scan must
+ *                   never be relabelled as a failed one.
+ * `did-not-run`   — `meta.ran !== true`: no pass wrote a day index for that
+ *                   date. The job did not run (weekend, NYSE holiday), or the
+ *                   date has aged past PRINTTAPE_TTL. Distinct from
+ *                   `none-reported`, which is the job running and finding
+ *                   nobody — "it did not look" and "it looked and found none"
+ *                   are different facts.
+ * `none-reported` — the job ran, the scan was fine, no watchlist name reported.
+ *                   The ~95% answer, and a measurement rather than a silence.
+ * `records`       — records came back.
+ *
+ * NOTE ON `scanOk`: it is published PER PASS inside `meta.passes[]`, not at the
+ * top level of `meta`. There is no `meta.scanOk` on this payload and one must
+ * not be synthesised — the BMO and AMC passes can succeed and fail
+ * independently, so a single flag would have to pick one of them to describe. */
+function printTapeDayState(day) {
+  if (!day) return { state: 'not-loaded', reason: 'the shared sweep has not fetched this date yet' };
+  if (day.err) {
+    return day.err.status === 404
+      ? { state: 'route-absent',
+          reason: 'GET /api/printtape returned 404 — the deployed Worker predates this endpoint. '
+            + 'Field-absent, not a claim that nobody reported.' }
+      : { state: 'failed', reason: `${day.err.kind || 'error'}: ${day.err.message}` };
+  }
+  const m = day.env?.meta;
+  if (!m) return { state: 'failed', reason: 'the response carried no meta block' };
+  const bad = (m.passes || []).filter(p => p.scanOk === false);
+  if (bad.length) {
+    return { state: 'scan-failed', passes: bad,
+      reason: bad.map(p => `${p.pass}: ${p.scanReason || 'no reason published'}`).join(' · ') };
+  }
+  if (m.ran !== true) {
+    return { state: 'did-not-run', reason: m.ranReason || 'meta.ran is not true and no reason was published' };
+  }
+  if (!(day.env.records || []).length) {
+    const np = (m.passes || []).length, ne = (m.eligible || []).length;
+    return { state: 'none-reported',
+      reason: `${np} pass${np === 1 ? '' : 'es'} ran and ${ne} watchlist name${ne === 1 ? '' : 's'} reported` };
+  }
+  return { state: 'records', reason: null };
+}
+
+/** Every record the store holds across the fetched dates, newest report first,
+ *  deduped on ticker+reportDate. */
+function printTapeRecords() {
+  const st = state.printTape;
+  if (!st) return [];
+  const seen = new Set(), out = [];
+  for (const d of st.dates) {
+    for (const r of (st.days[d]?.env?.records || [])) {
+      const k = `${r.ticker}:${r.reportDate}`;
+      if (seen.has(k)) continue;
+      seen.add(k); out.push(r);
+    }
+  }
+  return out.sort((a, b) => String(b.reportDate).localeCompare(String(a.reportDate))
+    || String(a.ticker).localeCompare(String(b.ticker)));
+}
+
+/** The live record for one ticker — one whose action window has not passed. */
+function printTapeRecordFor(sym) {
+  const pt = ptPartsOf(queueNow());
+  return printTapeRecords().find(r => r.ticker === sym && printTapeWindow(r, pt).state !== 'dropped') || null;
+}
+
+/** Which regular open is this record's action window. A BMO print lands before
+ *  the report day's own open; an AMC print after its close, so the window is
+ *  the next session's open. An `unknown` session takes the later open and the
+ *  card says so — unreachable for a queue card by construction, because the
+ *  Worker refuses the divergence question outright on an unknown session
+ *  (`divergent: null`, never `true`). */
+function printTapeOpenIso(rec) {
+  const d = rec?.reportDate;
+  if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+  return rec.session === 'bmo' ? d : nextTradingDayIso(d);
+}
+
+/** prep → reacting → dropped, against the queue's PT clock. The card holds
+ *  through the session its open belongs to and drops at that close. */
+function printTapeWindow(rec, pt) {
+  const openIso = printTapeOpenIso(rec);
+  if (!openIso) return { state: 'undated', openIso: null };
+  if (pt.iso < openIso) return { state: 'prep', openIso };
+  if (pt.iso > openIso) return { state: 'dropped', openIso };
+  if (pt.minutes < PT_OPEN) return { state: 'prep', openIso };
+  if (pt.minutes < PT_CLOSE) return { state: 'reacting', openIso };
+  return { state: 'dropped', openIso };
+}
+
+/* ── formatting ─────────────────────────────────────────────────────────── */
+
+/** Revenue with its unit NAMED. These arrive as raw dollars, and a bare 15.96
+ *  beside a 15,960,000,000 is one quantity under another's label. */
+function fmtRev(v) {
+  if (!isNum(v)) return null;
+  const a = Math.abs(v);
+  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  return `$${fmt(v, 0)}`;
+}
+
+/** EPS AT THE PRECISION THE SURPRISE WAS COMPUTED AT. A consensus arrives as
+ *  0.97745 and `fmt(v, 2)` renders it 0.98, against which the Worker's own
+ *  +4.35% does not reconcile — 1.02/0.98 is +4.08%, and a reader checking the
+ *  two numbers beside each other finds them contradicting on one line. Trailing
+ *  zeros are trimmed, so an ordinary 1.65 still renders 1.65. */
+function fmtEps(v) {
+  if (!isNum(v)) return null;
+  return String(+v.toFixed(5));
+}
+
+/** A surprise percent, bull on a beat and bear on a miss. `null` and `0` are
+ *  different states: 0.00% is a print exactly in line and is a measurement. */
+function ptSurprise(v) {
+  if (!isNum(v)) return `<span class="dim" title="${esc('surprise not computed — it needs both an actual and a '
+    + 'consensus, and the Worker refuses the division rather than treating a missing side as zero')}">surprise n/c</span>`;
+  return `<b class="${v > 0 ? 'up' : v < 0 ? 'dn' : ''}">${v > 0 ? '+' : ''}${v.toFixed(2)}%</b>`;
+}
+
+/** A `{status, reason}` block rendered inline as the finding it is. THE
+ *  PRESENCE OF `status` IS THE REFUSAL TEST — a missing key means the field was
+ *  never published by this Worker, which is a different fact (`ptAbsent`). */
+function ptRefusal(blk, what) {
+  const why = String(blk.reason || 'no reason published');
+  return `<span class="dim" title="${esc(why)}">${esc(what)} ${esc(blk.status)} — ${
+    esc(why.slice(0, 90))}${why.length > 90 ? '…' : ''}</span>`;
+}
+const ptAbsent = (what, why) =>
+  `<span class="dim" title="${esc(why)}">${esc(what)} not published by this Worker</span>`;
+
+/* ── the card ────────────────────────────────────────────────────────────── */
+
+/** The state chip. THE CLOCK WINS: a demoted card says the open has passed
+ *  whatever guidance found, because that is a fact of the calendar and guidance
+ *  is a reading. `cut` outranks `prep` while the window is still ahead — a
+ *  sell-off with a stated reason is not the setup an unexplained one is. */
+function printTapeChip(rec, win) {
+  if (win.state === 'reacting') {
+    return { label: 'OPEN PASSED — REACTION IN PROGRESS', cls: 'dim',
+      tip: `The ${win.openIso} regular open (06:30 PT) has passed, so this is no longer a pre-open setup. `
+        + 'The card holds until that session closes at 13:00 PT and then drops.' };
+  }
+  if (rec.guidance && !rec.guidance.status && rec.guidance.class === 'cut') {
+    return { label: 'EXPLAINED — GUIDANCE', cls: 'near',
+      tip: 'The company CUT its forward outlook, so the sell-off has a stated reason. This is not an '
+        + 'unexplained beat-and-fade: the tape is pricing the guide, not mispricing the print.' };
+  }
+  return { label: 'PREP FOR OPEN', cls: 'plan',
+    tip: `Options do not trade extended hours, so nothing here is actionable until the ${win.openIso} regular `
+      + 'open at 06:30 PT. This card is preparation and never an instruction to buy now.' };
+}
+
+/** One print-vs-tape card. A DIFFERENT CARD KIND from `queueCard()`, with
+ *  different content — not a second renderer for the same card. The cut chips
+ *  still expand through `queueCard()` and nothing here duplicates it. */
+function printTapeCard(row) {
+  const rec = row.rec, win = row.win;
+  const p = rec.print || {}, t = rec.tape || {}, im = rec.implied || {};
+  const chip = printTapeChip(rec, win);
+  const sessTag = sessionTag({
+    session: rec.session === undefined ? undefined : (rec.session === 'bmo' || rec.session === 'amc' ? rec.session : 'unknown'),
+    ts: rec.earningsTs,
+  });
+
+  /* ── line 1 · the print ── */
+  const l1 = [];
+  if (p.status) {
+    l1.push(ptRefusal(p, 'print'));
+  } else {
+    l1.push(p.eps?.status ? ptRefusal(p.eps, 'EPS')
+      : `<span>EPS <b>${esc(fmtEps(p.epsActual) ?? 'n/p')}</b> vs est <b>${esc(fmtEps(p.epsEst) ?? 'n/p')}</b> ${
+          ptSurprise(p.epsSurprisePct)}</span>`);
+    l1.push(p.revenue?.status ? ptRefusal(p.revenue, 'revenue')
+      : `<span>Rev <b>${esc(fmtRev(p.revActual) ?? 'n/p')}</b> vs est <b>${esc(fmtRev(p.revEst) ?? 'n/p')}</b> ${
+          ptSurprise(p.revSurprisePct)}</span>`);
+    l1.push(p.quarter
+      ? `<span class="dim" title="${esc('The quarter period-end. An actual and a consensus are only ever compared '
+          + 'WITHIN ONE QUARTER, checked by string equality on this date — the Worker refuses across a quarter '
+          + 'boundary rather than printing a surprise that never happened. Established via '
+          + (p.quarterVia || 'a route the record does not name') + '.')}">quarter ending <b>${esc(p.quarter)}</b></span>`
+      : ptAbsent('quarter', 'the print block carries no quarter field'));
+  }
+
+  /* ── line 2 · the tape against the implied move ── */
+  const l2 = [];
+  const CAVEAT = 'Extended-hours prints are thin and often not where the stock opens.';
+  if (t.status) {
+    l2.push(ptRefusal(t, 'tape'));
+  } else {
+    const w = t.window === 'pre' ? 'pre-market' : t.window === 'post' ? 'post-market' : 'extended-hours';
+    const qt = fmtClockPt(Date.parse(t.quoteTime));
+    l2.push(`<span title="${esc(CAVEAT + ' Change is against ' + (t.referenceCloseField || 'the reference close')
+      + (isNum(t.referenceClose) ? ' = ' + fmt(t.referenceClose) : '') + '. ' + (t.source || ''))}">tape: ${esc(w)} <b class="${
+      isNum(t.changePct) ? (t.changePct > 0 ? 'up' : t.changePct < 0 ? 'dn' : '') : ''}">${
+      isNum(t.changePct) ? (t.changePct > 0 ? '+' : '') + t.changePct.toFixed(1) + '%' : 'n/p'}</b> @ <b>${
+      esc(fmt(t.price) ?? 'n/p')}</b>${qt ? ` <span class="dim">${esc(qt)}</span>` : ''}</span>`);
+  }
+  if (im.status) {
+    const why = String(im.reason || 'no reason published');
+    l2.push(`<span class="dim" title="${esc(why)}">implied not computed — ${esc(why.slice(0, 80))}${
+      why.length > 80 ? '…' : ''}</span>`);
+  } else if (isNum(im.movePct)) {
+    l2.push(`<span title="${esc('NOT an earnings-isolated move. ' + (im.basis || '')
+      + (im.expiry ? ` Expiry ${im.expiry}${isNum(im.dte) ? `, ${im.dte} DTE` : ''}.` : '')
+      + (im.straddlesReport === false ? ' This expiry falls BEFORE the report, so it does not span the print at all.' : '')
+      + ' Source: ' + (im.source || 'not published'))}">vs implied <b>±${im.movePct.toFixed(1)}%</b>${
+      im.straddlesReport === false ? ' <span class="amb">(expiry precedes the report)</span>' : ''}</span>`);
+  } else {
+    l2.push(ptAbsent('implied move', 'the implied block carries neither a movePct nor a status'));
+  }
+
+  /* ── line 3 · guidance, ALWAYS with its source ── */
+  const g = rec.guidance;
+  let l3;
+  if (!g) {
+    l3 = `<span class="dim" title="${esc('The Worker asks the guidance question ONLY on a divergent name — one '
+      + 'Claude call per ticker per report, never speculatively. This record carries guidance: null.')
+      }">guidance: not asked — the Worker classifies guidance only on a divergent record</span>`;
+  } else if (g.status) {
+    const why = String(g.reason || 'no reason published');
+    l3 = `<span class="dim" title="${esc(why)}">guidance ${esc(g.status)} — ${esc(why.slice(0, 110))}${
+      why.length > 110 ? '…' : ''} · source not published on a refusal</span>`;
+  } else {
+    const srcTip = esc('guidance.source — currently the earnings NEWS WINDOW, not the release and not an 8-K: no '
+      + 'press-release feed is wired to this Worker. ' + (g.source || 'source not published')
+      + (g.asOf ? ` · classified ${fmtClockPt(Date.parse(g.asOf)) || g.asOf}` : ''));
+    const tail = `<span class="dim">· source ${esc(g.source || 'n/p')}</span>`
+      + (g.quoteNote ? ` <span class="dim" title="${esc(g.quoteNote)}">(no verbatim sentence behind it)</span>` : '');
+    if (g.class === 'not-found') {
+      l3 = `<span title="${srcTip}">guidance: <b>no guidance found</b> in <b>${
+        esc(g.source || 'a source the record does not name')}</b> — <span class="amb">divergence unexplained</span></span>`;
+    } else if (g.class === 'cut') {
+      l3 = `<span title="${srcTip}">guidance: <b class="amb">CUT</b> — the sell-off has a stated reason${
+        g.quote ? `: <span class="dim">“${esc(g.quote)}”</span> ` : ' '}${tail}</span>`;
+    } else {
+      l3 = `<span title="${srcTip}">guidance: <b>${esc(g.class)}</b>${
+        g.quote ? ` <span class="dim">“${esc(g.quote)}”</span> ` : ' '}${tail}</span>`;
+    }
+  }
+
+  /* ── line 4 · base rate, and the structure when a long row is loaded ── */
+  const br = rec.baseRate;
+  const l4 = [];
+  if (br?.status) {
+    l4.push(`<span class="dim" title="${esc(String(br.reason || 'no reason published')
+      + ' — model confidence renders ordinal, never a percentage, and no rate renders without its base rate '
+      + 'beside it. There is neither here, so nothing is scored.')}">base rate: <b>${esc(br.status)}</b> — ${
+      esc(br.reason || 'no reason published')} · confidence <b>Low</b></span>`);
+  } else {
+    l4.push(ptAbsent('base rate', br
+      ? 'the baseRate block carries no status and this renderer predates whatever shape it has taken'
+      : 'the record carries no baseRate block'));
+  }
+  if (row.best) {
+    const er = (row.best.c.expectancyMean * 100).toFixed(0) + '%';
+    l4.push(`<span style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px"
+      onclick="event.stopPropagation();location.hash='#options/${esc(rec.ticker)}'"
+      title="${esc('E[R] = expectancyMean: mean P/L across historical windows ÷ capital risked, HELD TO EXPIRY. A relative ranking, not a P&L forecast. Click: open in Options.')}">structure: <b>${
+      esc(structureLabel(row.best))}</b> · E[R] <b class="${row.best.c.expectancyMean > 0 ? 'up' : 'dn'}">${er}</b>${
+      row.best.c.upsideTruncated ? '<span class="amb">↑</span>' : ''}</span>`);
+  }
+
+  /* ── provenance ── */
+  const carriedTs = isNum(p.carriedFromTs) ? fmtClockPt(p.carriedFromTs) : null;
+  const printAsOf = p.asOf ? fmtClockPt(Date.parse(p.asOf)) : null;
+  const env = state.printTape?.days?.[rec.reportDate]?.env;
+  const src = [
+    `record: printtape:${esc(rec.ticker)}:${esc(rec.reportDate)} · schema ${esc(String(rec.schema))} · pass ${
+      esc(String(rec.pass ?? 'n/p'))} · written ${esc(isNum(rec.ts) ? fmtClockPt(rec.ts) : 'ts not published')}`,
+    p.status ? `print: ${esc(p.status)} — ${esc(p.reason || 'no reason published')}`
+      : `print: ${esc(p.source || 'source not published')}`
+        /* A CONSENSUS CARRIED FORWARD FROM PASS 1 SAYS SO. Pass 1 banks the
+         * consensus while earningsTrend.0q still names the reported quarter;
+         * pass 2 catches the actual after that has rolled. Two read times behind
+         * one line of numbers, and the line has to admit it. */
+        + (carriedTs
+            ? ` · consensus banked ${esc(carriedTs)} (${esc(String(p.carriedFromPass ?? 'an earlier pass'))}${
+                Array.isArray(p.carriedFields) && p.carriedFields.length ? `: ${esc(p.carriedFields.join(', '))}` : ''
+              }), actual ${esc(printAsOf || 'as-of not published')}`
+            : ` · as of ${esc(printAsOf || 'not published')}`)
+        + (p.mergeRefused ? ` · MERGE REFUSED: ${esc(p.mergeRefused)}` : '')
+        + (p.carriedNote ? ` · ${esc(p.carriedNote)}` : '')
+        + (isNum(p.epsSurpriseYahoo)
+            ? ` · cross-check: Yahoo's own EPS surprise ${p.epsSurpriseYahoo.toFixed(2)}%, ${
+                p.epsSurpriseAgrees === true ? 'agrees with' : p.epsSurpriseAgrees === false ? 'DISAGREES with' : 'not comparable with'} ours`
+            : ''),
+    t.status ? `tape: ${esc(t.status)} — ${esc(t.reason || 'no reason published')}`
+      : `tape: ${esc(t.source || 'source not published')} · quote ${
+          esc(fmtClockPt(Date.parse(t.quoteTime)) || t.quoteTime || 'n/p')}`
+        + (t.marketState ? ` · marketState ${esc(t.marketState)}` : '')
+        /* VOLUME IS A REFUSAL, NOT AN OMISSION, and it renders as the finding it
+         * is rather than as a missing line: Yahoo publishes no extended-hours
+         * volume field anywhere, and the one feed that resembles one cannot be
+         * separated from the closing auction. There is no volume LINE on the
+         * card because there is no honest number to put on one. */
+        + (t.volumeStatus ? ` · volume ${esc(t.volumeStatus)}: ${esc(t.volumeReason || 'no reason published')}` : ''),
+    im.status ? `implied: ${esc(im.status)} — ${esc(im.reason || 'no reason published')}`
+      : `implied: ${esc(im.source || 'source not published')} · as of ${
+          esc(im.asOf ? (fmtClockPt(Date.parse(im.asOf)) || im.asOf) : 'not published')}`,
+    g ? (g.status ? `guidance: ${esc(g.status)} — ${esc(g.reason || 'no reason published')}`
+        : `guidance: ${esc(g.source || 'source not published')} · classified ${
+            esc(g.asOf ? (fmtClockPt(Date.parse(g.asOf)) || g.asOf) : 'not published')}`)
+      : 'guidance: null — not asked, because the Worker classifies guidance only on a divergent record',
+    rec.refusalReason ? `refusal: ${esc(rec.refusalReason)}` : null,
+    rec.divergenceTest ? `test: epsBeat ${rec.divergenceTest.epsBeat} · revBeat ${rec.divergenceTest.revBeat} · sold ${
+      rec.divergenceTest.sold} (${esc(String(rec.divergenceTest.changePct))}% against threshold ${
+      esc(String(rec.divergenceTest.thresholdPct))}%)` : null,
+    Array.isArray(rec.carriedForward) && rec.carriedForward.length
+      ? `carried forward across passes: ${esc(rec.carriedForward.join(', '))}` : null,
+    `envelope: ${esc(env?._meta?.source || 'source not published')} · fetched ${
+      esc(isNum(state.printTape?.fetchedAt) ? fmtClockPt(state.printTape.fetchedAt) : 'n/p')}`,
+    `window: ${esc(win.openIso || 'undated')} regular open 06:30 PT · ${esc(win.state)}`,
+    'click to collapse',
+  ].filter(Boolean).join('<br />');
+
+  const isOpen = state.printTapeOpenSyms.includes(rec.ticker);
+  return `<div class="qcard pt${isOpen ? ' open' : ''}" onclick="togglePrintTapeCard('${esc(rec.ticker)}')">
+    <div class="qtop">
+      <a class="qtick" href="#ticker/${encodeURIComponent(rec.ticker)}" onclick="event.stopPropagation()"
+         title="${esc(rec.ticker + ' → its ticker page')}">${esc(rec.ticker)}</a>
+      <span class="qact pt">PRINT vs TAPE</span>
+      ${sessTag}
+      <span class="qcall">${rec.divergent === true
+        ? 'Double beat, and the tape sold it.'
+        : esc('divergent: ' + String(rec.divergent))}</span>
+      <span class="qstate ${chip.cls}" title="${esc(chip.tip)}">${esc(chip.label)}</span>
+    </div>
+    <div class="qsub">${l1.join('')}</div>
+    <div class="qsub">${l2.join('')}</div>
+    <div class="qsub">${l3}</div>
+    <div class="qsub">${l4.join('')}</div>
+    <div class="qsrc">${src}</div>
+  </div>`;
+}
+
+/* Expansion state lives in `state`, never as a class on the node — renderQueue()
+ * replaces this whole subtree on the 30-second staleness cycle. */
+function togglePrintTapeCard(sym) {
+  const i = state.printTapeOpenSyms.indexOf(sym);
+  if (i >= 0) state.printTapeOpenSyms.splice(i, 1); else state.printTapeOpenSyms.push(sym);
+  renderQueue();
+}
+
+/** The scan-failure line. A failed eligibility scan means NO name was checked,
+ *  which is a failure state and not "nobody reported" — it must never render as
+ *  an empty group. */
+function printTapeBanner(q) {
+  const bad = q.ptDayStates.filter(d => d.st.state === 'scan-failed');
+  if (!bad.length) return '';
+  return `<div class="ptbanner" title="${esc('printTapeEligible() could not run, so no watchlist name was checked '
+    + 'for a report that day. This is the scan failing, not a quiet day — the Worker publishes scanOk per pass '
+    + 'precisely so the two cannot be confused.')}">⚠ earnings eligibility scan failed — no print-vs-tape records
+    exist for ${bad.map(d => esc(d.date)).join(' and ')}.
+    <span class="note">${bad.map(d => esc(d.st.reason)).join(' · ')}</span></div>`;
+}
+
+/** One clause for the queue footnote, naming the print-tape state on EVERY
+ *  path. A state nothing renders is a state nobody can check. */
+function printTapeNote(q) {
+  const parts = q.ptDayStates.map(d => {
+    if (d.st.state !== 'records') return `${d.date}: ${d.st.state}`;
+    const recs = state.printTape.days[d.date].env.records || [];
+    return `${d.date}: ${recs.length} record${recs.length === 1 ? '' : 's'}, ${
+      recs.filter(r => r.divergent === true).length} divergent`;
+  });
+  return `print vs tape — ${parts.join(' · ')}`
+    + (q.ptRows.length || q.ptRest.length
+        ? ` · ${q.ptRows.length} card${q.ptRows.length === 1 ? '' : 's'} pre-open, ${q.ptRest.length} past the open`
+        : '');
+}
+
+/* ── the ticker hero's "Print vs tape" line ───────────────────────────────
+ * Renders whenever a record exists for this ticker inside its window,
+ * DIVERGENT OR NOT — the queue only cards `divergent: true` because only that
+ * is an action, but the ticker page is where the question was asked about this
+ * one name and all three answers belong to it.
+ *
+ * `divergent: false` is a REAL ANSWER and renders with the numbers behind it;
+ * `divergent: null` is a REFUSAL and renders the Worker's own `refusalReason`.
+ * The Worker returns three values instead of two precisely so these cannot be
+ * collapsed, and collapsing them here would undo that.
+ *
+ * NO RECORD RENDERS NOTHING, deliberately. On ~95% of days no watchlist name
+ * reports at all, so a "no print-vs-tape record" line on every ticker page
+ * would be noise rather than a finding — and the day-level state (did the job
+ * run, did the scan hold, did anyone report) is named in full on the queue
+ * footnote, which is the one place it is a fact about the DAY rather than about
+ * this ticker. This withholds a control, not a measurement. */
+function printTapeVline(sym) {
+  const rec = printTapeRecordFor(sym);
+  if (!rec) return '';
+  const p = rec.print || {}, t = rec.tape || {}, im = rec.implied || {};
+  const win = printTapeWindow(rec, ptPartsOf(queueNow()));
+
+  const nums = [];
+  if (p.status) {
+    nums.push(ptRefusal(p, 'print'));
+  } else {
+    nums.push(p.eps?.status ? ptRefusal(p.eps, 'EPS')
+      : `EPS <b>${esc(fmtEps(p.epsActual) ?? 'n/p')}</b> vs <b>${esc(fmtEps(p.epsEst) ?? 'n/p')}</b> ${ptSurprise(p.epsSurprisePct)}`);
+    nums.push(p.revenue?.status ? ptRefusal(p.revenue, 'revenue')
+      : `Rev <b>${esc(fmtRev(p.revActual) ?? 'n/p')}</b> vs <b>${esc(fmtRev(p.revEst) ?? 'n/p')}</b> ${ptSurprise(p.revSurprisePct)}`);
+  }
+  if (t.status) {
+    nums.push(ptRefusal(t, 'tape'));
+  } else {
+    const w = t.window === 'pre' ? 'pre' : t.window === 'post' ? 'post' : 'ext';
+    nums.push(`<span title="${esc('Extended-hours prints are thin and often not where the stock opens. '
+      + (t.source || ''))}">tape ${esc(w)} <b class="${isNum(t.changePct) ? (t.changePct > 0 ? 'up' : t.changePct < 0 ? 'dn' : '') : ''}">${
+      isNum(t.changePct) ? (t.changePct > 0 ? '+' : '') + t.changePct.toFixed(1) + '%' : 'n/p'}</b> @ <b>${
+      esc(fmt(t.price) ?? 'n/p')}</b> <span class="dim">${esc(fmtClockPt(Date.parse(t.quoteTime)) || 'quote time n/p')}</span></span>`);
+  }
+  if (!im.status && isNum(im.movePct)) {
+    nums.push(`<span title="${esc('NOT an earnings-isolated move. ' + (im.basis || ''))}">vs implied <b>±${im.movePct.toFixed(1)}%</b></span>`);
+  } else if (im.status) {
+    nums.push(`<span class="dim" title="${esc(im.reason || 'no reason published')}">implied not computed</span>`);
+  }
+
+  let head;
+  if (rec.divergent === true) {
+    head = `<b class="amb">Divergent</b> — double beat, and the tape sold it`;
+  } else if (rec.divergent === false) {
+    head = `<b>print and tape agree</b> <span class="dim">— the question was asked and the answer is no</span>`;
+  } else {
+    head = `<b class="dim">not answered</b> <span class="dim" title="${esc(rec.refusalReason
+      || 'divergent is null and the record publishes no refusalReason')}">— ${esc(String(rec.refusalReason
+      || 'divergent is null and the record publishes no refusalReason'))}</span>`;
+  }
+
+  const g = rec.guidance;
+  const gTxt = !g
+    ? `<span class="dim" title="${esc('The Worker classifies guidance only on a divergent record — one Claude call per ticker per report.')}">guidance not asked</span>`
+    : g.status
+      ? `<span class="dim" title="${esc(g.reason || 'no reason published')}">guidance ${esc(g.status)}</span>`
+      : `guidance <b class="${g.class === 'cut' ? 'amb' : ''}">${esc(g.class)}</b> <span class="dim">· source ${esc(g.source || 'n/p')}</span>`;
+
+  return `<div class="vline"><span class="k">Print vs tape</span><span class="v">${head}
+    <br /><span class="m10">${nums.join(' · ')}</span>
+    <br /><span class="m10">${gTxt} · base rate <b>${esc(rec.baseRate?.status || 'n/p')}</b>${
+      rec.baseRate?.status ? ' <span class="dim">(' + esc(rec.baseRate.reason || 'no reason published') + ' · confidence Low)</span>' : ''}</span>
+    <br /><span class="m10 dim" title="${esc('The record is keyed to its ET report date; the action window is the '
+      + 'next regular open, because options do not trade extended hours.')}">printtape:${esc(rec.ticker)}:${esc(rec.reportDate)} · session ${
+      esc(String(rec.session ?? 'field-absent'))} · pass ${esc(String(rec.pass ?? 'n/p'))} · written ${
+      esc(isNum(rec.ts) ? fmtClockPt(rec.ts) : 'ts not published')} · window ${esc(win.openIso || 'undated')} open 06:30 PT (${esc(win.state)})
+      · ${esc(state.printTape?.days?.[rec.reportDate]?.env?._meta?.source || 'envelope source not published')}</span></span></div>`;
 }
 
 /* -- queue expansion state -------------------------------------------------
@@ -4377,6 +4978,9 @@ function heroExpress(sym) {
     out.push(`<div class="vline"><span class="k">Catalyst</span><span class="v dim">no scheduled earnings date on any payload for this ticker</span></div>`);
   }
 
+  // print vs tape — every answer, not only the divergent one
+  out.push(printTapeVline(sym));
+
   out.push(`<div class="vline"><span class="k">Earnings</span><span class="v">
     <button class="btn spend" onclick="analyzeEarnings('${esc(sym)}')" ${tk.busy.earnings ? 'disabled' : ''}
       title="${esc('GET /api/earnings — spends a Claude call on a cache miss, against the daily ceiling. Button-triggered only; never runs on load.')}">${
@@ -5554,6 +6158,11 @@ const state = {
   queueCutOpen: false,   // the cut list itself
   queueCutSyms: [],      // cut chips expanded into full cards
   queueOpenSyms: [],     // queue cards showing their provenance line
+  /* PRINT vs TAPE. `days` is keyed by the ET date each envelope was fetched
+   * FOR, so a per-date failure names its own date rather than blanking both.
+   * Two dates are always asked for — see the module comment. */
+  printTape: null,       // { dates:[iso,iso], days:{iso:{env|null, err|null}}, fetchedAt }
+  printTapeOpenSyms: [], // print-tape cards showing their provenance line
   errors: {},   // per-module failure, so one dead endpoint cannot blank the tab
 };
 
@@ -5749,6 +6358,29 @@ function loadShared(reason) {
        * the server's definitions. */
       if (isNum(lb.freshMs)) state.longFreshMs = lb.freshMs;
       if (lb.gates) state.longGates = lb.gates;
+
+      /* PRINT vs TAPE — two date-addressed KV assemblies, once per load. NO
+       * POLLING: it rides the shared sweep, so it refetches only when the sweep
+       * does (a load, or the visibilitychange re-read). The 30-second staleness
+       * timer refetches nothing here, as everywhere else.
+       *
+       * Its own try/catch PER DATE, inside the sweep's: this endpoint is
+       * additive and a 404 from a Worker predating it must not take the
+       * watchlist down with it. Each date's failure is banked against that date
+       * so the state line can name which one failed. */
+      {
+        const dates = printTapeDates();
+        const days = {};
+        for (const d of dates) {
+          try { days[d] = { env: await apiFetch('/printtape?date=' + d), err: null }; }
+          catch (e) { days[d] = { env: null, err: e }; }
+        }
+        state.printTape = { dates, days, fetchedAt: Date.now() };
+        console.log('[shared] (%s) print-tape %s', reason, dates.map(d => {
+          const st = printTapeDayState(days[d]);
+          return `${d}: ${st.state}${st.state === 'records' ? ` (${days[d].env.records.length})` : ''}`;
+        }).join(' · '));
+      }
 
       console.log('[shared] (%s) asked %d · returned %d · notReturned %s · analysisLoading %s · long rows %d missing %d · macro %s',
         reason, tickers.length, Object.keys(stocks).length, JSON.stringify(state.notReturned),
