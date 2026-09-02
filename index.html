@@ -3976,11 +3976,17 @@ async function refreshLongRow(sym) {
   }
 }
 
+/* A FRESH `error` ROW IS NOT A SATISFIED CACHE — the mirror of the Worker's own
+ * reuse gate on `/api/long/:ticker` (trading_dash, same-day fix). 2026-09-02: a
+ * crumb outage at 07:05 PT banked 40 `status: 'error'` rows, and this gate — age
+ * only — refused to refetch any of them for the next four hours, so expanding
+ * the row could not heal it. The row still RENDERS as a finding with its reason
+ * and ts while the refetch is in flight; only the gate changed. */
 async function ensureLongRow(sym) {
   const row = longRowFor(sym);
-  if (row && !longRowStale(row)) return row;
+  if (row && row.status !== 'error' && !longRowStale(row)) return row;
   if (optUi.loading[sym]) return row;
-  return refreshLongRow(sym);   // missing, or aged past the 4h freshness → refresh
+  return refreshLongRow(sym);   // missing, error-banked, or aged past the 4h freshness → refresh
 }
 
 function toggleOption(sym) {

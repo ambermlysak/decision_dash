@@ -175,6 +175,13 @@ least once:
   back in a top-level `missing[]` array with a per-symbol `not-loaded` reason,
   not in `rows`. In practice almost every row is not-loaded until someone expands
   it. "Not loaded" is a load state and must not render like "no trade here".
+- **A FRESH `status: 'error'` LONG ROW IS NEVER A SATISFIED CACHE.** `ensureLongRow`
+  gated on age alone, so the 40 error rows a failed 07:05 PT crumb sweep banked on
+  2026-09-02 could not be healed by expanding the row for the whole 4h freshness
+  window; the gate now also refetches on `row.status === 'error'`, mirroring the
+  Worker's own reuse rule on `/api/long/:ticker` (trading_dash, same-day fix). The
+  row still RENDERS as a finding with its reason while the refetch is in flight —
+  this changed the refetch gate and nothing about the display.
 - The watchlist batch carries **no `earningsTimestamp`** — only a preformatted
   `earningsDate` string and an integer `daysToEarnings`. BMO/AMC therefore cannot
   be derived on this surface; render no timing tag rather than inferring one.
