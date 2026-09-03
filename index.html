@@ -229,6 +229,16 @@ h2.sec .right { margin-left: auto; text-transform: none; letter-spacing: 0.03em;
   font-family: var(--mono); font-size: 11px; color: var(--amber); line-height: 1.7;
 }
 .ptbanner .note { color: var(--ink-2); font-size: 10px; display: block; margin-top: 3px; }
+/* THE SAME FACT, RECONCILED AGAINST THE RECORDS. A scan that failed on a date
+ * that HAS records is reported, not warned about: neutral ground, neutral ink,
+ * no ⚠. Dimmed with an ink tier and never with opacity — --ink-1 measures
+ * 10.02:1 worst case and --ink-2 7.23:1, both AA; opacity composites that away. */
+.ptinfo {
+  background: var(--bg-1); border: 1px solid var(--line);
+  border-radius: 8px; padding: 9px 12px; margin-bottom: 8px;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-1); line-height: 1.7;
+}
+.ptinfo .note { color: var(--ink-2); font-size: 10px; display: block; margin-top: 3px; }
 /* The "Rest" group: cards whose action window (the regular open) has passed. */
 .qgrp {
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
@@ -959,7 +969,7 @@ tr.xrow > td { background: var(--bg-1); padding: 12px 14px; }
  * different questions. `window.DD_BUILD` answers the second from the console:
  * curl can confirm the bytes on the wire, only the page itself can confirm the
  * bundle actually executing. Bumped by hand with each shipped phase. */
-const DD_BUILD = 'ptschema2-cal-1';
+const DD_BUILD = 'ptschema3-stages-1';
 window.DD_BUILD = DD_BUILD;
 /* The VISIBLE build stamp is rendered from DD_BUILD, never typed into markup.
  * It was hardcoded as `verdict-p11-1` and nothing ever wrote to it, so the
@@ -2724,9 +2734,19 @@ function buildQueue() {
    * and silently corrupt both. It stays a pure function of the shared store plus
    * the clock, exactly as the rest of this function is.
    *
-   * ONLY `divergent === true` CARDS. `false` is a real answer and `null` is a
-   * refusal; both belong on the ticker page, where the question was asked about
-   * that one name. Neither is an action, so neither takes a card.
+   * ONLY THE TWO GATE-1 STAGES CARD — `candidate` and `divergent` (schema 3;
+   * it was `divergent === true` alone before). A `candidate` is an EPS beat the
+   * tape sold with the revenue half still open, which is the same setup as a
+   * divergent one minus a figure Yahoo publishes days later, and the card says
+   * exactly that on its chip. `agree` is a real answer, `refused` is a refusal
+   * and `not-run` is a report that has not happened; all three belong on the
+   * ticker page, where the question was asked about that one name, and none of
+   * them is an action, so none takes a card.
+   *
+   * MEMBERSHIP READS `stage`, NEVER `divergent`. The boolean is DERIVED from the
+   * stage and is `null` for both `refused` and `candidate` — reading it here
+   * would drop every candidate on the floor as though it were a refusal, which
+   * is the exact collapse schema 3 exists to undo.
    *
    * PLACEMENT: above the tier-3 "at/through level" cards and below the
    * clock-driven tiers 1–2. A print that the tape sold is a live setup, but an
@@ -2755,7 +2775,7 @@ function buildQueue() {
       if (win.state !== 'dropped') ptGate.push({ rec, win, sym: rec.ticker, best: null, gate: true });
       continue;
     }
-    if (rec.divergent !== true) continue;
+    if (!ptReachedGate1(rec)) continue;
     if (win.state === 'dropped' || win.state === 'undated') continue;
     const lr = longBySym[rec.ticker];
     const row = { rec, win, sym: rec.ticker, best: lr ? bestCandidate(lr) : null };
@@ -2800,10 +2820,20 @@ function dumpQueueTable() {
    * `tapePct` column would have to pick one window to be about, which is the
    * hoisted copy the record deliberately does not carry. */
   console.table([...q.ptRows, ...q.ptRest].map(r => ({
-    sym: r.sym, reportDate: r.rec.reportDate, session: r.rec.session, divergent: r.rec.divergent,
+    sym: r.sym, reportDate: r.rec.reportDate, session: r.rec.session,
+    /* STAGE FIRST, and the boolean beside it labelled as the derived value it
+     * is. Printing only `divergent` is how a candidate reads as a refusal. */
+    stage: ptStage(r.rec) ?? 'not published', divergentDerived: r.rec.divergent,
+    gate1: r.rec.divergenceTest?.gate1 ?? null, gate2: r.rec.divergenceTest?.gate2 ?? null,
     window: r.win.state, openIso: r.win.openIso, group: r.win.state === 'reacting' ? 'Rest' : 'queue',
     epsSurprisePct: r.rec.print?.epsSurprisePct ?? null, revSurprisePct: r.rec.print?.revSurprisePct ?? null,
-    consensus: r.rec.print?.consensusSource ?? 'field-absent',
+    revSource: r.rec.print?.revActualSource ?? 'field-absent',
+    revConflictPct: r.rec.print?.revenueConflict?.diffPct
+      ?? (r.rec.print?.revenueCrosscheck ? `agrees ${r.rec.print.revenueCrosscheck.diffPct}` : null),
+    /* `consensusSource` is RECORD-level, beside schema/ticker/pass — reading it
+     * off `print` renders "not published by this Worker" on a record that
+     * publishes it, which is a false claim about the Worker (phase 15). */
+    consensus: r.rec.consensusSource ?? 'field-absent',
     usedWindow: r.rec.tape?.usedWindow ?? null,
     prePct: ptWindowRead(r.rec.tape?.pre) ? r.rec.tape.pre.changePct : (r.rec.tape?.pre?.status ?? 'absent'),
     postPct: ptWindowRead(r.rec.tape?.post) ? r.rec.tape.post.changePct : (r.rec.tape?.post?.status ?? 'absent'),
@@ -2811,7 +2841,7 @@ function dumpQueueTable() {
     guidance: r.rec.guidance?.class ?? (r.rec.guidance?.status ?? 'null'), struct: Boolean(r.best),
   })));
   if (q.ptGate.length) {
-    console.log('[queue] print-tape records NOT READ (schema ≠ %d):', PT_SCHEMA);
+    console.log('[queue] print-tape records NOT READ (schema ≠ %d — no number and no stage is read off them):', PT_SCHEMA);
     console.table(q.ptGate.map(r => ({ sym: r.sym, reportDate: r.rec.reportDate, schema: r.rec.schema,
       session: r.rec.session, pass: r.rec.pass, window: r.win.state })));
   }
@@ -2990,7 +3020,7 @@ function renderQueue() {
     ? `<div class="queue">${cards.join('')}</div>`
     : `<div class="empty-state">No actionable card right now: no name carries an earnings deadline today or next
         session, none is within ${AT_LEVEL_PCT}% of its key level, no BUY or SELL verdict is on file to fill, and
-        no print-vs-tape divergence is inside its pre-open window.
+        no print-vs-tape record has reached gate 1 (candidate or divergent) inside its pre-open window.
         ${q.scored.length} name${q.scored.length === 1 ? '' : 's'} scored — an empty queue on a quiet day is the
         answer, not a missing module.</div>`;
 
@@ -3009,7 +3039,7 @@ function renderQueue() {
    * reporting. */
   const gate = q.ptGate.length
     ? `<div class="qgrp">Not read <span class="why">— print-vs-tape records at a schema this page does not read
-        (${PT_SCHEMA}); nothing on them is rendered as a measurement</span></div>
+        (it reads ${PT_SCHEMA}); nothing on them is rendered as a measurement or a verdict</span></div>
        <div class="queue">${q.ptGate.map(printTapeCard).join('')}</div>`
     : '';
 
@@ -3110,29 +3140,119 @@ function row_cut_tip(r) {
 const PT_OPEN = 6 * 60 + 30;
 
 /* THE SCHEMA THIS PAGE READS, and it is STRICT EQUALITY — the same rule the
- * Worker applies to its own KV reads. Schema 2 moved the tape's numbers: a
- * schema-1 record carries `changePct` at the TOP of the `tape` block, a schema-2
- * reader looks for it inside a window. So a schema-1 record read by this code
- * finds `tape.changePct` undefined and `tape.pre`/`tape.post` absent — which
- * would render as "tape n/p" beside a print that did have a reaction. That is a
- * misread, not a gap, so it is gated: an off-schema record renders as the stated
- * fact that this page cannot read it, with the record's own ts, and never as
- * numbers.
+ * Worker applies to its own KV reads. TWO BUMPS NOW, and each moved something
+ * this renderer reads:
+ *
+ *   schema 1 → 2   THE TAPE'S NUMBERS MOVED. A schema-1 record carries
+ *                  `changePct` at the TOP of the `tape` block; a schema-2 reader
+ *                  looks for it inside a per-window sub-block. Read across that
+ *                  boundary, a real 14% reaction renders "tape n/p".
+ *   schema 2 → 3   THE VERDICT MOVED. A schema-3 record carries a five-valued
+ *                  `stage` (not-run · refused · agree · candidate · divergent)
+ *                  with its own `stageReason`, and the `divergent` boolean is
+ *                  DERIVED from it rather than assigned. A schema-2 record
+ *                  carries no `stage` at all, and a reader deriving one from
+ *                  `divergent` would report every unanswered name as `refused`
+ *                  when the Worker's own split calls most of them `agree` (gate
+ *                  1 came back negative, which no revenue figure could change)
+ *                  or `candidate` (gate 1 FIRED, revenue half still open).
+ *
+ * Both are misreads rather than gaps, so both are gated: an off-schema record
+ * renders as the stated fact that this page cannot read it, with the record's
+ * own ts, and never as numbers.
  *
  * IT IS DEFENCE IN DEPTH, NOT THE ONLY GUARD. The Worker's endpoint applies the
  * same strict equality one layer up — an off-schema DAY INDEX reads as absent
  * (`ran: false`) and an off-schema RECORD lands in `meta.unreadable[]` — so a
  * record normally cannot reach this gate at all. Measured 2026-09-01 after the
- * schema-2 deploy: every date from 08-28 to 09-02 answered `ran: false`, because
- * the day indices were written under schema 1. The gate is here for the case the
+ * schema-2 deploy, and again 2026-09-03 after the schema-3 deploy: every date
+ * from 08-28 to 09-03 answered `ran: false`, because the day indices sitting in
+ * KV were written under the previous schema. The gate is here for the case the
  * endpoint's own guard does not cover: a FUTURE schema this page predates. */
-const PT_SCHEMA = 2;
+const PT_SCHEMA = 3;
 const ptSchemaOk = rec => rec != null && rec.schema === PT_SCHEMA;
 /** The schema clause, one string, used by the card, the vline and the footnote so
  *  the three cannot describe the same record differently. */
 function ptSchemaWhy(rec) {
   const n = rec?.schema;
   return `record schema ${n === undefined ? 'absent' : JSON.stringify(n)} — this page reads schema ${PT_SCHEMA}`;
+}
+
+/* ── THE FIVE STAGES (schema 3) ───────────────────────────────────────
+ * The Worker split the divergence test into two gates, and `stage` says where a
+ * record sits between them. GATE 1 is free and structured — EPS actual > EPS
+ * consensus for the SAME quarter, AND the used tape window sold it by at least
+ * `meta.divergencePct`. GATE 2 is the revenue beat, whose actual Yahoo does not
+ * publish inside this feature's window at all and which the release read is the
+ * only path to.
+ *
+ * WHY IT MATTERS ON THIS SURFACE. Asked as one five-input test, a name whose EPS
+ * and tape were BOTH fully read could still only ever answer `null`. AVGO
+ * 2026-09-02 is the measured case: EPS 3.32 vs 3.238 and both tape windows
+ * landed by the 14:30 PT pass, and the revenue actual was still absent from
+ * Yahoo 14 hours later at the 06:15 PT carry-over. Schema 2 rendered that as a
+ * refusal, which is correct and tells a reader nothing. Schema 3 renders it as
+ * `agree`, because gate 1 came back negative on its own — the pre-market sold
+ * 2.9871% against a 3.00% gate — and the test is an AND, so no revenue figure
+ * could have changed it.
+ *
+ * `divergent` still rides on the record, DERIVED: `true` at `divergent`, `false`
+ * at `agree`, `null` at the other three. This page reads the STAGE. The boolean
+ * is the lossy projection of it, and reading the projection is exactly how the
+ * three `null` stages collapse back into one. */
+const PT_STAGES = ['not-run', 'refused', 'agree', 'candidate', 'divergent'];
+
+/** GATE 1 FIRED — the two stages the queue cards, and the two the Worker spends
+ *  a release read on. `candidate` is a FINDING, NOT AN ABSENCE: an EPS beat the
+ *  tape sold is the shape this feature exists to surface, and it is on screen
+ *  within ninety minutes of the print instead of hidden behind a `null` for the
+ *  days Yahoo takes to publish a revenue actual. `refused`, `agree` and
+ *  `not-run` never reach the queue. */
+const PT_QUEUE_STAGES = ['candidate', 'divergent'];
+
+/** The record's stage, or `null` when the field is absent or unknown to this
+ *  page. Under the schema gate a schema-3 record always carries one, so `null`
+ *  here means a record whose schema matches but whose shape does not — its own
+ *  named state (honesty rule 9), never silently folded into `refused`. */
+const ptStage = rec => (typeof rec?.stage === 'string' && PT_STAGES.includes(rec.stage)) ? rec.stage : null;
+
+/** Did this record reach gate 1? Queue membership, the chip, the guidance line
+ *  and the footnote counts all key off this ONE predicate, so they cannot
+ *  disagree about the same record. */
+const ptReachedGate1 = rec => PT_QUEUE_STAGES.includes(ptStage(rec));
+
+/** The stage word as it renders, and the ink it renders in. The REASON is always
+ *  the record's own `stageReason` — this page never writes its own explanation
+ *  of a Worker verdict. */
+const PT_STAGE_LABEL = {
+  'not-run':   { word: 'not run', cls: 'dim',
+    gloss: 'The report has not happened yet. This is the pre-bank pass\'s state: it banked a consensus a whole '
+      + 'trading session early and measured nothing. Distinct from `refused`, which means we looked and could not tell.' },
+  'refused':   { word: 'not answered', cls: 'dim',
+    gloss: 'GATE 1 could not be ASKED — an unknown session, no print, no usable tape window, or the EPS pair '
+      + 'absent. A refusal is not a "no": answering `agree` here would claim a question was asked that was not.' },
+  'agree':     { word: 'print and tape agree', cls: '',
+    gloss: 'The question was asked and the answer is NO. Either gate 1 came back negative (no EPS beat, or the '
+      + 'tape did not sell it) or gate 1 fired and the revenue half did not. When gate 1 is negative the answer '
+      + 'stands WITHOUT the revenue half, because the test is an AND.' },
+  'candidate': { word: 'candidate', cls: 'amb',
+    gloss: 'GATE 1 FIRED — an EPS beat that the tape sold. Gate 2, the revenue beat, is not answerable yet: '
+      + 'Yahoo publishes the revenue actual days later, and the release read is the only path to it inside this '
+      + 'window. A finding, not an absence.' },
+  'divergent': { word: 'divergent', cls: 'amb',
+    gloss: 'BOTH GATES FIRED: a double beat the tape sold by at least the divergence threshold.' },
+};
+
+/** The stage clause, one string, used by the card, the vline and the footnote so
+ *  the three cannot describe one record's stage differently. */
+function ptStageWhy(rec) {
+  const st = ptStage(rec);
+  if (!st) {
+    return `stage not published — this page reads schema ${PT_SCHEMA}, where every record carries one of `
+      + PT_STAGES.join(' / ') + '. Its absence is not a stage, and it is not inferred from `divergent`.';
+  }
+  const r = typeof rec.stageReason === 'string' && rec.stageReason ? rec.stageReason : null;
+  return `stage ${st} — ${r || 'the record publishes no stageReason'}`;
 }
 
 /** The ET calendar date of an instant, off the queue's clock. The Worker keys
@@ -3159,10 +3279,17 @@ function printTapeDates(ms) {
  *                   never rendered as "nobody reported".
  * `failed`        — the fetch threw or returned another non-2xx. NOT a claim
  *                   about what the Worker publishes; we simply do not know.
- * `scan-failed`   — a pass ran and its eligibility scan could not, so NO name
- *                   was checked. `scanOk === false` IS THE TEST: absent means a
- *                   Worker that does not publish the flag, and a real scan must
- *                   never be relabelled as a failed one.
+ * `scan-failed`   — a pass ran, its eligibility scan could not, AND NO RECORD
+ *                   EXISTS FOR THE DATE. `scanOk === false` IS THE TEST: absent
+ *                   means a Worker that does not publish the flag, and a real
+ *                   scan must never be relabelled as a failed one. THE
+ *                   ZERO-RECORD HALF IS NEW (2026-09-03) and it is the whole
+ *                   point: a failed scan on a date that HAS records is a pass
+ *                   that failed and work that got done anyway — by a later pass,
+ *                   or by the next morning's carry-over — and calling that a
+ *                   failure state is a warning about a day that was answered.
+ *                   Those dates keep their real state and carry `scanFailed`,
+ *                   which the banner renders as an INFO line naming both facts.
  * `did-not-run`   — `meta.ran !== true`: no pass wrote a day index for that
  *                   date. The job did not run (weekend, NYSE holiday), or the
  *                   date has aged past PRINTTAPE_TTL. Distinct from
@@ -3188,9 +3315,23 @@ function printTapeDayState(day) {
   }
   const m = day.env?.meta;
   if (!m) return { state: 'failed', reason: 'the response carried no meta block' };
+  /* THE FAILED PASSES ARE RECONCILED AGAINST THE RECORDS BEFORE THEY BECOME A
+   * STATE. `scanOk === false` says THAT pass checked nobody; it does not say the
+   * day went unanswered, because another pass — or the next morning's carry-over
+   * appending to this same index — can have written records afterwards. The live
+   * case is AVGO on 2026-09-02: both morning passes logged `scanOk: false` (the
+   * Yahoo crumb was unavailable) and the record that answered the day was
+   * written the NEXT morning by `bmo-pass1-carryover`. A warning banner over
+   * that day would be describing a failure the day recovered from.
+   *
+   * So `scan-failed` is reserved for a failed scan with NOTHING to show for the
+   * date, and every other state carries the failed passes forward in
+   * `scanFailed` for the banner to render as an info line. Both facts survive;
+   * only their severity differs, which is what severity is for. */
   const bad = (m.passes || []).filter(p => p.scanOk === false);
-  if (bad.length) {
-    return { state: 'scan-failed', passes: bad,
+  const recCount = (day.env.records || []).length;
+  if (bad.length && !recCount) {
+    return { state: 'scan-failed', passes: bad, scanFailed: bad,
       reason: bad.map(p => `${p.pass}: ${p.scanReason || 'no reason published'}`).join(' · ') };
   }
   if (m.ran !== true) {
@@ -3202,7 +3343,7 @@ function printTapeDayState(day) {
      * answered `ran: false` with real schema-1 indices sitting in KV. The
      * Worker's string is rendered verbatim and the third cause is added here
      * rather than substituted for it — we cannot tell which one applies. */
-    return { state: 'did-not-run',
+    return { state: 'did-not-run', scanFailed: bad,
       reason: (m.ranReason || 'meta.ran is not true and no reason was published')
         + `. A third cause the Worker's reason does not name: a day index written under a schema other than `
         + `${PT_SCHEMA} reads as absent under the endpoint's strict equality.` };
@@ -3210,14 +3351,39 @@ function printTapeDayState(day) {
   const unreadable = m.unreadable || [];
   if (!(day.env.records || []).length) {
     const np = (m.passes || []).length, ne = (m.eligible || []).length;
-    return { state: 'none-reported', unreadable,
+    return { state: 'none-reported', unreadable, scanFailed: bad,
       reason: `${np} pass${np === 1 ? '' : 'es'} ran and ${ne} watchlist name${ne === 1 ? '' : 's'} reported`
         + (unreadable.length
             ? ` · ${unreadable.length} record${unreadable.length === 1 ? '' : 's'} the Worker could not read: `
               + unreadable.map(u => `${u.ticker} (${u.reason})`).join(', ')
             : '') };
   }
-  return { state: 'records', reason: null, unreadable };
+  return { state: 'records', reason: null, unreadable, scanFailed: bad,
+    /* WHO WROTE THE RECORDS, read off the RECORDS' own `pass` field rather than
+     * off the index's `measured` lists. The record is the thing that exists; the
+     * index is a report about it, and on a date whose scans failed the index's
+     * own pass entries are exactly the ones that cannot be trusted to name the
+     * writer. `ranOn` (published only on a carry-over entry) says which MORNING
+     * that pass ran, which is the fact a reader of a report day wants. */
+    writers: ptWriters(day) };
+}
+
+/** The distinct passes that wrote the records served for one date, each with the
+ *  morning it ran when the index publishes one. Order is first-seen, so it reads
+ *  in the order the endpoint sorted the records (by ticker). */
+function ptWriters(day) {
+  const passes = day.env?.meta?.passes || [];
+  const out = [], seen = new Set();
+  for (const r of (day.env?.records || [])) {
+    const name = typeof r.pass === 'string' && r.pass ? r.pass : null;
+    const k = name || '\u0000unnamed';
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const entry = passes.find(p => p.pass === name);
+    out.push({ pass: name, ranOn: entry?.ranOn ?? null,
+      n: (day.env.records || []).filter(x => (x.pass ?? null) === name).length });
+  }
+  return out;
 }
 
 /** Every record the store holds across the fetched dates, newest report first,
@@ -3287,6 +3453,104 @@ function fmtRev(v) {
 function fmtEps(v) {
   if (!isNum(v)) return null;
   return String(+v.toFixed(5));
+}
+
+/* ── THE REVENUE HALF NAMES ITS SOURCE (schema 3) ───────────────────────
+ * A revenue actual on this record now comes from ONE OF TWO PLACES and they are
+ * not interchangeable: `yahoo` is `earnings.financialsChart.quarterly`, an
+ * aggregator's transcription that lands days after the print; `release-via-claude`
+ * is the figure read out of the coverage window by the release call, within hours
+ * of it, with a verbatim quote and a citation resolved by index. `revActualSource`
+ * names which, and a figure printed without it is a number whose provenance the
+ * page is withholding — the same failure as an as-of nobody prints.
+ *
+ * `print.revenue` IS TWO SHAPES AND THE TEST IS `status`. With a `status` it is a
+ * REFUSAL (`not-found-in-release`, with the Worker's reason); without one it is
+ * the release read's own MEASUREMENT — the figure, its quote, its currency and
+ * the coverage item it came from. The presence-of-`status` test is the same rule
+ * every refusal on this record uses, so the two cannot be confused.
+ *
+ * THE CONFLICT IS RENDERED, NEVER RESOLVED. When Yahoo publishes its own actual
+ * later and the two disagree by more than the record's own tolerance, the Worker
+ * KEEPS the release figure (the company's own words are the primary source; the
+ * aggregator is derived) and records `revenueConflict` with BOTH numbers. This
+ * page prints both and the delta, in amber, and says Yahoo later disagrees. It
+ * does not pick one, because which of the two is describing a different quarter,
+ * a restatement or a different revenue line is not decidable from here — and a
+ * silently-chosen figure would look exactly like an agreed one. */
+
+/** The delta between two figures as the record itself expresses it: signed
+ *  percent, Yahoo relative to the release. Guarded before the arithmetic —
+ *  `(null / x) * 100` renders 0, a fabricated agreement. */
+function ptConflictBit(c) {
+  const rel = isNum(c.release) ? c.release : null;
+  const yah = isNum(c.yahoo) ? c.yahoo : null;
+  const d = isNum(c.diffPct) ? c.diffPct : null;
+  const tol = isNum(c.tolerancePct) ? c.tolerancePct : null;
+  return `<span class="amb" title="${esc(String(c.note || 'no note published')
+    + ' NEITHER figure is overwritten and the verdict reads the release one. Both are printed here because '
+    + 'choosing between them is not decidable from this page.')}">⚠ Yahoo later disagrees: release <b>${
+    esc(rel == null ? 'n/p' : fmtRev(rel))}</b> vs Yahoo <b>${esc(yah == null ? 'n/p' : fmtRev(yah))}</b>${
+    d == null ? ' <span class="dim">(delta not published)</span>'
+      : ` · <b>${d > 0 ? '+' : ''}${d.toFixed(2)}%</b> apart`}${
+    tol == null ? '' : ` <span class="dim">(tolerance ${tol}%)</span>`}</span>`;
+}
+
+/** The whole revenue clause: the pair, its surprise, WHERE THE ACTUAL CAME FROM
+ *  with that source's own as-of, and the cross-check when Yahoo has weighed in.
+ *  One renderer, used by the card and the ticker vline, so the two surfaces
+ *  cannot describe one record's revenue differently. */
+function ptRevenueBit(p) {
+  if (p.revenue?.status) return ptRefusal(p.revenue, 'revenue');
+
+  const src = p.revActualSource ?? null;
+  const rel = p.revenue && !p.revenue.status ? p.revenue : null;
+  let prov;
+  if (src === 'release-via-claude') {
+    const asOf = rel?.asOf ? (fmtClockPt(Date.parse(rel.asOf)) || String(rel.asOf)) : null;
+    prov = `<span class="dim" title="${esc('The figure was read out of the earnings coverage window by ONE Claude '
+      + 'call and validated three ways before it was believed: finite and positive, re-derived within 1% from the '
+      + 'model\'s own restatement of the same number (the units trap — "15.95" for $15.95bn reads downstream as an '
+      + 'ordinary catastrophic miss), and inside a 4x plausibility band against the consensus for the same quarter. '
+      + (rel?.quote ? `Quote: “${rel.quote}” ` : 'The record carries no verbatim sentence behind it. ')
+      + (rel?.valueText ? `Coverage wrote it as ${rel.valueText}. ` : '')
+      + (rel?.sourceTitle ? `Cited: ${rel.sourceTitle}${rel.sourcePublisher ? ' · ' + rel.sourcePublisher : ''}`
+          + `${rel.sourceDate ? ' · ' + rel.sourceDate : ''}. ` : '')
+      + (rel?.sourceNote ? rel.sourceNote + '. ' : '')
+      + (rel?.source || 'source not published'))}">· from <b>release via Claude</b>${
+      asOf ? `, ${esc(asOf)}` : ', <span title="' + esc('the release block carries no asOf') + '">as-of not published</span>'}${
+      rel?.currency ? ` <span class="dim">(${esc(rel.currency)})</span>` : ''}${
+      rel && !rel.quote ? ` <span class="amb" title="${esc(rel.quoteNote
+        || 'the release read returned a figure but no verbatim sentence supporting it')}">(no quote behind it)</span>` : ''}</span>`;
+  } else if (src === 'yahoo') {
+    const asOf = p.asOf ? (fmtClockPt(Date.parse(p.asOf)) || String(p.asOf)) : null;
+    prov = `<span class="dim" title="${esc('earnings.financialsChart.quarterly — Yahoo\'s own transcription of the '
+      + 'reported figure. It lands days after the print, which is why the release read exists; when both are '
+      + 'present the release figure is the one served and Yahoo becomes the cross-check.')}">· from <b>Yahoo</b>${
+      asOf ? `, ${esc(asOf)}` : ', as-of not published'}</span>`;
+  } else {
+    prov = `<span class="dim" title="${esc('revActualSource is a schema-3 field naming where the revenue actual '
+      + 'came from — yahoo or release-via-claude. Its absence means the record names no source for this figure, '
+      + 'not that the figure has none.')}">· source of the actual not published</span>`;
+  }
+
+  const bits = [`<span>Rev <b>${esc(fmtRev(p.revActual) ?? 'n/p')}</b> vs est <b>${
+    esc(fmtRev(p.revEst) ?? 'n/p')}</b> ${ptSurprise(p.revSurprisePct)} ${prov}</span>`];
+
+  /* THE CROSS-CHECK RENDERS WHETHER OR NOT IT AGREES. An agreement is a finding
+   * too — two independent sources on one figure — and rendering only the
+   * disagreement would make a silent screen mean "not checked" and "checked and
+   * fine" at once. */
+  if (p.revenueConflict) {
+    bits.push(ptConflictBit(p.revenueConflict));
+  } else if (p.revenueCrosscheck) {
+    const c = p.revenueCrosscheck;
+    bits.push(`<span class="dim" title="${esc(String(c.note || 'no note published'))}">Yahoo cross-check <b>${
+      c.agrees === true ? 'agrees' : c.agrees === false ? 'DISAGREES' : 'not stated'}</b>${
+      isNum(c.diffPct) ? ` (${c.diffPct > 0 ? '+' : ''}${c.diffPct.toFixed(2)}%${
+        isNum(c.tolerancePct) ? `, tolerance ${c.tolerancePct}%` : ''})` : ''}</span>`);
+  }
+  return bits.join('');
 }
 
 /** A surprise percent, bull on a beat and bear on a miss. `null` and `0` are
@@ -3503,13 +3767,11 @@ function printTapeGateCard(rec, win) {
          title="${esc((rec?.ticker || 'this name') + ' → its ticker page')}">${esc(rec?.ticker || 'n/p')}</a>
       <span class="qact pt">PRINT vs TAPE</span>
       <span class="qcall">${esc(ptSchemaWhy(rec))}</span>
-      <span class="qstate dim" title="${esc('Strict equality on the schema field, the same rule the Worker '
-        + 'applies to its own KV reads. Schema 2 moved the tape\'s numbers inside a per-window sub-block; a '
-        + 'reader built for one schema finds the other\'s fields absent and would render a real reaction as '
-        + '"n/p". Nothing on this card is read from the record beyond the fields that key it.')}">NOT READ</span>
+      <span class="qstate dim" title="${esc('Strict equality on the schema field, the same rule the Worker applies to its own KV reads. Two bumps have moved fields this page reads: schema 2 moved the tape\'s numbers inside a per-window sub-block, and schema 3 moved the VERDICT into a five-valued `stage` with the `divergent` boolean derived from it. A reader built for one schema finds the other\'s fields absent and would render a real reaction as \"n/p\", or call a gate-1 candidate a refusal. Nothing on this card is read from the record beyond the fields that key it.')}">NOT READ</span>
     </div>
-    <div class="qsub"><span class="dim">No number on this record is rendered — the fields this page reads moved
-      between schemas, so reading them here would be a misread rather than a gap.</span></div>
+    <div class="qsub"><span class="dim">No number and no verdict on this record is rendered — the tape's figures
+      moved between schemas 1 and 2, and the verdict moved into a five-valued <code>stage</code> between 2 and 3,
+      so reading either here would be a misread rather than a gap.</span></div>
     <div class="qsrc">record: printtape:${esc(rec?.ticker || 'n/p')}:${esc(rec?.reportDate || 'n/p')} · schema ${
       esc(rec?.schema === undefined ? 'absent' : String(rec.schema))} (this page reads ${PT_SCHEMA}) · session ${
       esc(String(rec?.session ?? 'field-absent'))} · pass ${esc(String(rec?.pass ?? 'n/p'))} · written ${
@@ -3518,10 +3780,22 @@ function printTapeGateCard(rec, win) {
   </div>`;
 }
 
-/** The state chip. THE CLOCK WINS: a demoted card says the open has passed
- *  whatever guidance found, because that is a fact of the calendar and guidance
- *  is a reading. `cut` outranks `prep` while the window is still ahead — a
- *  sell-off with a stated reason is not the setup an unexplained one is. */
+/** The state chip, in strict precedence, and each rung outranks the next for a
+ *  stated reason:
+ *
+ *   1. THE CLOCK WINS. A demoted card says the open has passed whatever the
+ *      stage or the guidance found, because that is a fact of the calendar and
+ *      both of those are readings.
+ *   2. A GUIDANCE CUT OUTRANKS THE STAGE. A sell-off with a stated reason is not
+ *      the setup an unexplained one is, and that is true of a candidate exactly
+ *      as it is of a divergent — the release read returns the revenue actual and
+ *      the guidance class in ONE call, so a candidate whose revenue half came
+ *      back empty can still carry a `cut`. Chipping it "revenue pending" would
+ *      lead with the missing figure and bury the answer that is already in.
+ *   3. THE STAGE. `candidate` says what is open and why, in amber: gate 1 fired,
+ *      gate 2 is waiting on a figure Yahoo has not published.
+ *   4. `divergent` keeps PREP FOR OPEN — both gates fired and the only thing
+ *      left is the clock. */
 function printTapeChip(rec, win) {
   if (win.state === 'reacting') {
     return { label: 'OPEN PASSED — REACTION IN PROGRESS', cls: 'dim',
@@ -3531,7 +3805,17 @@ function printTapeChip(rec, win) {
   if (rec.guidance && !rec.guidance.status && rec.guidance.class === 'cut') {
     return { label: 'EXPLAINED — GUIDANCE', cls: 'near',
       tip: 'The company CUT its forward outlook, so the sell-off has a stated reason. This is not an '
-        + 'unexplained beat-and-fade: the tape is pricing the guide, not mispricing the print.' };
+        + 'unexplained beat-and-fade: the tape is pricing the guide, not mispricing the print. This outranks '
+        + 'the stage chip: a stated reason is an answer, and a pending revenue figure is not a question about it.' };
+  }
+  if (ptStage(rec) === 'candidate') {
+    return { label: 'CANDIDATE — REVENUE PENDING FROM RELEASE', cls: 'near',
+      tip: 'GATE 1 FIRED: the EPS actual beat the consensus for this quarter and the tape sold it past the '
+        + 'divergence threshold. GATE 2 — the revenue beat — cannot be asked yet, because Yahoo does not '
+        + 'publish a revenue actual inside this window (measured: still absent 14 hours after AVGO\'s print, '
+        + 'and six days after NVDA\'s) and the release read is the only path to it. This is a FINDING, not an '
+        + 'absence, and it is not yet a divergence: the revenue half could still come back a miss, which would '
+        + 'settle the record at `agree`.' };
   }
   return { label: 'PREP FOR OPEN', cls: 'plan',
     tip: `Options do not trade extended hours, so nothing here is actionable until the ${win.openIso} regular `
@@ -3562,9 +3846,7 @@ function printTapeCard(row) {
     l1.push(p.eps?.status ? ptRefusal(p.eps, 'EPS')
       : `<span>EPS <b>${esc(fmtEps(p.epsActual) ?? 'n/p')}</b> vs est <b>${esc(fmtEps(p.epsEst) ?? 'n/p')}</b> ${
           ptSurprise(p.epsSurprisePct)}</span>`);
-    l1.push(p.revenue?.status ? ptRefusal(p.revenue, 'revenue')
-      : `<span>Rev <b>${esc(fmtRev(p.revActual) ?? 'n/p')}</b> vs est <b>${esc(fmtRev(p.revEst) ?? 'n/p')}</b> ${
-          ptSurprise(p.revSurprisePct)}</span>`);
+    l1.push(ptRevenueBit(p));
     l1.push(p.quarter
       ? `<span class="dim" title="${esc('The quarter period-end. An actual and a consensus are only ever compared '
           + 'WITHIN ONE QUARTER, checked by string equality on this date — the Worker refuses across a quarter '
@@ -3589,13 +3871,32 @@ function printTapeCard(row) {
     l2.push(ptAbsent('implied move', 'the implied block carries neither a movePct nor a status'));
   }
 
-  /* ── line 3 · guidance, ALWAYS with its source ── */
+  /* ── line 3 · guidance, ALWAYS with its source ──
+   * `guidance: null` IS TWO DIFFERENT FACTS AT SCHEMA 3 and the stage separates
+   * them. The release read — one Claude call returning the guidance class AND
+   * the revenue actual together — fires only for a record that reached GATE 1.
+   * Below that (`not-run`, `refused`, `agree`) the question was never asked and
+   * never will be. At or above it (`candidate`, `divergent`) it is asked, so a
+   * null is a call that has not landed: the pass that wrote this record had not
+   * read the release yet, or the merge has not carried one on. "Not asked" and
+   * "asked, pending" are different states and rendering both as the first would
+   * report a question the Worker is going to answer as one it refuses to. */
   const g = rec.guidance;
   let l3;
   if (!g) {
-    l3 = `<span class="dim" title="${esc('The Worker asks the guidance question ONLY on a divergent name — one '
-      + 'Claude call per ticker per report, never speculatively. This record carries guidance: null.')
-      }">guidance: not asked — the Worker classifies guidance only on a divergent record</span>`;
+    l3 = ptReachedGate1(rec)
+      ? `<span class="dim" title="${esc('The release read is ONE Claude call per ticker per report, returning the '
+          + 'guidance class and the revenue actual together, and it runs for any record that reaches gate 1. This '
+          + 'record is at stage ' + (ptStage(rec) || 'not published') + ', so the call is in scope and has not '
+          + 'landed on the record yet — the writing pass had not read the release, or a later merge has not '
+          + 'carried one forward. It is NOT a refusal: a refused call carries its own status and reason.')
+        }">guidance: <b>release read pending</b> <span class="dim">— this record reached gate 1, so the release
+          call is in scope; no read is on the record yet</span></span>`
+      : `<span class="dim" title="${esc('The Worker spends a release read ONLY on a record that reaches GATE 1 — '
+          + 'an EPS beat the tape sold. This record is at stage ' + (ptStage(rec) || 'not published')
+          + ', below that gate, so the question was never asked and no call was spent. Never speculatively.')
+        }">guidance: not asked — below gate 1 (stage <b>${esc(ptStage(rec) || 'not published')}</b>), and the
+          Worker reads the release only above it</span>`;
   } else if (g.status) {
     const why = String(g.reason || 'no reason published');
     l3 = `<span class="dim" title="${esc(why)}">guidance ${esc(g.status)} — ${esc(why.slice(0, 110))}${
@@ -3675,11 +3976,38 @@ function printTapeCard(row) {
     g ? (g.status ? `guidance: ${esc(g.status)} — ${esc(g.reason || 'no reason published')}`
         : `guidance: ${esc(g.source || 'source not published')} · classified ${
             esc(g.asOf ? (fmtClockPt(Date.parse(g.asOf)) || g.asOf) : 'not published')}`)
-      : 'guidance: null — not asked, because the Worker classifies guidance only on a divergent record',
-    rec.refusalReason ? `refusal: ${esc(rec.refusalReason)}` : null,
-    rec.divergenceTest ? `test: epsBeat ${rec.divergenceTest.epsBeat} · revBeat ${rec.divergenceTest.revBeat} · sold ${
-      rec.divergenceTest.sold} (${esc(String(rec.divergenceTest.changePct))}% against threshold ${
-      esc(String(rec.divergenceTest.thresholdPct))}%)` : null,
+      : (ptReachedGate1(rec)
+          ? 'guidance: null — the release read is in scope (this record reached gate 1) and has not landed on it yet'
+          : 'guidance: null — not asked, because the Worker reads the release only for a record that reaches gate 1'),
+    /* THE STAGE AND ITS REASON, verbatim. `refusalReason` is kept in lockstep
+     * with the derived boolean by the Worker — non-null exactly where
+     * `divergent` is null — so on a refused or candidate record the two strings
+     * are the same one. It is printed only when it differs, rather than twice. */
+    `stage: ${esc(ptStageWhy(rec))}`,
+    rec.refusalReason && rec.refusalReason !== rec.stageReason
+      ? `refusal: ${esc(rec.refusalReason)}` : null,
+    `divergent (derived from stage): ${esc(String(rec.divergent))}`,
+    /* THE TEST IS TWO GATES NOW and both are printed, three-valued. `revBeat`
+     * null is "the revenue pair was not readable", which is not a revenue miss;
+     * `gate2` null is the same fact one level up. */
+    rec.divergenceTest ? `test · gate 1: epsBeat ${rec.divergenceTest.epsBeat} · sold ${
+      rec.divergenceTest.sold} (${esc(String(rec.divergenceTest.changePct))}% on ${
+      esc(String(rec.divergenceTest.usedWindow ?? 'window not published'))} against threshold ${
+      esc(String(rec.divergenceTest.thresholdPct))}%) ⇒ ${esc(String(rec.divergenceTest.gate1))}`
+      + ` · gate 2: revBeat ${esc(String(rec.divergenceTest.revBeat))} ⇒ ${
+        esc(String(rec.divergenceTest.gate2))}`
+      + (rec.divergenceTest.revActualSource
+          ? ` (actual via ${esc(String(rec.divergenceTest.revActualSource))})` : '') : null,
+    /* THE RELEASE READ'S OWN STAMP — what makes "at most one call per ticker per
+     * report" structural rather than a rule. Absent means no call has answered. */
+    rec.releaseRead
+      ? `release read: answered ${esc(isNum(rec.releaseRead.ts) ? fmtClockPt(rec.releaseRead.ts) : 'ts not published')}`
+        + ` by ${esc(String(rec.releaseRead.pass ?? 'a pass the stamp does not name'))}`
+        + (Object.prototype.hasOwnProperty.call(rec.releaseRead, 'revenueFound')
+            ? ` · revenue ${rec.releaseRead.revenueFound ? 'found' : 'not found'} in the coverage window` : '')
+      : (ptReachedGate1(rec)
+          ? 'release read: no call has answered on this record yet — it is in scope (gate 1 fired) and has not landed'
+          : 'release read: not in scope — the Worker reads the release only for a record that reaches gate 1'),
     Array.isArray(rec.carriedForward) && rec.carriedForward.length
       ? `carried forward across passes: ${esc(rec.carriedForward.join(', '))}` : null,
     `envelope: ${esc(env?._meta?.source || 'source not published')} · fetched ${
@@ -3695,9 +4023,11 @@ function printTapeCard(row) {
          title="${esc(rec.ticker + ' → its ticker page')}">${esc(rec.ticker)}</a>
       <span class="qact pt">PRINT vs TAPE</span>
       ${sessTag}
-      <span class="qcall">${rec.divergent === true
+      <span class="qcall" title="${esc(ptStageWhy(rec))}">${ptStage(rec) === 'divergent'
         ? 'Double beat, and the tape sold it.'
-        : esc('divergent: ' + String(rec.divergent))}</span>
+        : ptStage(rec) === 'candidate'
+          ? 'EPS beat, and the tape sold it — revenue half still open.'
+          : esc(ptStageWhy(rec))}</span>
       <span class="qstate ${chip.cls}" title="${esc(chip.tip)}">${esc(chip.label)}</span>
     </div>
     <div class="qsub">${l1.join('')}</div>
@@ -3716,17 +4046,68 @@ function togglePrintTapeCard(sym) {
   renderQueue();
 }
 
-/** The scan-failure line. A failed eligibility scan means NO name was checked,
- *  which is a failure state and not "nobody reported" — it must never render as
- *  an empty group. */
+/** The failed-pass lines, and THERE ARE TWO OF THEM because a failed scan means
+ *  two different things depending on what the date has to show for itself.
+ *
+ *  WARNING (amber, ⚠) — the scan failed AND the date holds ZERO records. No
+ *  watchlist name was checked for a report that day and nothing answered it
+ *  later. That is a failure state and not "nobody reported"; the Worker
+ *  publishes `scanOk` per pass precisely so the two cannot be confused.
+ *
+ *  INFO (neutral) — the scan failed AND records exist anyway. A later pass, or
+ *  the next morning's carry-over appending to the same index, did the work. The
+ *  failure is still a fact and still renders — dropping it would hide that the
+ *  day's own morning passes checked nobody — but it is NOT a warning about the
+ *  day, because the day was answered. Rendering it amber said the opposite of
+ *  what the records on screen said, on one surface.
+ *
+ *  The live case this was written against: AVGO, `printtapeday:2026-09-02`. Both
+ *  morning passes logged `scanOk: false` (Yahoo crumb unavailable) and the
+ *  record that answered the day was written the next morning by the carry-over
+ *  pass, which appends its entry to the REPORT day's index. */
 function printTapeBanner(q) {
-  const bad = q.ptDayStates.filter(d => d.st.state === 'scan-failed');
-  if (!bad.length) return '';
-  return `<div class="ptbanner" title="${esc('printTapeEligible() could not run, so no watchlist name was checked '
-    + 'for a report that day. This is the scan failing, not a quiet day — the Worker publishes scanOk per pass '
-    + 'precisely so the two cannot be confused.')}">⚠ earnings eligibility scan failed — no print-vs-tape records
-    exist for ${bad.map(d => esc(d.date)).join(' and ')}.
-    <span class="note">${bad.map(d => esc(d.st.reason)).join(' · ')}</span></div>`;
+  const warn = q.ptDayStates.filter(d => d.st.state === 'scan-failed');
+  const info = q.ptDayStates.filter(d => d.st.state !== 'scan-failed' && (d.st.scanFailed || []).length);
+  if (!warn.length && !info.length) return '';
+
+  const warnBlk = warn.length
+    ? `<div class="ptbanner" title="${esc('printTapeEligible() could not run, so no watchlist name was checked '
+        + 'for a report that day, and no record was written for it by any later pass either. This is the scan '
+        + 'failing, not a quiet day — the Worker publishes scanOk per pass precisely so the two cannot be '
+        + 'confused.')}">⚠ earnings eligibility scan failed — no print-vs-tape records
+        exist for ${warn.map(d => esc(d.date)).join(' and ')}.
+        <span class="note">${warn.map(d => esc(d.st.reason)).join(' · ')}</span></div>`
+    : '';
+
+  const infoBlk = info.map(d => {
+    const bad = d.st.scanFailed;
+    const w = d.st.writers || [];
+    const n = (state.printTape?.days?.[d.date]?.env?.records || []).length;
+    const by = w.length
+      ? w.map(x => `${x.pass || 'a pass the record does not name'}${x.ranOn ? ` (ran ${x.ranOn})` : ''}`).join(' and ')
+      : 'a pass the records do not name';
+    return `<div class="ptinfo" title="${esc('scanOk === false on those passes: the eligibility scan could not '
+      + 'run, so THOSE passes checked no watchlist name. Records for the date exist regardless — written by a '
+      + 'later pass on the same day, or by the next morning\'s carry-over, which appends its entry to the report '
+      + 'day\'s own index. The failure is reported and is not a warning, because the day was answered.')
+      }">${esc(bad.map(pp => pp.pass || 'unnamed pass').join(' / '))} on ${esc(d.date)} failed
+      (${esc(ptScanShort(bad))}) · <b>${n}</b> record${n === 1 ? '' : 's'} written later by ${esc(by)}
+      <span class="note">${esc(bad.map(pp => `${pp.pass}: ${pp.scanReason || 'no reason published'}`).join(' · '))}</span></div>`;
+  }).join('');
+
+  return warnBlk + infoBlk;
+}
+
+/** A two-or-three word cause for the info line's head, from the Worker's own
+ *  reason string. The FULL string always renders below it — this shortens the
+ *  headline, it never replaces the reason. An unrecognised string is reported as
+ *  unnamed rather than guessed at. */
+function ptScanShort(bad) {
+  const all = bad.map(p => String(p.scanReason || '')).join(' ').toLowerCase();
+  if (all.includes('crumb')) return 'crumb';
+  if (all.includes('429') || all.includes('rate')) return 'rate-limited';
+  if (all.includes('timeout') || all.includes('timed out')) return 'timeout';
+  return bad.some(p => p.scanReason) ? 'see reason below' : 'no reason published';
 }
 
 /* ── CARRY-OVER: WHERE YESTERDAY'S AMC NAMES WENT ───────────────────────────
@@ -3800,11 +4181,32 @@ function printTapeNote(q) {
     if (d.st.state !== 'records') return `${d.date}: ${d.st.state}`;
     const recs = state.printTape.days[d.date].env.records || [];
     const off = recs.filter(r => !ptSchemaOk(r)).length;
-    return `${d.date}: ${recs.length} record${recs.length === 1 ? '' : 's'}, ${
-      recs.filter(r => ptSchemaOk(r) && r.divergent === true).length} divergent`
+    const ok = recs.filter(ptSchemaOk);
+    /* COUNTED BY STAGE, every stage named including the ones that render no
+     * card. `agree` and `refused` are different facts and both are answers about
+     * a name that reported; collapsing them into "not divergent" is the schema-2
+     * reading this footnote exists to replace. A stage this page does not know
+     * is counted separately rather than dropped. */
+    const byStage = PT_STAGES.map(st => {
+      const n = ok.filter(r => ptStage(r) === st).length;
+      return n ? `${n} ${st}` : null;
+    }).filter(Boolean);
+    const unstaged = ok.filter(r => ptStage(r) == null).length;
+    return `${d.date}: ${recs.length} record${recs.length === 1 ? '' : 's'}`
+      + (byStage.length ? ` (${byStage.join(', ')})` : ' (no stage counted)')
+      + (unstaged ? `, ${unstaged} with no stage published` : '')
       + (off ? `, ${off} at another schema` : '');
   });
+  /* A FAILED SCAN ON A DATE THAT HAS RECORDS IS STILL A FACT ABOUT THE DAY, and
+   * it is named here as well as on the info line — the footnote's whole job is
+   * that no state goes unreported on any path. */
+  const recovered = q.ptDayStates
+    .filter(d => d.st.state !== 'scan-failed' && (d.st.scanFailed || []).length)
+    .map(d => `${d.date}: ${d.st.scanFailed.map(pp => pp.pass || 'unnamed pass').join(' / ')} scan failed, `
+      + `records written anyway by ${(d.st.writers || []).map(x => x.pass || 'an unnamed pass').join(' and ')
+        || 'a pass the records do not name'}`);
   return `print vs tape — ${parts.join(' · ')}`
+    + (recovered.length ? ` · ${recovered.join(' · ')}` : '')
     + (q.ptRows.length || q.ptRest.length
         ? ` · ${q.ptRows.length} card${q.ptRows.length === 1 ? '' : 's'} pre-open, ${q.ptRest.length} past the open`
         : '')
@@ -3813,15 +4215,19 @@ function printTapeNote(q) {
 }
 
 /* ── the ticker hero's "Print vs tape" line ───────────────────────────────
- * Renders whenever a record exists for this ticker inside its window,
- * DIVERGENT OR NOT — the queue only cards `divergent: true` because only that
- * is an action, but the ticker page is where the question was asked about this
- * one name and all three answers belong to it.
+ * Renders whenever a record exists for this ticker inside its window, AT ANY
+ * STAGE — the queue only cards the two that reached gate 1 (`candidate` and
+ * `divergent`) because only those are a setup, but the ticker page is where the
+ * question was asked about this one name and ALL FIVE answers belong to it.
  *
- * `divergent: false` is a REAL ANSWER and renders with the numbers behind it;
- * `divergent: null` is a REFUSAL and renders the Worker's own `refusalReason`.
- * The Worker returns three values instead of two precisely so these cannot be
- * collapsed, and collapsing them here would undo that.
+ * EACH STAGE RENDERS BY ITS OWN NAME, with the record's own `stageReason`.
+ * `agree` is a REAL ANSWER — and it is the one schema 2 could only ever have
+ * shown as a refusal, because a negative gate 1 needs no revenue figure and the
+ * single five-input test had no way to say so. `refused` means the question
+ * could not be asked. `not-run` is a fact about the calendar, not a reading.
+ * Three different claims; the Worker publishes five stages instead of one
+ * tri-state boolean precisely so they cannot be collapsed, and collapsing them
+ * here would undo that.
  *
  * NO RECORD RENDERS NOTHING, deliberately. On ~95% of days no watchlist name
  * reports at all, so a "no print-vs-tape record" line on every ticker page
@@ -3839,9 +4245,7 @@ function printTapeVline(sym) {
    * that reported; it renders the gate and no measurement. */
   if (!ptSchemaOk(rec)) {
     return `<div class="vline"><span class="k">Print vs tape</span><span class="v"><b class="dim">not read</b>
-      <span class="dim" title="${esc('Strict equality on the schema field. Schema 2 moved the tape\'s numbers '
-        + 'inside a per-window sub-block, so a reader built for another schema finds them absent and would '
-        + 'render a real reaction as "n/p" — a misread, not a gap.')}">— ${esc(ptSchemaWhy(rec))}</span>
+      <span class="dim" title="${esc('Strict equality on the schema field, the same rule the Worker applies to its own KV reads. Two bumps have moved fields this page reads: schema 2 moved the tape\'s numbers inside a per-window sub-block, and schema 3 moved the VERDICT into a five-valued `stage` with the `divergent` boolean derived from it. A reader built for one schema finds the other\'s fields absent and would render a real reaction as \"n/p\", or call a gate-1 candidate a refusal. Nothing on this card is read from the record beyond the fields that key it.')}">— ${esc(ptSchemaWhy(rec))}</span>
       <br /><span class="m10 dim">printtape:${esc(rec.ticker)}:${esc(rec.reportDate)} · session ${
         esc(String(rec.session ?? 'field-absent'))} · pass ${esc(String(rec.pass ?? 'n/p'))} · written ${
         esc(isNum(rec.ts) ? fmtClockPt(rec.ts) : 'ts not published')} · window ${esc(win.openIso || 'undated')}
@@ -3856,8 +4260,10 @@ function printTapeVline(sym) {
   } else {
     nums.push(p.eps?.status ? ptRefusal(p.eps, 'EPS')
       : `EPS <b>${esc(fmtEps(p.epsActual) ?? 'n/p')}</b> vs <b>${esc(fmtEps(p.epsEst) ?? 'n/p')}</b> ${ptSurprise(p.epsSurprisePct)}`);
-    nums.push(p.revenue?.status ? ptRefusal(p.revenue, 'revenue')
-      : `Rev <b>${esc(fmtRev(p.revActual) ?? 'n/p')}</b> vs <b>${esc(fmtRev(p.revEst) ?? 'n/p')}</b> ${ptSurprise(p.revSurprisePct)}`);
+    /* THE SAME REVENUE RENDERER THE CARD USES — source, as-of, cross-check and
+     * conflict included. Two renderers is how the queue card and the hero would
+     * come to describe one record's revenue two ways. */
+    nums.push(ptRevenueBit(p));
   }
   /* BOTH TAPE READINGS, through the SAME renderer the card uses — one renderer,
    * so the hero and the queue card cannot describe one record's tape two ways. */
@@ -3868,20 +4274,37 @@ function printTapeVline(sym) {
     nums.push(`<span class="dim" title="${esc(im.reason || 'no reason published')}">implied not computed</span>`);
   }
 
-  let head;
-  if (rec.divergent === true) {
-    head = `<b class="amb">Divergent</b> — double beat, and the tape sold it`;
-  } else if (rec.divergent === false) {
-    head = `<b>print and tape agree</b> <span class="dim">— the question was asked and the answer is no</span>`;
-  } else {
-    head = `<b class="dim">not answered</b> <span class="dim" title="${esc(rec.refusalReason
-      || 'divergent is null and the record publishes no refusalReason')}">— ${esc(String(rec.refusalReason
-      || 'divergent is null and the record publishes no refusalReason'))}</span>`;
-  }
+  /* EVERY STAGE RENDERS BY NAME, with the record's own `stageReason` beside it.
+   * The queue cards only `candidate` and `divergent`, because only those two are
+   * a setup; the ticker page is where the question was asked about THIS name, so
+   * all five answers belong to it — including `agree`, which is a real answer
+   * and the one schema 2 could only ever have shown as a refusal, and `not-run`,
+   * which is a fact about the calendar rather than a reading of anything.
+   *
+   * READ FROM `stage`, NEVER FROM `divergent`. The boolean is null for both
+   * `refused` and `candidate`, and rendering off it would put a gate-1 finding
+   * under the words "not answered". */
+  const stg = ptStage(rec);
+  const lbl = stg ? PT_STAGE_LABEL[stg] : null;
+  const why = (typeof rec.stageReason === 'string' && rec.stageReason) ? rec.stageReason : null;
+  const head = lbl
+    ? `<b class="${lbl.cls}">${esc(lbl.word)}</b> <span class="dim" title="${esc(lbl.gloss)}">(stage <b>${
+        esc(stg)}</b>)</span> <span class="dim" title="${esc(why || 'the record publishes no stageReason')}">— ${
+        esc(why || 'the record publishes no stageReason')}</span>`
+    : `<b class="dim">stage not published</b> <span class="dim" title="${esc(ptStageWhy(rec))}">— ${
+        esc(ptStageWhy(rec))}</span>`;
 
   const g = rec.guidance;
   const gTxt = !g
-    ? `<span class="dim" title="${esc('The Worker classifies guidance only on a divergent record — one Claude call per ticker per report.')}">guidance not asked</span>`
+    ? (ptReachedGate1(rec)
+        ? `<span class="dim" title="${esc('The release read — ONE Claude call returning the guidance class and the '
+            + 'revenue actual together — runs for any record that reaches gate 1. This one has, so the call is in '
+            + 'scope and simply has not landed on the record yet. Not a refusal: a refused call carries a status.')
+          }">guidance <b>release read pending</b></span>`
+        : `<span class="dim" title="${esc('The Worker reads the release only for a record that reaches GATE 1 — an '
+            + 'EPS beat the tape sold — one Claude call per ticker per report, never speculatively. This record is '
+            + 'at stage ' + (ptStage(rec) || 'not published') + ', below that gate.')
+          }">guidance not asked — below gate 1</span>`)
     : g.status
       ? `<span class="dim" title="${esc(g.reason || 'no reason published')}">guidance ${esc(g.status)}</span>`
       : `guidance <b class="${g.class === 'cut' ? 'amb' : ''}">${esc(g.class)}</b> <span class="dim">· source ${esc(g.source || 'n/p')}</span>`;
@@ -6895,6 +7318,29 @@ function loadShared(reason) {
           const st = printTapeDayState(days[d]);
           return `${d}: ${st.state}${st.state === 'records' ? ` (${days[d].env.records.length})` : ''}`;
         }).join(' · '));
+        /* CROSS-CHECK OUR STAGE COUNTS AGAINST THE ENVELOPE'S OWN `meta.stages`,
+         * the same reason the calendar walk is cross-checked above: the Worker
+         * builds that map off the records too, so two implementations of one
+         * count is how they drift. This page counts off the RECORDS (a pass
+         * entry says what THAT pass concluded, and a name whose stage moved
+         * between passes would be listed under two of them) and `meta.stages` is
+         * the Worker doing the same thing — they must agree, and a disagreement
+         * is a finding about one of the two, not something to reconcile
+         * silently. `meta.stages` is never RENDERED from; it is only checked. */
+        for (const d of dates) {
+          const m = days[d].env?.meta;
+          if (!m?.stages) continue;
+          const mine = {}, theirs = {};
+          for (const st of PT_STAGES) {
+            mine[st] = (days[d].env.records || []).filter(r => ptSchemaOk(r) && ptStage(r) === st)
+              .map(r => r.ticker).sort().join(',');
+            theirs[st] = [...(m.stages[st] || [])].sort().join(',');
+          }
+          const bad = PT_STAGES.filter(st => mine[st] !== theirs[st]);
+          console.log('[shared] print-tape stages %s %s · ours %s · Worker %s',
+            d, bad.length ? '!! DISAGREES on ' + bad.join(', ') + ' !!' : 'AGREE',
+            JSON.stringify(mine), JSON.stringify(theirs));
+        }
       }
 
       console.log('[shared] (%s) asked %d · returned %d · notReturned %s · analysisLoading %s · long rows %d missing %d · macro %s',

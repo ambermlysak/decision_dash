@@ -431,16 +431,25 @@ least once:
   state and `complete: false` renders the candidates that DID clear alongside the
   named down source.
 - **`GET /api/printtape?date=` — PRINT vs TAPE, the earnings-divergence records**
-  (trading_dash `02aac87`, **schema 2 since `b6b90c1`**). KV assembly only: zero fetches, zero writes, nothing
+  (trading_dash `02aac87`, **schema 3 since `96abde3`**, 2 from `b6b90c1`). KV assembly only: zero fetches, zero writes, nothing
   recomputed. `requireSecret` (`x-dash-key`), **not `aiGuard`** — it cannot spend,
   and debiting the Claude ceiling for a read would let a page poll exhaust the
   crons' budget. `date` defaults to **`etToday()`**, and every key is ET-dated
   (`printtape:{TICKER}:{ET-DATE}`), retained `PRINTTAPE_TTL` = **7d**. Written by
-  four crons outside the branch chain: 05:30 / 06:15 PT for BMO names, 13:30 /
-  14:30 PT for AMC names.
+  **five** passes outside the branch chain: a consensus PRE-BANK at 13:15 PT on
+  the session *before* the report, then 05:30 / 06:15 PT for BMO names (which
+  also carry the prior session's AMC reporters forward) and 13:30 / 14:30 PT for
+  AMC names.
   - **Envelope:** `records[]` · `meta{date, asOf, ran, ranReason, eligible[],
-    measured[], skipped[], unreadable[], passes[], divergencePct, schema}` ·
-    `_meta`. **THERE IS NO `meta.scanOk`.** `scanOk` / `scanReason` are published
+    measured[], banked[], skipped[], unreadable[], passes[], **stages{}**,
+    divergencePct, **stageNames[]**, schema}` · `_meta`. **`meta.stages` groups
+    the day's tickers by stage and the Worker builds it OFF THE RECORDS, not off
+    the pass entries** — a pass entry says what THAT pass concluded, and a name
+    whose stage moved between passes would otherwise be listed under two of them.
+    This page counts stages the same way, off the records, and **cross-checks its
+    counts against `meta.stages` in the sweep log (`AGREE` / `!! DISAGREES !!`),
+    exactly as it cross-checks the calendar walk** — but it never RENDERS from
+    `meta.stages`, because two sources for one count is how they drift. **THERE IS NO `meta.scanOk`.** `scanOk` / `scanReason` are published
     **per pass** inside `meta.passes[]`, because the BMO and AMC passes succeed
     and fail independently and one top-level flag would have to pick one of them
     to describe. Do not synthesise one. `scanOk === false` IS THE TEST — absent
@@ -452,11 +461,86 @@ least once:
     endpoint comment says this outright and the frontend keeps them apart.
   - **Record:** `schema` · `ticker` · `reportDate` · `session` (`bmo`|`amc`|
     `unknown`) · `earningsTs` · `earningsIsEstimate` · `pass` · `ts` · `print` ·
-    `tape` · `implied` · `divergent` · `refusalReason` · `divergenceTest` ·
-    `guidance` · `baseRate` · `passes[]` · **`consensusSource`** ·
-    **`consensusBankedTs`** (both schema 2, both RECORD-LEVEL), plus
-    `carriedForward` **only after a merge** (field-absent on a single-pass
-    record, never `null` there) and `carriedOverFrom` only on a carry-over pass.
+    `tape` · `implied` · **`stage`** · **`stageReason`** · `divergent` ·
+    `refusalReason` · `divergenceTest` · `guidance` · **`releaseRead`** ·
+    `baseRate` · `passes[]` · **`consensusSource`** · **`consensusBankedTs`**
+    (both schema 2, both RECORD-LEVEL), plus `carriedForward` **only after a
+    merge** (field-absent on a single-pass record, never `null` there) and
+    `carriedOverFrom` only on a carry-over pass.
+  - **SCHEMA 3 SPLIT THE TEST INTO TWO GATES, AND `stage` IS WHERE A RECORD SITS
+    BETWEEN THEM.** GATE 1 is free and structured — EPS actual > EPS consensus
+    (same quarter, string equality, nothing relaxed) AND the used tape window's
+    `changePct <= meta.divergencePct`. GATE 2 is the revenue beat. `stage` is one
+    of `not-run` · `refused` · `agree` · `candidate` · `divergent`
+    (`meta.stageNames`), with its own `stageReason`, and **`divergent` is DERIVED
+    from it and never assigned independently** — `true` at `divergent`, `false`
+    at `agree`, `null` at the other three.
+    **THIS PAGE READS `stage`, NEVER `divergent`.** The boolean is the lossy
+    projection: it is `null` for BOTH `refused` and `candidate`, so reading it
+    would put a gate-1 finding under the words "not answered" and drop every
+    candidate on the floor as though it were a refusal.
+    **WHY THE SPLIT, MEASURED ON AVGO 2026-09-02:** EPS 3.32 vs 3.238 and both
+    tape windows landed by the 14:30 PT pass; the revenue actual was **still
+    absent from Yahoo 14 hours later** at the 06:15 PT carry-over (NVDA's was
+    absent six days after its own print). Asked as one five-input test that name
+    can only ever answer `null` — correct, and it tells a reader nothing. Under
+    the split it is **`agree`**: gate 1 is fully readable and NEGATIVE (the
+    pre-market sold 2.9871% against a 3.00% gate, **0.0129pp short**) and the
+    test is an AND, so no revenue figure could change it. **That short circuit is
+    a LOGICAL one, not a guess, and it is the common case.**
+  - **A `candidate` IS A FINDING, NOT AN ABSENCE.** Gate 1 fired and gate 2 is
+    open: an EPS beat the tape sold, on screen within ninety minutes of the print
+    instead of hidden behind a `null` for the days Yahoo takes to publish a
+    revenue actual. It is NOT `printTapeComplete` and it DOES carry over.
+  - **THE REVENUE ACTUAL HAS TWO POSSIBLE SOURCES AND `revActualSource` NAMES
+    WHICH.** `yahoo` is `earnings.financialsChart.quarterly`, an aggregator's
+    transcription that lands days late; `release-via-claude` is the figure read
+    out of the coverage window by ONE Claude call (`printTapeReadRelease`, which
+    returns the guidance class and the revenue actual TOGETHER) and validated
+    three ways before it is believed — finite and positive, re-derived within 1%
+    from the model's own `revenueValueText` (the units trap: "15.95" for
+    $15.95bn reads downstream as an ordinary catastrophic miss), and inside a 4x
+    plausibility band against the consensus for the same quarter. A figure
+    printed without its source is a number whose provenance the page is
+    withholding, so **the revenue line names the source and that source's own
+    as-of** (`print.revenue.asOf` for a release read, `print.asOf` for Yahoo).
+  - **`print.revenue` IS TWO SHAPES AND `status` IS THE TEST.** With a `status`
+    it is a REFUSAL (`not-found-in-release`, with the reason); **without one it
+    is the release read's own MEASUREMENT** — `value` · `valueText` ·
+    `valueReDerived` · `currency` · `quote` · `quoteNote` · `sourceTitle` ·
+    `sourcePublisher` · `sourceDate` · `sourceUrl` · `sourceNote` · `source` ·
+    `asOf`, the citation resolved **BY INDEX** from the numbered coverage block
+    and never from a URL the model wrote. At schema 2 this key could only ever be
+    a refusal; a renderer that still assumes that would drop the provenance of
+    the number the verdict was decided on.
+  - **`revenueConflict` IS A FINDING, NOT SOMETHING TO RESOLVE.** When Yahoo
+    publishes its own actual later and the two disagree by more than
+    `tolerancePct` (1%), the merge **KEEPS the release figure** — the company's
+    own words are the primary source and the aggregator is derived — and records
+    `print.revenueConflict {release, yahoo, diffPct, tolerancePct, note}`. Under
+    tolerance it records `print.revenueCrosscheck` with the same shape plus
+    `agrees`. **The page renders BOTH figures and the delta, in amber, and says
+    "Yahoo later disagrees" — it never picks one**, because which of the two is
+    describing a different quarter, a restatement or a different revenue line is
+    not decidable from here, and a silently-chosen figure looks exactly like an
+    agreed one. **The agreeing cross-check renders too**, dim: rendering only the
+    disagreement makes a silent screen mean "not checked" and "checked and fine"
+    at once.
+  - **`releaseRead` IS THE ONCE-PER-TICKER-PER-REPORT STAMP** (`{ts, pass,
+    revenueFound}`), set only when the model ANSWERED and carried forward
+    unconditionally by the merge, so a ceiling rejection stays retryable and an
+    empty answer is never re-asked. Its ABSENCE on a gate-1 record means no call
+    has answered yet, which is not a refusal — a refused call carries its own
+    `status`.
+  - **`meta.passes[]` GAINED `candidates[]` AND `written[]`, and the carry-over
+    now appends its entry to the REPORT DAY'S index whenever it SCREENED
+    anything** (widened at schema 3 from "when it MEASURED something"). That
+    entry carries `pass: '<label>-carryover'`, `ranOn` naming the morning it ran,
+    `written` beside `measured`, and a `scanOk` describing the **prior-day index
+    read** — the carry-over runs no eligibility scan at all. AVGO's real
+    `printtapeday:2026-09-02` is why it exists: both morning passes on the report
+    day logged `scanOk: false` and the record that answered the day was written
+    the NEXT morning.
   - **`divergent` IS THREE-VALUED AND `null` IS A REFUSAL, NOT A "NO".** It fires
     on exactly one direction — EPS beat AND revenue beat AND `changePct <= -3.0`,
     read from `tape[tape.usedWindow]` and from nowhere else.
@@ -478,22 +562,26 @@ least once:
     times behind it** — `print.carriedFromTs` / `carriedFromPass` /
     `carriedFields` — and the provenance footer says *"consensus banked <time>,
     actual <time>"* rather than one as-of.
-  - **`PRINTTAPE_SCHEMA` IS **2** AND THE TEST IS STRICT EQUALITY, on this page as
-    on the Worker.** Schema 2 moved the tape's numbers: a schema-1 record carries
-    `changePct` at the TOP of the `tape` block, a schema-2 reader looks for it
-    inside a window. A schema-1 record read by this code therefore finds
-    `tape.pre`/`tape.post` absent and would render a real 14% reaction as
-    `tape n/p` — a MISREAD, not a gap. `ptSchemaOk()` gates before any field is
-    read; an off-schema record renders `record schema N — this page reads schema 2`
-    with the record's own ts, in its own **Not read** group, **outside the cap**
-    (whether it would have been actionable is exactly what cannot be said) and
-    named in the queue footnote. **The Worker's endpoint applies the same equality
-    one layer up**, so a record normally cannot reach this gate at all: an
-    off-schema DAY INDEX reads as absent (`ran: false`) and an off-schema record
-    lands in `meta.unreadable[]`. Measured 2026-09-01 after the deploy — every
-    date from 08-28 to 09-02 answered `ran: false` because the day indices were
-    schema 1. The frontend gate is for the case the endpoint's guard does not
-    cover: a FUTURE schema this page predates.
+  - **`PRINTTAPE_SCHEMA` IS **3** AND THE TEST IS STRICT EQUALITY, on this page as
+    on the Worker. TWO BUMPS NOW, AND EACH MOVED SOMETHING THIS PAGE READS.**
+    Schema 1 → 2 moved the TAPE'S NUMBERS: a schema-1 record carries `changePct`
+    at the TOP of the `tape` block, a schema-2 reader looks for it inside a
+    per-window sub-block, so a real 14% reaction renders `tape n/p`. Schema 2 → 3
+    moved the VERDICT into `stage`: a schema-2 record carries none, and a reader
+    deriving one from `divergent` would report every unanswered name as `refused`
+    when the split calls most of them `agree` or `candidate`. Both are MISREADS,
+    not gaps. `ptSchemaOk()` gates before any field is read; an off-schema record
+    renders `record schema N — this page reads schema 3` with the record's own
+    ts, in its own **Not read** group, **outside the cap** (whether it would have
+    been actionable is exactly what cannot be said) and named in the queue
+    footnote. **The Worker's endpoint applies the same equality one layer up**,
+    so a record normally cannot reach this gate at all: an off-schema DAY INDEX
+    reads as absent (`ran: false`) and an off-schema record lands in
+    `meta.unreadable[]`. Measured 2026-09-01 after the schema-2 deploy and again
+    2026-09-03 after the schema-3 one — every date from 08-28 to 09-03 answered
+    `ran: false`, because the day indices sitting in KV were written under the
+    previous schema. The frontend gate is for the case the endpoint's guard does
+    not cover: a FUTURE schema this page predates.
   - **`meta.ranReason` NAMES TWO CAUSES AND THERE ARE THREE.** Its text is "the
     job did not run that day, or the day is older than PRINTTAPE_TTL"; the third
     is a day index at another schema reading as absent. The `did-not-run` state
@@ -560,11 +648,22 @@ least once:
     implied earnings move" would be the HV-as-IV failure again. `basis` says so in
     words and `straddlesReport` says whether the expiry is even on the far side of
     the print.
-  - **`guidance` is `null` on a non-divergent record — not asked, never
-    speculatively.** One Claude call per ticker per report, only on
-    `divergent === true`. Its `source` is the earnings **news window**, not the
-    release: there is no 8-K or press-release feed wired to this Worker, and
-    `class: 'not-found'` is the honest answer when the window carried nothing.
+  - **`guidance: null` IS TWO DIFFERENT FACTS AT SCHEMA 3, AND THE STAGE
+    SEPARATES THEM.** The release read fires for any record that reached GATE 1 —
+    `candidate` OR `divergent` (it was `divergent === true` alone before, which
+    the measured evidence says was almost never reachable, since the revenue
+    actual Yahoo needs days to publish was the very input the verdict was waiting
+    on). So **below gate 1** (`not-run` · `refused` · `agree`) a null guidance is
+    *"not asked — the Worker reads the release only for a record that reaches
+    gate 1"*; **at or above it** it is *"release read pending"*, a call in scope
+    that has not landed. Rendering both as the first reports a question the
+    Worker is going to answer as one it refuses to. A REFUSED call is a third
+    state and carries its own `status` + `reason`.
+    One Claude call per ticker per report either way; a candidate the call turns
+    into a divergent has spent ONE in total, not two. Its `source` is the
+    earnings **news window**, not the release: there is no 8-K or press-release
+    feed wired to this Worker, and `class: 'not-found'` is the honest answer when
+    the window carried nothing.
     `PRINTTAPE_GUIDANCE_CLASSES` = `raised | held | cut | not-found`.
   - **`baseRate` is always `{status:'not-measured'}`** — scoring "how often does a
     beat-and-fade recover" needs a logged history of these records resolving
@@ -713,9 +812,28 @@ least once:
     entirely. Its window is filtered on `reportDate` and `session` only, the two
     fields that key the record and that no schema bump has moved, so an aged one
     still drops.
-  - **ONLY `divergent === true` CARDS.** `false` is a real answer and `null` is a
-    refusal; both render on the ticker page, where the question was asked about
-    that one name. Neither is an action, so neither takes a card.
+  - **ONLY THE TWO GATE-1 STAGES CARD — `candidate` AND `divergent`** (phase 16;
+    it was `divergent === true` alone). A candidate is an EPS beat the tape sold
+    with the revenue half still open — the same setup as a divergent minus a
+    figure Yahoo publishes days later — and the chip says exactly that on its
+    face. `agree` is a real answer, `refused` is a refusal and `not-run` is a
+    report that has not happened; all three render on the ticker page, where the
+    question was asked about that one name, and none is an action, so none takes
+    a card. **Membership reads `stage` and never `divergent`**: the boolean is
+    `null` for `refused` AND `candidate`, so reading it would drop every
+    candidate as though it were a refusal — the exact collapse schema 3 undoes.
+  - **THE CHIP IS A STRICT PRECEDENCE and each rung outranks the next for a
+    stated reason.** (1) THE CLOCK WINS — a demoted card says the open passed
+    whatever the stage or the guidance found, because that is a fact of the
+    calendar and both of those are readings. (2) A GUIDANCE **CUT** OUTRANKS THE
+    STAGE — a sell-off with a stated reason is not the setup an unexplained one
+    is, and that is as true of a candidate as of a divergent, because the release
+    read returns the revenue actual and the guidance class in ONE call and a
+    candidate whose revenue half came back empty can still carry a `cut`; leading
+    with "revenue pending" there would bury the answer that is already in.
+    (3) `candidate` → **CANDIDATE — REVENUE PENDING FROM RELEASE**, amber.
+    (4) `divergent` → **PREP FOR OPEN**, since both gates fired and only the
+    clock is left.
   - **PLACEMENT: above the tier-3 level cards, below the clock-driven tiers 1–2.**
     A print the tape sold is a live setup, but an earnings deadline is a fact of
     the calendar and outranks it.
@@ -757,13 +875,39 @@ least once:
     0.97745 consensus as 0.98, against which the Worker's own +4.35% does not
     reconcile — 1.02/0.98 is +4.08%. Two numbers contradicting each other on one
     line, and the kind of thing only a rendered screen shows.
-  - **A failed eligibility scan renders an AMBER LINE ABOVE THE CARDS, never an
-    empty group.** `scanOk === false` means NO name was checked, which is a
-    failure and not a quiet day. Every other day-state (`did-not-run` ·
-    `none-reported` · `route-absent` (HTTP 404, an older Worker) · `failed` ·
-    `not-loaded` · `records`) is named in the **queue footnote on every path**,
-    including the ones that render no card and no banner — a state nothing renders
-    is a state nobody can check.
+  - **A failed eligibility scan renders ABOVE THE CARDS, never an empty group —
+    BUT ITS SEVERITY IS DECIDED BY RECONCILING IT AGAINST THE RECORDS** (amended
+    phase 16). `scanOk === false` means THAT pass checked no watchlist name. It
+    does NOT mean the day went unanswered: another pass on the same day, or the
+    next morning's carry-over appending to the same index, can have written
+    records afterwards. So there are two forms and the split is on the record
+    count:
+    - **WARNING (amber, ⚠)** — scan failed AND the date holds **zero** records.
+      Nothing was checked and nothing answered it later. A failure state, and not
+      "nobody reported".
+    - **INFO (neutral `.ptinfo`, no glyph)** — scan failed AND records exist
+      anyway: *"bmo-pass1 / bmo-pass2 on 2026-09-02 failed (crumb) · 2 records
+      written later by bmo-pass1-carryover (ran 2026-09-03)"*, with the Worker's
+      own `scanReason` verbatim beneath it. The failure is still reported —
+      dropping it would hide that the day's own passes checked nobody — but it is
+      not a warning about a day that was answered.
+
+    **THE BUG THIS FIXES, on the live 2026-09-02 index:** both morning passes
+    logged `scanOk: false` (Yahoo crumb unavailable) and AVGO's record was
+    written the next morning by the carry-over. The old `printTapeDayState()`
+    tested `scanOk` **before** it looked at `records`, so the day short-circuited
+    to `scan-failed` and the page printed *"no print-vs-tape records exist for
+    2026-09-02"* in amber — **directly contradicted by the records it was about
+    to render**, on one screen. `scan-failed` is now reserved for the zero-record
+    case; every other state carries the failed passes forward in `st.scanFailed`
+    (and the record writers in `st.writers`, read off the RECORDS' own `pass`
+    field, because on a day whose scans failed the index's pass entries are
+    exactly the ones that cannot be trusted to name the writer).
+    Every day-state (`did-not-run` · `none-reported` · `route-absent` (HTTP 404,
+    an older Worker) · `failed` · `not-loaded` · `records` · `scan-failed`) is
+    named in the **queue footnote on every path**, including the ones that render
+    no card and no banner, and the recovered-scan case is named there too — a
+    state nothing renders is a state nobody can check.
 - **Queue expansion state lives in `state`, NEVER as a class on the DOM.**
   `renderQueue()` rebuilds its whole subtree with `innerHTML` on the 30-second
   staleness cycle and on every `renderToday()`. Measured 2026-08-20: after
@@ -868,6 +1012,21 @@ least once:
   `date-scoped`, `for the current PT date` and `has not run yet today` were the
   three phrases, all in one branch. The strings that explain an absence are
   exactly the strings nothing exercises.
+- **A SEVERITY DECIDED BEFORE THE EVIDENCE IS READ IS A CLAIM THE SCREEN BESIDE
+  IT REFUTES** (phase 16). `printTapeDayState()` tested `scanOk === false` and
+  returned `scan-failed` **before** it looked at `records`, so a date whose
+  morning passes failed and whose records were written later by the carry-over
+  rendered an amber *"no print-vs-tape records exist for 2026-09-02"* directly
+  above the two records it then painted. Both halves were individually true
+  statements about a pass; together they were a contradiction, and the amber said
+  the one that was wrong about the DAY. **A warning is a claim about an outcome,
+  so it has to be computed from the outcome** — reconcile the failure against
+  what exists before you pick the severity, and keep the failure itself either
+  way. Nothing in a string test would catch this: both strings are strings the
+  page is supposed to be able to produce. Caught by rendering the real
+  `printtapeday:2026-09-02` shape and reading the painted banner beside the
+  painted cards.
+
 - **A FIELD READ OFF THE WRONG OBJECT RENDERS AS A CLAIM ABOUT THE WORKER**
   (phase 15). `consensusSource` and `consensusBankedTs` are RECORD-level, beside
   `schema`/`ticker`/`pass`; the renderer was handed `rec.print` and so read
@@ -949,6 +1108,7 @@ Status is never conveyed by color alone.
 | 13 | **Top-3 serving window** — the Worker now walks back 5 calendar days over 7-day retention, so `top3: null` stopped meaning "no record under today's PT date"; the null copy, the modal's serving-window paragraph and the state comments now state the claim the Worker actually makes, and the stale render was re-checked against fixtures on both clocks | this commit |
 | 14 | **Print vs tape** — `GET /api/printtape?date=` in the shared sweep (two ET dates, no polling); a `print-tape` card kind above the level cards for every `divergent: true` record inside its pre-open window, demoting to a **Rest** group once the open passes; a *Print vs tape* hero vline under Catalyst rendering all three answers; the scan-failure banner and a day-state clause on the queue footnote | this commit |
 | 15 | **Print-vs-tape schema 2 + the NYSE calendar** — a strict schema gate rendering an off-schema record as a stated fact in its own uncapped **Not read** group; the tape rendered as the PAIR of windows it now is, both readings with their own PT quote times and the verdict's window named in words; `consensusSource` / `consensusBankedTs` on the footer with the quarter-roll caveat on a live pass; `GET /api/calendar/holidays` replacing every weekday walk on the page (phase, deadlines, print-tape dates, the brief's no-session state) with a named weekday fallback; and a carry-over clause on the queue footnote derived from the prior date's own envelope | this commit |
+| 16 | **Print-vs-tape schema 3 — stages, the release-read revenue source, and an honest banner** — `PT_SCHEMA` 3 with 1 and 2 both on the mismatch path; queue membership moved from `divergent === true` onto `stage`, so a `candidate` (gate 1 fired, revenue half open) cards beside a `divergent` with its own amber chip; the ticker vline renders all FIVE stages by name with the record's own `stageReason`; the revenue line names its source (`release via Claude` / `yahoo`) with that source's as-of and renders a `revenueConflict` as BOTH figures plus the delta in amber rather than picking one; guidance separated into *not asked* (below gate 1) vs *release read pending* (in scope, not landed); and the scan-failure banner reconciled against the records so a day whose passes failed but whose records were written later reads as an info line, not a warning | this commit |
 | 12 | **Ticker Earnings block** — `/api/earnings` rendered in four parts (header + facts + model read + provenance) in place of a `JSON.stringify(...).slice(0,240)` fallthrough that was the only branch that ever ran; the payload shape recorded in this file so it is never rediscovered by spending; `#build-tag` wired to `DD_BUILD` | this commit |
 
 Doc-sync commits: `557329e` (phase-1 payload facts), `e626a64` (phase-5 payload
@@ -1046,12 +1206,41 @@ These are stated, not fixed. Each is a real limit of the built surfaces.
    no fixture code path in `index.html`): pre+post both readable with
    `usedWindow: 'pre'`, post-only, pre-only (a BMO print's `not-applicable`
    post), `consensusSource` at both values and `pre-banked` with a null bank ts,
-   `divergent: false`, and a schema-1 record hitting the gate. **The check that
-   closes this is the first load after a pass writes a schema-2 record**, and the
-   fields to confirm are the ones the fixture had to supply rather than read:
-   `tape.pre`/`tape.post` on a real two-window merge, `usedWindow` re-derived
-   after it, `consensusBankedTs` from a real pre-bank, and `guidance.class` /
-   `quote` on a real Claude classification.
+   `divergent: false`, and a schema-1 record hitting the gate.
+
+   **STILL OPEN AT SCHEMA 3, AND THE SAME MECHANISM REPEATED ITSELF EXACTLY**
+   (phase 16, 2026-09-03). The schema-3 Worker is deployed — `/api/printtape`
+   publishes `schema: 3`, `meta.stages` and `meta.stageNames` — but every day
+   index in KV was written by the schema-2 code, so the endpoint's strict
+   equality reads them all as absent. **Measured 2026-09-03 09:52 PT: 08-28,
+   08-31, 09-01, 09-02 and 09-03 ALL answer `ran: false`, `records: []`** with
+   the real AVGO `printtape:AVGO:2026-09-02` record sitting in KV behind them.
+   **So the live AVGO record — the one the whole gate split was designed around —
+   could NOT be rendered through any path on this page.** The live check that
+   was possible was done and passes: 1 calendar + exactly 2 `/printtape` requests
+   per load, no polling; the calendar walk AGREES with the Worker's own on
+   2026-09-03 (prev 2026-09-02, next 2026-09-04); both dates render `did-not-run`
+   with the Worker's `ranReason` verbatim plus the schema cause appended; no
+   banner, no info line; the footnote names both states; and the stage
+   cross-check logs AGREE (over two empty maps, which is not a measurement and is
+   labelled as such).
+   **Everything schema-3 is therefore fixture-verified**, through the real
+   `index.html` in headless Chrome over CDP reading the PAINTED DOM — 104 checks,
+   0 failures: the 09-02 banner-info shape (two `scanOk: false` morning passes +
+   a `bmo-pass1-carryover` entry with `ranOn`), the banner-warning shape, a
+   `candidate`, a `divergent`, a `revenueConflict`, `agree` (AVGO's real numbers,
+   which never card), all five stages on the vline, a schema-2 record hitting the
+   gate, the four window boundaries on `?clock=`, contrast on the new `.ptinfo`,
+   `<td>`-per-row against `<th>`, and the stage cross-check over a non-empty
+   population plus a poisoned `meta.stages` proving it can fail.
+   **The check that closes this is the first load after a pass writes a schema-3
+   DAY INDEX** — the next AMC pass at 13:30 / 14:30 PT, or the next morning's BMO
+   passes. The fields to confirm are the ones the fixture had to supply rather
+   than read: `stage` / `stageReason` on a real gate decision, `print.revenue` as
+   a MEASUREMENT (value + quote + citation) rather than a refusal,
+   `revActualSource: 'release-via-claude'`, `releaseRead`, a real
+   `revenueConflict` if Yahoo ever disagrees, and a `carryOver` pass entry with a
+   real `ranOn` and `written`.
 10. **The two-date fetch's holiday gap is CLOSED; its cousin is not** (phases 14,
    15). `printTapeDates()` walks the NYSE calendar now, so after a Monday holiday
    it asks for the Friday. **But the fallback still inherits the old behaviour**:

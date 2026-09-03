@@ -125,6 +125,74 @@ Time-aware — same surface, reordered by session phase:
   > roll in no module at all, so **a refusal on a live-pass record may be the roll
   > rather than a number Yahoo never published.** Those are different facts about
   > the same blank.
+  >
+  > **AMENDED 2026-09-03 — schema 3, and the verdict became a STAGE.** The
+  > original design said this card fires on one direction: EPS beat AND revenue
+  > beat AND the tape sold it by ≥3%. That is still the test. What changed is
+  > that the Worker stopped asking it as ONE five-input question, and the reason
+  > is a measurement rather than a preference: **Yahoo does not publish a revenue
+  > actual inside this feature's window at all.** AVGO reported AMC on
+  > 2026-09-02; its EPS actual (3.32 vs 3.238) and both tape windows were
+  > readable by the 14:30 PT pass, and the revenue actual was still absent
+  > fourteen hours later at the next morning's carry-over — NVDA's was absent six
+  > days after its own print. Asked as one test, that name could only ever answer
+  > `null`. A refusal that is correct, on a report whose EPS and tape were both
+  > fully read, and which tells a reader nothing.
+  >
+  > So the test is two gates and `stage` says which one a record is between.
+  > **Gate 1 is free and structured** — the EPS beat and the tape's reaction,
+  > both already in the response the pass fetched. **Gate 2 is the revenue beat.**
+  > Five stages: `not-run` · `refused` · `agree` · `candidate` · `divergent`,
+  > with `divergent` (the old boolean) DERIVED from it. Two things follow, and
+  > both matter more than the mechanism:
+  >
+  > **A negative gate 1 is now an ANSWER where it used to be a refusal.** The
+  > test is an AND, so when gate 1 comes back negative no revenue figure could
+  > change it — and that is the common case. AVGO's own record turns from
+  > `divergent: null` into `stage: 'agree'` on exactly that line, because its
+  > pre-market sold 2.9871% against a 3.00% gate: **0.0129 of a percentage point
+  > short.** The page says so, in the record's own words.
+  >
+  > **And a `candidate` CARDS.** This is the one place the design's original
+  > "only `true` cards" rule is amended, and deliberately: a candidate is an EPS
+  > beat that the tape sold, with the revenue half still open — the same setup as
+  > a divergent, minus a figure that arrives days after the trade it would have
+  > informed. Waiting for it means the card appears after the reaction is over,
+  > which is the failure the whole two-pass, carry-over schedule exists to avoid.
+  > So it cards, in amber, chipped **"candidate — revenue pending from release"**,
+  > and it is never called a divergence. `agree`, `refused` and `not-run` still
+  > take no card and still render in full on the ticker page, which is where the
+  > question was asked about that one name — now by stage NAME, with the record's
+  > own `stageReason`, instead of collapsing three unlike states into "not
+  > answered".
+  >
+  > **The revenue number now has provenance on its face, because it has two
+  > possible parents.** The Worker reads the release coverage with ONE Claude
+  > call (the same call that classifies guidance) and validates the figure three
+  > ways before believing it; Yahoo's own actual, when it eventually lands, is
+  > kept as a CROSS-CHECK and never as an overwrite — the company's own quoted
+  > words are the primary source and the aggregator is derived. So the line reads
+  > *"Rev $15.95B vs est $15.83B +0.76% · from release via Claude, Sep 03,
+  > 07:02 PT"*, and when the two disagree past 1% it renders **both figures and
+  > the delta, in amber, saying "Yahoo later disagrees"**. It does not pick one.
+  > Which source is describing a different quarter, a restatement or a different
+  > revenue line is not decidable from this page, and a silently-chosen figure
+  > looks exactly like an agreed one. The agreeing cross-check renders too, dim —
+  > otherwise a silent screen would mean "not checked" and "checked and fine" at
+  > the same time.
+  >
+  > **The scan-failure banner was saying the opposite of the screen beneath it.**
+  > A pass whose eligibility scan fails checked no watchlist name, which the page
+  > rendered in amber as *"no print-vs-tape records exist for ‹date›"*. On
+  > 2026-09-02 both morning passes failed on a Yahoo crumb outage and AVGO's
+  > record was written the next morning by the carry-over — so that amber
+  > sentence sat directly above the record it denied. The failure is still a fact
+  > and still renders; its SEVERITY is now computed from the outcome. Zero records
+  > for the date keeps the warning; records written anyway becomes a neutral info
+  > line naming both halves: *"bmo-pass1 / bmo-pass2 on 2026-09-02 failed (crumb)
+  > · 2 records written later by bmo-pass1-carryover (ran 2026-09-03)"*. **A
+  > warning is a claim about an outcome, so it has to be computed from the
+  > outcome.**
 
 - **Levels watch**: watchlist names within ~3% of their key level (the Worker already computes levelPct — this is just a filter).
 - **Session brief**: the day's narrative record, 6:00 briefing → 11:30 pulse → 1:15 close. Three sentences visible per brief, detail expands. This replaces three separate narrative blocks (brief + pre-market + stance prose) and the entire Midday tab. **Revised in phase 8 — this originally read "ONE narrative card that updates through the day", and as built the card never updated: it rendered the 6:00 brief and nothing else, with the other two slots reduced to existence ticks on the timeline. "Updates" was the wrong model anyway. The 11:30 pulse does not supersede the 6:00 plan, it is the day's second reading of it, and at 2pm you want to see what you were told at 6am beside what you were told at 11:30. So: every slot published for the current trading day renders, stacked in session order, each with its own as-of; a slot that has not run renders as a state on the timeline and never as content. The timeline stays — it is the one place a slot's state is reported.**
